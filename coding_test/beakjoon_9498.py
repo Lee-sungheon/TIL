@@ -1,4 +1,4 @@
-#성적 구하기
+# 성적 구하기
 
 result = (int)(input())
 if (result>=90):
