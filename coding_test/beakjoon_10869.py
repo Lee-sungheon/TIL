@@ -1,4 +1,4 @@
-#사칙연산
+# 사칙연산
 
 a, b = input().split()
 a = int(a)
