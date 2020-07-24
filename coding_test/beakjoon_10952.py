@@ -1,4 +1,4 @@
-# A + B - 5
+# A + B - 5 ( while문 사용 )
 
 while(1):
     a, b = map(int, input().split())
