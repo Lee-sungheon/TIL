@@ -1,3 +1,5 @@
+# 정사각형
+
 size = list(map(int, input().split()))
 
 rect = list()
@@ -21,3 +23,4 @@ for i in range(0, min_size):
                         result = (i+1)**2
 
 print(result)
+
