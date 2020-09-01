@@ -1,4 +1,5 @@
-# 계산기 3
+# 계산기 3 - stack
+
 for tc in range(10):
     length = int(input())
     string = input()
