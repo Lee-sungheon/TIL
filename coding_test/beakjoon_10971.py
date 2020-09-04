@@ -16,6 +16,5 @@ def dfs(start, next, value, visited):
 N = int(input())
 cities = [list(map(int, input().split())) for _ in range(N)]
 min_value = [100000000]
-for i in range(N):
-    dfs(i, i, 0, [i])
+dfs(0, 0, 0, [0])
 print(min_value[0])
