@@ -1,5 +1,4 @@
 # 참외밭
-# direction 이용
 
 import sys
 sys.stdin = open('input1.txt')
