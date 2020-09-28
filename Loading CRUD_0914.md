@@ -122,9 +122,10 @@
       ```python
       board = Board.objects.get(pk=pk) # 우선 수정할 녀석을 가져온다.
       board.title = request.POST.get('title') # 기존의 값을 받아온 값으로 덮어쓴다.
-      board.save() # 세이브 필
+      board.save() # 세이브 필요
       ```
 
   * Delete
+    
     * DB 를 삭제하는 동작이기 때문에 POST 방식을 이용.
 
