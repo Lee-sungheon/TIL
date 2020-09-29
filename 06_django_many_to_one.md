@@ -402,7 +402,7 @@ def comments_delete(request, article_pk, comment_pk):
   
   @require_POST
   def comments_create(request, pk):
-      article = get_object_or_404(Article, pk=pk)
+      article = get_object_or_404(Article, pk=pk)	
   
   @require_POST
   def comments_delete(request, article_pk, comment_pk):

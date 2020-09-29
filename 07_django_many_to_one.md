@@ -89,10 +89,12 @@ admin.site.register(User, UserAdmin)
 
 - 유저모델 대체 후 회원가입 시 에러 발생
 - AbstractBaseUser의 모든 subclass와 호환되는 forms
+  
   - AuthenticationForm, SetPasswordForm, PasswordChangeForm, AdminPasswordChangeForm
 - User와 연결되어 있어서 커스텀 유저 모델을 사용하려면 다시 작성하거나 확장해야 하는 forms (ModelForm)
-  - UserCreationForm, UserChangeForm
-
+  
+- UserCreationForm, UserChangeForm
+  
 - `UserCreateForm()` 을 재정의 해보자.
 
   ```python
