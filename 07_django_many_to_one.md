@@ -428,7 +428,7 @@ $ python manage.py migrate
       return redirect('articles:detail', article_pk)
   ```
 
-  ```django
+  ```html
   <!-- articles/detail.html -->
   
   {% extends 'articles/base.html' %}
