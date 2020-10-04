@@ -31,7 +31,7 @@
 - 스키마 (Schema) / 뼈대(Structure)
 
   - 데이터베이스에서 자료의 구조, 표현 방법, 관계 등을 정의한 구조
-  - 데이터베이스 관리 시스템(DBMS)이 주어진 설정에 따라 데이터베이스 스키마를 생상하며, 데이터베이스 사용자가 자료를 저장, 조회, 삭제, 변경할 때 DBMS는 자신이 생성한 데이터베이스 스키마를 참조하여 명령을 수행
+  - 데이터베이스 관리 시스템(DBMS)이 주어진 설정에 따라 데이터베이스 스키마를 생하며, 데이터베이스 사용자가 자료를 저장, 조회, 삭제, 변경할 때 DBMS는 자신이 생성한 데이터베이스 스키마를 참조하여 명령을 수행
 
 - 테이블 (Table) / 관계(Relation)
 
@@ -671,5 +671,5 @@ admin.site.register(Article)
     # indexing
     Article.objects.all()[2]
     # slicing
-    Article.objects.al()[:2]
+    Article.objects.all()[:2]
     ```

@@ -214,20 +214,19 @@ path('create/', views.create, name='create'),
 
 ```python
 def create(request):
+    article = Article(title=title, content=content)
     title = request.GET.get('title') 
     content = request.GET.get('content')
+    article.save()
     
-		# 1.
-		# article = Article()
-		# article.title = title
-		# article.content = content
-		# article.save()
+	# 1.
+	# article = Article()
+	# article.title = title
+	# article.content = content
+	# article.save()
 		
 		# 2. 
     # Article.objects.create(title=title, content=content)
-		
-    article = Article(title=title, content=content)
-    article.save()
     return render(request, 'articles/create.html')
 ```
 
@@ -238,25 +237,6 @@ def create(request):
 
 {% block content %}
   <h1 class='text-center'>성공적으로 글이 작성되었습니다.</h1>
-{% endblock %}
-```
-
-```django
-<!-- templates/articles/index.html -->
-
-{% extends 'base.html' %}
-
-{% block content %}
-  <h1 class="text-center">NEW</h1>
-  <form action="{% url 'articles:create' %}" method="GET">
-    <label for="title">Title: </label>
-    <input type="text" name="title"><br>
-    <label for="content">Content: </label>
-    <textarea name="content" cols="30" rows="5"></textarea><br>
-    <input type="submit">
-  </form>
-  <hr>
-  <a href="{% url 'articles:index' %}">[back]</a>
 {% endblock %}
 ```
 
@@ -315,8 +295,10 @@ def create(request):
   - GET → CRUD에서 R에 해당
   - POST → CRUD에서 C/U/D에 해당
 - 서버의 데이터나 상태를 변경 시키기 때문에 동일한 요청을 여러 번 전송해도 응답의 결과는 다를 수 있다.
+  
   - 데이터가 생성/수정/삭제 되기 때문에 매번 다른 응답이 온다.
 - 원칙적으로 POST 요청을 html 파일로 응답하면 안된다.
+  
   - GET 요청만 html 파일로 응답하고 POST 요청은 GET 요청을 받는 페이지로 **redirect** 해야 한다.
 
 
@@ -481,7 +463,7 @@ def detail(request, pk):
   <p>수정 시각: {{ article.updated_at|date:"M j, Y" }}</p>
   <hr>
   <a href="{% url 'articles:index' %}">[back]</a>
-{% endblock  %}
+{% endblock %}
 ```
 
 - 하지만 지금은 1번 글, 2번 글 등을 보기 위해 주소창에 `articles/1` `articles/2` 이런식으로 요청을 보내야 한다. 이를 해결 하기 위해 index 페이지에 링크를 달아보자.
@@ -490,7 +472,6 @@ def detail(request, pk):
   <!-- templates/articles/index.html -->
   
   {% extends 'base.html' %}
-  
   {% block content %}
   <h1 class="text-center">Articles</h1>
   <a href="{% url 'articles:new' %}">[new]</a>
@@ -502,7 +483,7 @@ def detail(request, pk):
     **<a href="{% url 'articles:detail' article.pk %}">[detail]</a>**
     <hr>
   {% endfor %}
-  {% endblock  %}
+  {% endblock %}
   ```
 
 

@@ -30,7 +30,7 @@ Django는 forms에 관련된 작업의 세 부분을 처리한다.
 
 > https://docs.djangoproject.com/ko/3.1/topics/forms/#working-with-forms
 
-- `Form` 클래스는 Django form 관리 시스템의 핵심이다. Form 클래스는 form내 field들, field 배치, 디스플레이 widget, label, 초기값, 유효한 값과 (유효성 체크이후에) 비유효 field에 관련된 에러메시지를 결정한다.
+- `Form` 클래스는 Django form 관리 시스템의 핵심이다. Form 클래스는 form내 field들, field 배치, 디스플레이 widget, label, 초기값, 유효한 값과 (유효성 체크 이후에) 비유효 field에 관련된 에러메시지를 결정한다.
 
 <br>
 
