@@ -1,10 +1,37 @@
 # 색종이 붙이기
-def search(r, c):
-    for i in range(10):
-        for j in range(10):
-            if paper[i][j] == 1:
-                size = find_size(r, c)
 
+def search(x, cnt):
+    global result
+    if x == 100:
+        for i in range(10):
+            if paper[i].count(1) > 0:
+                return
+        else:
+            if cnt < result:
+                result = cnt
+            return
+
+    if paper[x//10][x%10] == 1:
+        if cnt >= result:
+            return
+
+        size = find_size(x//10, x%10)
+        for k in range(size, 0, -1):
+            if num[k] > 0:
+                num[k] -= 1
+                change_paper(x//10, x%10, k, 0)
+                search(x+1, cnt + 1)
+                num[k] += 1
+                change_paper(x//10, x%10, k, 1)
+    else:
+        search(x+1, cnt)
+
+
+def change_paper(r, c, size, x):
+    for i in range(size):
+        for j in range(size):
+            paper[r+i][c+j] = x
+    return
 
 
 def find_size(r, c):
@@ -20,5 +47,10 @@ def find_size(r, c):
 
 
 paper = [list(map(int, input().split())) for _ in range(10)]
-result = -1
-search()
+result = 26
+num = [0, 5, 5, 5, 5, 5]
+search(0, 0)
+if result == 26:
+    print(-1)
+else:
+    print(result)
