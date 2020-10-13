@@ -11,18 +11,18 @@ def search(x, cnt):
                 result = cnt
             return
 
-    if paper[x//10][x%10] == 1:
+    if paper[x//10][x % 10] == 1:
         if cnt >= result:
             return
 
-        size = find_size(x//10, x%10)
+        size = find_size(x//10, x % 10)
         for k in range(size, 0, -1):
             if num[k] > 0:
                 num[k] -= 1
-                change_paper(x//10, x%10, k, 0)
+                change_paper(x//10, x % 10, k, 0)
                 search(x+1, cnt + 1)
                 num[k] += 1
-                change_paper(x//10, x%10, k, 1)
+                change_paper(x//10, x % 10, k, 1)
     else:
         search(x+1, cnt)
 
