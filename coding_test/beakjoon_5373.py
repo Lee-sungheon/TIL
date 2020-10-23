@@ -11,4 +11,36 @@ for tc in range(T):
     print(cube)
     for i in range(N):
         if rotation[i] == 'L-':
-            cube[0][0]
+            tmp1 = cube[0][0][0]
+            tmp2 = cube[0][1][0]
+            tmp3 = cube[0][2][0]
+            cube[0][0][0] = cube[2][0][0]
+            cube[0][1][0] = cube[2][1][0]
+            cube[0][2][0] = cube[2][2][0]
+            cube[2][0][0] = cube[1][0][0]
+            cube[2][1][0] = cube[1][1][0]
+            cube[2][2][0] = cube[1][2][0]
+            cube[1][0][0] = cube[3][0][0]
+            cube[1][1][0] = cube[3][1][0]
+            cube[1][2][0] = cube[3][2][0]
+            cube[3][0][0] = tmp1
+            cube[3][1][0] = tmp2
+            cube[3][2][0] = tmp3
+        elif rotation[i] == 'L+':
+            tmp1 = cube[0][0][0]
+            tmp2 = cube[0][1][0]
+            tmp3 = cube[0][2][0]
+            cube[0][0][0] = cube[2][0][0]
+            cube[0][1][0] = cube[2][1][0]
+            cube[0][2][0] = cube[2][2][0]
+            cube[2][0][0] = cube[1][0][0]
+            cube[2][1][0] = cube[1][1][0]
+            cube[2][2][0] = cube[1][2][0]
+            cube[1][0][0] = cube[3][0][0]
+            cube[1][1][0] = cube[3][1][0]
+            cube[1][2][0] = cube[3][2][0]
+            cube[3][0][0] = tmp1
+            cube[3][1][0] = tmp2
+            cube[3][2][0] = tmp3
+
+    print(*cube[0])
