@@ -179,7 +179,9 @@ for tc in range(T):
             cube[4][1][0] = tmp2
             cube[4][2][0] = tmp1
             cube[3] = rotate(3, 0)
-
+        for i in range(6):
+            print(cube[i])
+        print()
     for i in range(3):
         print(''.join(cube[0][i]))
 
