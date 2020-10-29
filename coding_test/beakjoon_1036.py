@@ -9,10 +9,11 @@ for word in words:
     for i in range(len(word)):
         if 65 <= ord(word[i]) <= 90:
             word[i] = ord(word[i]) - 55
-        elif 48 <= ord(word[i]) <= 57:
+        else:
             word[i] = ord(word[i]) - 48
-        num[word[i]][0] += (35 - word[i]) * 36 ** (len(word) - i - 1)
+        num[word[i]][0] += (35 - word[i]) * 36 ** (len(word)-i-1)
 num.sort(reverse=True)
+print(num)
 num = [row[1] for row in num][0:K]
 for word in words:
     for i in range(len(word)):
@@ -20,6 +21,7 @@ for word in words:
             word[i] = 35
         total += word[i] * 36 ** (len(word)-i-1)
 answer = ''
+print(total)
 while total > 0:
     mok = total // 36
     na = total % 36
