@@ -20,4 +20,5 @@ for i in range(N):
         result.append(array[i])
     else:
         result[bisect_left(result, array[i], 0, len(result))] = array[i]
-print(N-len(result))
+print(result)
+print(N - len(result))
