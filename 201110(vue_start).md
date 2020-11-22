@@ -42,6 +42,7 @@
 - v-for
 
   - 반복문
+  - v-for 과 v-if가 함께 있으면 v-for의 각 요소마다 v-if를 적용
 
 - v-bind
 
