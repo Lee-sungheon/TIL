@@ -1,7 +1,5 @@
-# 퇴근 시간 (다익스트라)
 import heapq
 import sys
-
 
 N, M, S, E = map(int, sys.stdin.readline().split())
 matrix = [list(map(int, sys.stdin.readline().split())) for _ in range(M)]
@@ -15,8 +13,12 @@ queue = []
 K_distance = [INF for _ in range(N + 1)]
 K_distance[0] = K_distance[1] = 0
 heapq.heappush(queue, [0, 1])
+visited = [False for _ in range(N + 1)]
 while queue:
     mid = heapq.heappop(queue)
+    if visited[mid[1]]:
+        continue
+    visited[mid[1]] = True
     for end in distance[mid[1]]:
         if end[2] == 1 and ((mid[0] <= S < mid[0] + end[1]) or (S <= mid[0] <= E)):
             if mid[0] >= S:
