@@ -1,4 +1,4 @@
-# 물약(문자열)
+# 물약 (문자열)
 N, M = map(int, input().split())
 result = 1000000001
 items = {}

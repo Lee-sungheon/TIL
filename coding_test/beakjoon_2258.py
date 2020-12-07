@@ -1,5 +1,4 @@
 # 정육점 (정렬, 그리디)
-
 import sys
 
 N, M = map(int, sys.stdin.readline().split())
