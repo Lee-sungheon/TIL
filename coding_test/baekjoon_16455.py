@@ -1,29 +1,32 @@
 # K번째 수 찾는 함수(정렬)
-import sys
-
-
 def kth(a, k):
-    def quick_select(arr, k):
-        pivot = arr[(len(arr) + 1) // 2 - 1]
-        left, mid, right = [], [], []
-        for i in range(len(arr)):
-            if arr[i] < pivot:
-                left.append(arr[i])
-            elif arr[i] > pivot:
-                right.append(arr[i])
-            else:
-                mid.append(arr[i])
-
-        if k < len(left):
-            return quick_select(left, k)
-        elif k < len(left) + len(mid):
-            return mid[0]
-        else:
-            return quick_select(right, k - len(left) - len(mid))
-    k -= 1
-    return quick_select(a, k)
+    def partition(arr, l, r):
+        x = arr[r]
+        i = l
+        for j in range(l, r):
+            if arr[j] <= x:
+                arr[i], arr[j] = arr[j], arr[i]
+                i += 1d
+        arr[i], arr[r] = arr[r], arr[i]
+        return i
 
 
-N, K = map(int, input().split())
-A = list(map(int, sys.stdin.readline().split()))
-print(kth(A, K))
+    def kthSmallest(arr, l, r, k):
+        if (k > 0 and k <= r - l + 1):
+            index = partition(arr, l, r)
+            if (index - l == k - 1):
+                return arr[index]
+            if (index - l > k - 1):
+                return kthSmallest(arr, l, index - 1, k)
+            return kthSmallest(arr, index + 1, r,
+                               k - index + l - 1)
+
+
+    n = len(a)
+    return kthSmallest(a, 0, n - 1, k)
+
+# Driver Code
+arr = [10, 4, 5, 8, 6, 11, 26]
+k = 1
+print("K-th smallest element is ", end="")
+print(kth(arr, k))

@@ -1,18 +1,22 @@
-def sd(like, n):
-    m = sum(like) / n
-    total = 0
-    for i in range(n):
-        total += (like[i] - m) ** 2
-    total = total / n
-    result = total ** (1 / 2)
-    print(result)
-    return result
+import sys, math
+from decimal import Decimal
 
 
-N, K = map(int, input().split())
-likes = list(map(int, input().split()))
-answer = 1000000
-for j in range(K, N+1):
-    for i in range(N-j+1):
-        answer = min(answer, sd(likes[i:i+j], j))
-print(answer)
+N, K = map(int, sys.stdin.readline().split())
+dolls = list(map(int, sys.stdin.readline().split()))
+sum_s = [0] * (N+1)
+st_s = [0] * (N+1)
+
+# O(N^2)로 풀어야함
+
+for i in range(1, N+1):
+    sum_s[i] = sum_s[i-1] + dolls[i-1]
+    st_s[i] = st_s[i-1] + dolls[i-1] ** 2
+
+min_v = 10000000000
+for i in range(K, N+1):     # K 이상
+    for j in range(N-i+1):  # 1개씩 증가
+        av = Decimal(sum_s[i+j] - sum_s[j]) / i
+        st = Decimal(st_s[i+j] - st_s[j]) / i - (av*av)
+        min_v = min(min_v, st)
+print(min_v.sqrt())
