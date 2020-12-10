@@ -6,7 +6,7 @@ def kth(a, k):
         for j in range(l, r):
             if arr[j] <= x:
                 arr[i], arr[j] = arr[j], arr[i]
-                i += 1d
+                i += 1
         arr[i], arr[r] = arr[r], arr[i]
         return i
 
