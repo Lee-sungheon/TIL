@@ -25,7 +25,7 @@ def kth(a, k):
     n = len(a)
     return kthSmallest(a, 0, n - 1, k)
 
-# Driver Code
+
 arr = [10, 4, 5, 8, 6, 11, 26]
 k = 1
 print("K-th smallest element is ", end="")
