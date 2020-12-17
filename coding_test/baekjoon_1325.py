@@ -38,6 +38,7 @@ for _ in range(M):
 
 max_value = 0
 result = []
+print(graph)
 for i in range(1, N+1):
     if graph[i]:
         value = bfs(i)
