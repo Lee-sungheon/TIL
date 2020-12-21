@@ -1,33 +1,42 @@
+from collections import defaultdict, deque
 import sys
-sys.setrecursionlimit(10**4)
 
 
-def dfs(x):
-    global value
-    visited[x] = True
-    for y in range(len(graph[x])):
-        if not visited[graph[x][y]]:
-            value += 1
-            dfs(graph[x][y])
+def bfs(D):
+    global max_cnt
+    res = 0
+    S = deque([D])
+    visit[D] = False
+    while S:
+        res += 1
+        tmp = S.popleft()
+        for i in dic[tmp]:
+            if visit[i]:
+                S.append(i)
+                visit[i] = False
+    if max_cnt < res:
+        L.clear()
+        L.append(D)
+        max_cnt = res
+    elif max_cnt == res:
+        L.append(D)
+    return
 
 
 input = sys.stdin.readline
 
 N, M = map(int, input().split())
-graph = [[] for _ in range(N+1)]
+L = []
+max_cnt = 0
+dic = [[] for _ in range(N+1)]
 for _ in range(M):
     a, b = map(int, input().split())
-    graph[b].append(a)
-max_value = 0
-result = []
-for i in range(1, N+1):
-    if graph[i]:
-        visited = [False]*(N+1)
-        value = 1
-        dfs(i)
-        if max_value <= value:
-            if max_value < value:
-                result = []
-            max_value = value
-            result.append(i)
-print(*result)
+    dic[b].append(a)
+
+for key in range(len(dic)):
+    if dic[key]:
+        visit = [True] * (N+1)
+        bfs(key)
+
+for i in L:
+    print(i, end=' ')
