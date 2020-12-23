@@ -2,15 +2,6 @@
 import sys
 from collections import deque
 
-# dfs는 왜 메모리초과가 날까????
-
-# def dfs(x):
-#     global value
-#     visited[x] = True
-#     for y in graph[x]:
-#         if not visited[y]:
-#             value += 1
-#             dfs(y)
 
 def bfs(x):
     val = 0
