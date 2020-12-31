@@ -45,15 +45,16 @@ for _ in range(T):
                 stack.pop()
         idx += 1
         cnt += 1
-        if cnt >= 440000:  # 50000000
-            print(stack)
-            print(loop_cnt)
+        if cnt > 50000000:
             for i in range(len(stack)):
                 if loop_cnt[stack[i]] > 2:
                     print(f"Loops {stack[0]} {pair[stack[0]]}")
                     break
             else:
-                print(f"Loops {stack[-1]} {pair[stack[-1]]}")
+                if sum(loop_cnt.values()) > 500:
+                    print(f"Loops {stack[0]} {pair[stack[0]]}")
+                else:
+                    print(f"Loops {stack[-1]} {pair[stack[-1]]}")
             break
     else:
         print('Terminates')
