@@ -1,24 +1,32 @@
 # 발전소
+import sys
+sys.setrecursionlimit(10**6)
+
+def solve(total):
+    global result
+    if total > result:
+        return
+    if on_off.count('Y') >= on_num:
+        result = min(result, total)
+        return
+    for i in range(n):
+        for j in range(n):
+            if on_off[j] == 'N' and i != j:
+                tmp = plant[i][j]
+                on_off[j] = 'Y'
+                solve(total+tmp)
+                on_off[j] = 'N'
+
 
 n = int(input())
+result = 5000
 plant = [list(map(int, input().split())) for _ in range(n)]
 on_off = list(input())
 on_num = int(input())
-cost = [0] * n
-for i in range(n):
-    if on_off[i] == 'N':
-        cost[i] = 51
 
-for i in range(n):
-    for j in range(n):
-        if on_off[j] == 'N' and i != j:
-            tmp = plant[i][j]
-            if tmp < cost[j]:
-                cost[j] = tmp
+solve(0)
 
-cost.sort()
-cost = cost[:on_num]
-if cost.count(51) > 0:
+if result == 5000:
     print(-1)
 else:
-    print(sum(cost))
+    print(result)
