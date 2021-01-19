@@ -13,4 +13,4 @@ def solution(n):
     return answer
 
 
-print(solution(2))
+print(solution(3))
