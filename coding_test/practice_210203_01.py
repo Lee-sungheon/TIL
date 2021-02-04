@@ -18,6 +18,7 @@ for tc in range(t):
     N = len(dis[0])
     visit = [False] * N
     result = []
+    print(dis)
     while True:
         diff = []
         for i in range(N):
