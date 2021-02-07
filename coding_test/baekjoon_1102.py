@@ -1,4 +1,4 @@
-# 발전소
+# 발전소 (bfs)
 import sys
 sys.setrecursionlimit(10**6)
 
