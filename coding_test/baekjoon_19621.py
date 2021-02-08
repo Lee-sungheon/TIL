@@ -1,4 +1,4 @@
-# 회의실 배정 2, 회의실 배정 3
+# 회의실 배정 2, 회의실 배정 3 (dp)
 import sys
 
 input = sys.stdin.readline
