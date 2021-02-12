@@ -1,4 +1,4 @@
-# 외판원 순회2
+# 외판원 순회2 (dfs)
 
 def dfs(start, next, value, visited):
     if len(visited) == N:
