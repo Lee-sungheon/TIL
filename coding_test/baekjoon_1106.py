@@ -1,4 +1,4 @@
-# 호텔
+# 호텔 (dp)
 
 def dpdp(N, C):
     for i in range(N):
