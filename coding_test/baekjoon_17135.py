@@ -17,7 +17,7 @@ def bfs(re, dis):
     for i in range(N):
         for k in range(1, dis+1):
             for j in range(3):
-                if abs(re[j] - ) == k:
+                # if abs(re[j]) == k:
         del matrix[N-i-1]
 
 
