@@ -1,3 +1,5 @@
+# 설탕 배달 (그리디)
+
 n = int(input())
 
 total = result = 0
