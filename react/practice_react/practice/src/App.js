@@ -1,23 +1,35 @@
-import logo from './logo.svg';
 import './App.css';
+import Hello from './component/Hello';
+import Hello2 from './component/Hello2';
+import DayList from './component/DayList';
+import Day from './component/Day';
+import styles from "./App.module.css"
 
-function App() {
+function App() { 
+  const name = "Tom"
+  const naver = {
+    name: "네이버",
+    url: "https://naver.com"
+  }
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React~~~!
-        </a>
-      </header>
+      <h1
+        style={{
+          color: "white",
+          backgroundColor: "green"
+        }}
+      >
+        Hello, {name}.
+      </h1>
+      <a href={naver.url}>{naver.name}</a>
+      <div className={styles.box}>
+      </div>
+      <Hello />
+      <Hello2 age={10} money={200} />
+      <Hello2 age={20} />
+      <Hello2 age={30} />
+      <DayList />
+      <Day />
     </div>
   );
 }
