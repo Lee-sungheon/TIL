@@ -149,7 +149,7 @@
 
 - state
 
-  - 값을 관리해 DOM에 실시간으로 적용해줌
+  - `useState` : 값을 관리 및 변경하기 위함, 이 값은 DOM에 실시간으로 적용해줌
 
     ```react
     import { useState } from "react";
@@ -172,6 +172,46 @@
       )
     }
     ```
+
+  - `useEffect` : 값이 변경되었을 때 함수를 실행시킴
+
+    ```react
+    import { useEffect, useState } from "react"
+    
+    export default function Word({ word }) {
+      const [isShow, setIsShow] = useState(false)
+      const [isDone, setIsDone] = useState(word.isDone)
+    
+      function toggleShow() {
+        setIsShow(!isShow)
+      }
+      function toggleDone() {
+        setIsDone(!isDone)
+      }
+    
+      useEffect(function() {
+        console.log("Change")
+      }, [isShow])
+    
+      return (
+        <tr className={isDone ? "off":""}>
+          <td>
+            <input type="checkbox" checked={isDone}
+            onChange={toggleDone}/>
+          </td>
+          <td>
+            <button onClick={toggleShow}>뜻 {
+              isShow ? "숨기기": "보기"}</button>
+            <button className="btn_del">삭제</button>
+          </td>
+        </tr>
+      )
+    }
+    ```
+
+  - `Custom Hooks ` : 자신만의 custom hook을 만들 수 있음 - > 재활용에 용이,  `use커스텀명`의 형태
+
+  
 
 - props
 
@@ -257,5 +297,79 @@
     }
     ```
 
-- 
+- 라우터
+
+  - npm 설치 필요
+
+  ```bash
+  npm install react-router-dom
+  ```
+
+  - `BrouserRouter` 안에 JSX를 넣고 라우팅에 의해 바뀌는 부분은 `Switch` 안에 위치
+  - `exact` : 주어진 경로와 정확히 맞아 떨어져야만 설정한 컴포넌트를 보여줌
+
+  ```react
+  import { BrowserRouter, Route, Switch } from "react-router-dom"
+  
+  function App() {
+    return (
+      <BrowserRouter>
+        <div className="App">
+          <h1>Hello, {name}</h1> {/* 헤더 자리 */}
+          <Switch>
+            <Route exact path="/">
+              <DayList />
+            </Route>
+            <Route path="/day/:day">
+              <Day />
+            </Route>
+            {/* 페이지가 잘못된 경로로 접근했을 때 최종 처리 -> 끝에 있어야함 */}
+            <Route>
+              <EmptyPage />
+            </Route>
+          </Switch> 
+        </div>
+      </BrowserRouter>
+    );
+  }
+  ```
+
+  - routing를 해줄 때는 `Link to` 를 사용
+  - route 강제 이동 : `histroy.push(‘/인자’)`
+
+  ```react
+  import { Link } from "react-router-dom"
+  import dummy from "../db/data.json"
+  
+  export default function DayList() {
+    console.log(dummy)
+    return <ul className="list_day">
+      {dummy.days.map(day => (
+        <li key={day.id}>
+          <Link to={`/day/${day.day}`}>Day {day.day}</Link>
+        </li>
+      ))}
+    </ul>
+  }
+  ```
+
+  - 값을 받을 때는 `useParams()` 를 사용하여줌
+
+  ```react
+  import dummy from "../db/data.json"
+  import { useParams } from "react-router-dom"
+  
+  export default function Day() {
+    let day = useParams().day
+    day = Number(day)
+    const wordList = dummy.words.filter(word => (
+      word.day === day
+    ))
+  
+    return <>
+    </>
+  }
+  ```
+
+  
 
