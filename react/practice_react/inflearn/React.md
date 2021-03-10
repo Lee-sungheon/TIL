@@ -112,3 +112,34 @@
   - `import { BrowserRouter, Route, Link } from 'react-router-dom';`
   - Route로 랜더링을 하면 속성값으로 `match`를 넣어줌
     - `match.url` 로 url 확인 가능
+
+
+
+## React 사용 Tip
+
+- `memo`
+  
+  - `export default React.memo(변수명)` : 변수가 업데이트 되지 않으면 재랜더링 하지 않음
+  - 실제 프로젝트 적용 해보기!
+  
+- `<React.Fragment>` : return 값에 <div>를 원하지 않을 때 사용 (축약형 : `<> </>`)
+
+-  `portal ` 
+  - modal에서 많이 쓰임
+  - 다른 멀리 떨어진 엘리먼트에 랜더링 하고 싶을 때 사용  
+  
+  ```react
+  import ReactDOM from 'react-dom';
+  
+  export default function App() {
+      return (
+      {ReactDOM.createPortal(
+      	<div>
+           	<p>안녕하세요</p>
+       	</div>
+       )}
+  	)
+  }
+  ```
+  
+  
