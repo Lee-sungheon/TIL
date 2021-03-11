@@ -28,7 +28,10 @@
   - 자바스크립트 압축
   - JS에서 CSS, JSON, 텍스트 파일 등을 일반 모듈처럼 불러오기
   - 환경 변수 주입
+  
 - 웹팩을 사용하는 가장 큰 이유 => 모듈 시스템(ESM, commonJS)를 사용하고 싶어서
+
+  - ESM : javascript를 import 로 사용할 수 있음
 
 - 요즘 브라우저는 ESM을 지원
   - 오래된 브라우저는 지원 x
@@ -308,3 +311,149 @@
 -  useMemo, useCallback, memo 사용으로 최적화 -> but 처음부터 설계해서 하면 가독성이 떨어지므로 성능이슈가 생겼을 때 그부분만 리팩토링 하는 것을 추천
 - type을 바꾸는 상황이라면 if return / else return 보다 조건부 렌더링이나 삼항연산자가 더 최적화
 - key 속성 값을 입력하면 리액트는 같은 key 속성을 가진 값들끼리만 비교함
+
+
+
+## 리덕스
+
+- 컴포넌트 코드로부터 상태 관리 코드를 분리할 수 있음
+
+- 미들웨어를 활용한 다양한 기능 추가
+
+  - 강력한 미들웨어 라이브러리 (ex. redux-saga)
+  - 로컬 스토리지에 데이터 저장하기 및 불러오기
+
+- SSR 시 데이터 전달이 간편하다
+
+- 리액트 콘텍스트보다 효율적인 렌더링 가능
+
+- 구조
+
+  - 액션 -> 미들웨어 -> 리듀서 -> 스토어 -> 뷰 -> 액션
+
+  - 액션 
+
+    - type 속성 값을 가지고 있는 객체
+    - `{type: 'type' , ... }`
+    - action creater를 만들어줘서 사용하는 것을 권장
+
+  - 미들웨어
+
+    - `const myMiddleware = store => next => action => next(action);`
+    - store 와 action은 연결해줌
+
+  - 리듀서
+
+    - 액션이 발생했을 때 새로운 상태값을 만드는 함수
+
+    - 상태값은 불변 상태로 관리해야함
+
+    - immer 
+
+      - 불변 객체를 수정할 때 유용
+
+      ```react
+      import produce from 'immer';
+      
+      function reducer(state = INITIAL_STATE, action ) {
+          return produce(state, draft => {
+            switch (action.type) {
+              case ADD:
+                  draft.todos.push(action.todo);
+                  break;
+              case REMOVE_ALL:
+                  draft.todos = [];
+                  break;
+            }
+          });
+      }
+      ```
+
+    - 사용시 주의 사항
+
+      - 서버 API 호출 하지 말 것
+      - random, time 함수같은 랜덤 값을 사용하지 말 것 -> 필요하다면 action 객체에서 생성
+
+    - createReducer
+
+      ```react
+      // 기본 형태
+      function createReducer(initialState, handlerMap) {
+          return function (state = initialState, action) {
+              return produce(state, draft => {
+                  const handler = handlerMap[action.type];
+                  if (handler) {
+                      handler(draft, action)
+                  }
+              })
+          }
+      }
+      
+      // 활용
+      const reducer = createReducer(INITIAL_STATE, {
+          [ADD]: (state, action) => state.todos.push(action.todo),
+          [REMOVE_ALL]: state => (state.todos = [])
+      });
+      ```
+
+      
+
+  - 스토어
+
+    - `createStore`을 사용
+
+    - 상태값을 저장 / 액션 처리가 끝났음을 외부에 알려주는 역할
+
+      ```react
+      import React from 'react';
+      import { createStore } from 'redux';
+      import { createReducer } from './redux-helper'
+      
+      export default function App() {
+          return <div>실전 리액트</div>;
+      }
+      
+      const INITIAL_STATE = { value: 0 };
+      const reducer = createReducer(INITIAL_STATE, {
+          INCREMENT: state => (state.value += 1),
+      });
+      const store = createStore(reducer);
+      
+      let prevState;
+      store.subscribe(() => {
+          const state = store.getState();
+          if (state === prevState) {
+              console.log('상태값 같음');
+          } else {
+              console.log('상태값 변경됨');
+          }
+          prevState = state;
+      });
+      
+      store.dispatch({ type: 'INCREMENT' });
+      store.dispatch({ type: 'OTHER_ACTION' });
+      ```
+
+      
+
+
+
+## 리덕스에서 비동기 처리
+
+- redux-thunk
+  - 비동기 로직이 간단할 때 사용
+  - 가장 간단하게 시작할 수 있음
+- redux-observable
+  - 비동기 코드가 많을 때 사용
+  - RxJS 패키지를 기반으로 만들어짐
+    - 리액티브 프로그래밍을 공부해야하므로 진입장벽이 가장 높음
+- redux-saga
+  - 비동기 코드가 많을 때 사용
+  - 제너레이터를 적극적으로 활용함
+  - 테스트 코드 작성이 쉬움
+
+
+
+
+
+- debounce -> 실시간 검색창에 사용하면 될듯
