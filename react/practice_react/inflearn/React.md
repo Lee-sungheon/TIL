@@ -143,3 +143,168 @@
   ```
   
   
+
+## 리액트 훅(hook)
+
+- 컴포넌트에 기능을 추가할 때 사용하는 함수
+  - ex) 컴포넌트에 상태값 추가, 자식 요소에 접근
+  - 리액트 16.8에 새로 추가됨
+    - 그 전에는 클래스 컴포넌트 사용
+    - 클래스형 컴포넌트보다 장점이 많으며 리액트 팀에서도 훅에 집중하고 있음
+- useState: 상태값 추가
+  - 비동기 및 배치로 처리됨
+  - setState 시, 객체는 덮어쓰는 방식으로 주소값을 바꿔줘야함
+- useEffect: 부수효과 처리
+  - 서버 API 호출, 이벤트 핸들러 등록 등
+  - `useEffect(() => {}, [])` : `[]`는 의존성 배열
+  - 함수에 사용하는 변수는 꼭 의존성 배열에 넣어줘야 함
+- 커스텀훅:
+  - use'Name'으로 설정해주는 것이 좋음
+  - 일반적인 함수 형태로 작성
+- 훅 사용 시 지켜야 할 규칠
+  - 규칙 1 : 하나의 컴포넌트에서 훅을 호출하는 순서는 항상 같아야 함
+    - 훅은 각 훅이 사용된 위치 정보를 기반으로 훅 정보를 관리함
+  - 규칙 2 : 훅은 함수형 컴포넌트 또는 훅 안에서만 호출되어야 함
+
+- 내장 훅
+  - useRef 
+  - useMemo
+  - useCallback
+  - useReducer
+  - useImperativeHandle
+  - useLayoutEffect
+    - 특별한 이유가 없다면 useEffect를 사용(성능)
+    - 동기 방식
+    - 리액트가 랜더링을 하고 실제돔에 반영된 후에 함수가 실행됨
+  - useDebugValue  
+
+
+
+## Context
+
+- 사용법
+
+  ```react
+  { createContext, useContext } from 'react'
+  const UserContext = createContext('unknown')
+  
+  ...
+  	const [name, setName] = useState('mike')
+  	return(
+          ...
+          <UserContext.Provider value={name}>
+              <Name>
+          </UserContext.Provider>
+          ...
+      )
+  
+  ...
+  
+  	const user = useContext(UserContent)
+  	return (
+  		<p>{username}님 안녕하세요</p>
+      )
+  	
+  ```
+
+- 랜더링은 해당 컴포너트만 된다
+
+
+
+## Ref
+
+- 사용법
+
+  ```react
+  import {useRef} from 'react';
+  
+  ...
+  	const inputRef = useRef();
+  	useEffect(() => {
+          inputRef.current.focus();
+      }, []);
+  	
+  	return (
+      	<div>
+          	<input type="text" ref={inputRef} />
+              <Box ref={inputRef} />
+              <button>저장</button>
+          </div>
+      )
+  ```
+
+- useRef() 를 사용할 때는 컴포넌트 안에서 바로 사용하지 말고 useEffect() 안에서 사용해줘야함
+
+## 컴포넌트 파일 작성법
+
+- 컴포넌트 파일 작성법
+
+  ```react
+  MyComponent.propTypes = {
+      // ...
+  }; // 타입스크립트시 필요 x
+  
+  export default function MyComponent({ pro1, prop2 }){
+      // 함수 이름을 명시해줘야 개발자 도구에서 확인이 가능함
+      // 매개변수는 명명된 매개변수 문법으로 작성하는 것을 추천
+  }
+  
+  const COLUMNES = [
+      // 변수는 외부에서 만들어서 사용하는 것이 성능상 좋음 (재랜더링을 안함)
+  ];
+  
+  const URL_PRODUCT_LIST = '/api/products'; // 변수 이름은 대문자로
+  function getTotalPrice({ price, total }){
+      // 변수나 함수는 중요도가 적으니 밑에 몰아서 작성해주는 것이 좋음
+  }
+  ```
+
+  ```react
+  function Profile( { userId }) {
+      const [user, setUser] = userState(null);
+      useEffect (() => {
+          getUserApi(userId).then(data => setUser(data));
+      }, [userId]);
+      
+      //const [user, setUser] = userState(null);
+      //useEffect (() => {
+      //    getUserApi(userId).then(data => setUser(data));
+      //}, [userId]);
+      const user = useUser(userId);
+  }
+  
+  // State와 Effect는 기능에 맞춰서 분리해주어야 나중에 custom hook으로 분리하기도 편함
+  // 컴포넌트 코드가 복잡해지면 custom hook으로 분리하는 것을 추천
+  ```
+
+- proTypes 작성법
+
+  - 설치 : `npm install prop-types`
+  - 타입이 중요한 이유 : 큰 규모의 프로젝트를 작성할 때 생산성을 높이기 위해 정적 타입 언어를 사용하는 것이 좋음
+
+  ```react
+  import PropTypes from 'prop-types';
+  
+  User.propTypes = {
+      male: PropTypes.bool.isRequired, //isRequired : 필수데이터
+      age: PropTypes.number,
+      type: PropTypes.oneOf(['gold', 'silver', 'bronze']),
+      onChangeName: PropTypes.func, // (name: string) 함수의 매개변수도 주석으로 명시
+      onChangeTitle: PropTypes.func.isRequired,
+  }
+  ```
+
+- 컴포넌트 분류 기준
+
+  - container :  비즈니스 로직과 상태값을 관리하고 있는 경우
+  - component : 비즈니스 로직과 상태값은 관리하고 있지 않는 경우
+
+
+
+## 렌더링 최적화
+
+- 리액트 렌더링 과정 : component => 가상 돔과 비교 => 실제 돔에 반영
+- object의 비교는 불변 변수를 사용하면 단순 비교만으로도 알 수 있음 (덮어 써서 레퍼런스가 변하기 때문)
+-  useMemo, useCallback, memo 사용으로 최적화 -> but 처음부터 설계해서 하면 가독성이 떨어지므로 성능이슈가 생겼을 때 그부분만 리팩토링 하는 것을 추천
+- type을 바꾸는 상황이라면 if return / else return 보다 조건부 렌더링이나 삼항연산자가 더 최적화
+- key 속성 값을 입력하면 리액트는 같은 key 속성을 가진 값들끼리만 비교함
