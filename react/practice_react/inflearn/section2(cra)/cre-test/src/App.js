@@ -1,31 +1,17 @@
 import React from "react"
+import TimelineMain from './timeline/container/TimelineMain';
+import FriendMain from './friend/container/FriendMain';
+import {Provider} from 'react-redux';
+import store from './common/store';
 
 function App() {
-  const [count, setCount] = useState(0)
-  const intervalId = useRef()
-  console.log(`랜더링... count: ${count}`)
-  useEffect(() => {
-    intervalId.current.focus()
-  }, [])
-
-  const startCounter = () => {
-    intervalId.current = setInterval(() => setCount((count) => count + 1), 1000)
-    console.log(`시작... intervalId: ${intervalId.current}`)
-    console.log(intervalId)
-  }
-
-  const stopCounter = () => {
-    clearInterval(intervalId.current)
-    console.log(`정지... intervalId: ${intervalId.current}`)
-  }
-
   return (
-    <>
-      <p>자동 카운트: {count}</p>
-      <button onClick={startCounter}>시작</button>
-      <input type="text" ref={intervalId} />
-      <button onClick={stopCounter}>정지</button>
-    </>
+    <Provider store={store}>
+      <div>
+        <FriendMain />
+        <TimelineMain />  
+      </div>
+    </Provider>
   )
 }
 
