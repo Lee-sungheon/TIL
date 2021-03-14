@@ -377,7 +377,7 @@
     - createReducer
 
       ```react
-      // 기본 형태
+      // 기본 형태 -> createStore 파일을 만들어 다른곳에서 import 해서 사용
       function createReducer(initialState, handlerMap) {
           return function (state = initialState, action) {
               return produce(state, draft => {
