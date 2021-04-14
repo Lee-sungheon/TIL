@@ -154,16 +154,23 @@
   - 리액트 16.8에 새로 추가됨
     - 그 전에는 클래스 컴포넌트 사용
     - 클래스형 컴포넌트보다 장점이 많으며 리액트 팀에서도 훅에 집중하고 있음
+  
 - useState: 상태값 추가
   - 비동기 및 배치로 처리됨
   - setState 시, 객체는 덮어쓰는 방식으로 주소값을 바꿔줘야함
+  
 - useEffect: 부수효과 처리
   - 서버 API 호출, 이벤트 핸들러 등록 등
   - `useEffect(() => {}, [])` : `[]`는 의존성 배열
+  - 상태값 변경 함수에는 함수를 입력 `setCount(prev => prev + 1)`
   - 함수에 사용하는 변수는 꼭 의존성 배열에 넣어줘야 함
-- 커스텀훅:
+  
+- 커스텀훅
+  
+  - 훅의 재사용성을 높여줌
   - use'Name'으로 설정해주는 것이 좋음
   - 일반적인 함수 형태로 작성
+  
 - 훅 사용 시 지켜야 할 규칠
   - 규칙 1 : 하나의 컴포넌트에서 훅을 호출하는 순서는 항상 같아야 함
     - 훅은 각 훅이 사용된 위치 정보를 기반으로 훅 정보를 관리함
@@ -171,19 +178,72 @@
 
 - 내장 훅
   - useRef 
+  
   - useMemo
+  
+    - 복잡한 logic이 있는 state의 **메모리제이션된 값을 반환**
+  
+    - 의존성 배열로 관리
+  
+    - 렌더링을 줄여줌 (성능 최적화)
+  
+      ```react
+      import React, {useState, useMemo} from 'react';
+      
+      function App() { 
+        const [v1, setV1] = useState(0);
+        const [v2, setV2] = useState(0);
+        const [v3, setV3] = useState(0);
+        const value = useMemo(() => runExpensiveJob(v1, v2), [v1, v2]);
+        return (
+          <>
+            <p>{`value is ${value}`}</p>
+            <button
+              onClick={() => {
+                setV1(Math.random());
+                setV2(Math.random());
+              }}
+            >
+              v1/v2 수정
+            </button>
+            <p>{`value is ${v3}`}</p>
+            <button onClick={() => setV3(Math.random())}>v3 수정</button>
+          </>
+        );
+      }
+      
+      export default App;
+      
+      function runExpensiveJob(v1, v2) {
+        console.log('runExpensiveJob');
+        return v1 + v2;
+      }
+      ```
+  
   - useCallback
+  
+    - 함수 메모이제이션에 특화된 훅
+    - **메모리제이션된 함수를 반환**
+    - 의존성 배열로 관리
+  
   - useReducer
+  
   - useImperativeHandle
+  
+    - 부모 컴포넌트에서 자식 컴포넌트가 제공해준 함수를 호출할 수 있음
+  
   - useLayoutEffect
     - 특별한 이유가 없다면 useEffect를 사용(성능)
     - 동기 방식
-    - 리액트가 랜더링을 하고 실제돔에 반영된 후에 함수가 실행됨
-  - useDebugValue  
+    - 리액트가 랜더링을 하고 실제돔에 반영된 후 에 함수가 실행되고 브라우저에 반영됨
+    
+  - useDebugValue 
 
 
 
 ## Context
+
+- 상위 컴포넌트와 상당히 떨어져있는 하위 컴포넌트에 속성값을 전달할 때 사용
 
 - 사용법
 
@@ -203,7 +263,7 @@
   
   ...
   
-  	const user = useContext(UserContent)
+  	const username = useContext(UserContext)
   	return (
   		<p>{username}님 안녕하세요</p>
       )
@@ -215,6 +275,8 @@
 
 
 ## Ref
+
+- 실제 돔요소에 접근할 때 사용
 
 - 사용법
 
@@ -237,6 +299,10 @@
   ```
 
 - useRef() 를 사용할 때는 컴포넌트 안에서 바로 사용하지 말고 useEffect() 안에서 사용해줘야함
+
+- current가 null 일 경우에는 current 속성을 검사하는 코드를 작성해 줘야함
+
+
 
 ## 컴포넌트 파일 작성법
 
