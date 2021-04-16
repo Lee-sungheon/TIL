@@ -406,7 +406,7 @@
   - 미들웨어
 
     - `const myMiddleware = store => next => action => next(action);`
-    - store 와 action은 연결해줌
+    - store 와 action을 연결해줌
 
   - 리듀서
 
@@ -521,3 +521,4 @@
 
 
 - debounce -> 실시간 검색창에 사용하면 될듯
+- optional chaining : ?. => undefined일 때 에러 발생 안하는 js 최신 문법
