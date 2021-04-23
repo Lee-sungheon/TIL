@@ -28,4 +28,67 @@
   expo start
   ```
 
+
+
+#### 컴포넌트 라이브러리
+
+- https://nativebase.io/
+
+- https://reactnativeelements.com/
+
   
+
+#### 스타일링
+
+```react
+<Text style={[styles.text, { color: 'orange' }]}>Style Code</Text>
+<Text style={[styles.text, styles.errorText]}>Error Text</Text>
+```
+
+style에서 배열을 활용하면 여러가지 스타일을 중복 적용 가능함
+
+
+
+#### Platform
+
+운영체제마다 다른 코드를 적용시키는 것이 가능
+
+```react
+import { StyleSheet, View, Platform, Text } from 'react-native';
+
+const Shadow = () => {
+    return (
+    	<view style={styles.shadow}>
+        	<Text>{Platform.OS === 'ios' ? 'ios' : 'android'} </Text>
+        </view>
+    )
+}
+
+const styles = StyleSheet.create({
+    shadow: {
+        width: 200,
+        height: 200,
+        ...Platform.select({
+            ios: {
+                backgroundColor: 'blue',
+                shadowColor: '#000000',
+                shadowOffset: {
+                    width: 10,
+                    height: 10,
+                },
+                shadowOpacity: 0.5,
+                shadowRadius: 10,
+            },
+            android: {
+                backgroundColor: 'green',
+                elevations: 20,
+            }
+        })
+    }
+});
+
+export default Shadow;
+```
+
+
+
