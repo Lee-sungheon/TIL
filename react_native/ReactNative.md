@@ -49,6 +49,23 @@ style에서 배열을 활용하면 여러가지 스타일을 중복 적용 가�
 
 
 
+#### 스타일 컴포넌트
+
+````react
+import styled from "styled-components/native";
+
+const Container = styled.View`
+  flex-direction: row;
+  align-items: center;
+  background-color: ${({ theme }) => theme.itemBackground};
+  border-radius: 10px;
+  margin: 3px 0;
+  padding: 5px;
+`;
+````
+
+
+
 #### Platform
 
 운영체제마다 다른 코드를 적용시키는 것이 가능
@@ -89,6 +106,4 @@ const styles = StyleSheet.create({
 
 export default Shadow;
 ```
-
-
 
