@@ -107,3 +107,40 @@ const styles = StyleSheet.create({
 export default Shadow;
 ```
 
+
+
+#### React Navigation
+
+- https://reactnavigation.org/
+
+- 설치
+
+  ```bash
+  npm install @react-navigation/native
+  
+  expo install react-native-gesture-handler react-native-reanimated react-native-screens
+  
+  npm install @react-navigation/stack
+  npm install @react-navigation/bottom-tabs
+  ```
+
+- React의 Router와 같은 역할을 함
+
+
+
+#### keyboard aware scroll view
+
+- 포커스가 있는 인풋 컴포넌트로 자동으로 스크롤을 해줌
+
+- 설치
+
+  ```BASH
+  npm i react-native-keyboard-aware-scroll-view
+  ```
+
+
+
+#### Image Picker
+
+- 사진 선택을 위함
+
