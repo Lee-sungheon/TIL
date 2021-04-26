@@ -144,3 +144,17 @@ export default Shadow;
 
 - 사진 선택을 위함
 
+- 설치
+
+  ```bash
+  expo install expo-image-picker
+  ```
+
+  
+
+#### FlatList
+
+- keyboard aware scroll view 와 비슷함
+
+- 필요한 양만큼만 랜더링한 뒤 스크롤의 위치에 따라 추가로 데이터를 랜더링 함
+- 데이터의 길이가 가변적이고 양을 예측할 수 없는 상황에서 많이 사용
