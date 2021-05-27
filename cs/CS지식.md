@@ -104,6 +104,18 @@ HTTPS 의 SSL 에서는 공통키 암호화 방식과 공개키 암호화 방식
 
 
 
+## WEBSOCKET
+
+**웹소켓**(WebSocket)은 하나의 [TCP](https://ko.wikipedia.org/wiki/전송_제어_프로토콜) 접속에 [전이중 통신](https://ko.wikipedia.org/wiki/이중통신) 채널을 제공하는 컴퓨터 [통신 프로토콜](https://ko.wikipedia.org/wiki/통신_프로토콜)이다. 웹소켓 프로토콜은 2011년 [IETF](https://ko.wikipedia.org/wiki/국제_인터넷_표준화_기구)에 의해 [RFC](https://ko.wikipedia.org/wiki/RFC) 6455로 표준화되었으며 [웹 IDL](https://ko.wikipedia.org/w/index.php?title=웹_IDL&action=edit&redlink=1)의 웹소켓 [API](https://ko.wikipedia.org/wiki/API)는 [W3C](https://ko.wikipedia.org/wiki/W3C)에 의해 표준화되고 있다.
+
+웹소켓은 HTTP와 구별된다. 두 프로토콜 모두 [OSI 모델](https://ko.wikipedia.org/wiki/OSI_모델)의 제7계층에 위치해 있으며 제4계층의 TCP에 의존한다. 이들에 차이가 있으나 "[RFC 6455](https://tools.ietf.org/html/rfc6455)"에 따르면 웹소켓은 HTTP 포트 80과 443 위에 동작하도록 설계되었으며 HTTP 프록시 및 중간 층을 지원하도록 설계되었으므로 HTTP 프로토콜과 호환이 된다. 호환을 달성하기 위해 웹소켓 [핸드셰이크](https://ko.wikipedia.org/wiki/핸드셰이크)는 [HTTP 업그레이드 헤더](https://ko.wikipedia.org/w/index.php?title=HTTP/1.1_업그레이드_헤더&action=edit&redlink=1)를 사용하여 HTTP 프로토콜에서 웹소켓 프로토콜로 변경한다.
+
+웹소켓 프로토콜은 HTTP 풀링과 같은 반이중방식에 비해 더 낮은 부하를 사용하여 [웹 브라우저](https://ko.wikipedia.org/wiki/웹_브라우저)(또는 다른 클라이언트 애플리케이션)과 [웹 서버](https://ko.wikipedia.org/wiki/웹_서버) 간의 통신을 가능케 하며, 서버와의 실시간 데이터 전송을 용이케 한다. 이는 먼저 클라이언트에 의해 요청을 받는 방식이 아닌, 서버가 내용을 클라이언트에 보내는 표준화된 방식을 제공함으로써, 또 연결이 유지된 상태에서 메시지들을 오갈 수 있게 허용함으로써 가능하게 되었다. 이러한 방식으로 양방향 대화 방식은 클라이언트와 서버 간에 발생할 수 있다. 통신은 TCP 포트 80(TLS 암호화 연결의 경우 443)를 통해 수행되며 [방화벽](https://ko.wikipedia.org/wiki/방화벽)을 통해 웹이 아닌 인터넷 연결을 차단하는 일부 환경에 도움이 된다. 단순 양방향 브라우저-서버 통신은 [코멧](https://ko.wikipedia.org/wiki/코멧_(프로그래밍)) 등의 스톱갭(stopgap) 기술을 사용하는 비표준 방식으로 수행된다.
+
+[구글 크롬](https://ko.wikipedia.org/wiki/구글_크롬), [마이크로소프트 에지](https://ko.wikipedia.org/wiki/마이크로소프트_에지), [인터넷 익스플로러](https://ko.wikipedia.org/wiki/인터넷_익스플로러), [파이어폭스](https://ko.wikipedia.org/wiki/파이어폭스), [사파리](https://ko.wikipedia.org/wiki/사파리), [오페라](https://ko.wikipedia.org/wiki/오페라) 등 대부분의 브라우저가 이 프로토콜을 지원한다.
+
+
+
 ## Object Oriented Programming
 
 객체 지향 프로그래밍 이전의 프로그래밍 패러다임을 살펴보면, 중심이 컴퓨터에 있었다. 컴퓨터가 사고하는대로 프로그래밍을 하는 것이다. 하지만 객체지향 프로그래밍이란 인간 중심적 프로그래밍 패러다임이라고 할 수 있다. 즉, 현실 세계를 프로그래밍으로 옮겨와 프로그래밍하는 것을 말한다. 현실 세계의 사물들을 객체라고 보고 그 객체로부터 개발하고자 하는 애플리케이션에 필요한 특징들을 뽑아와 프로그래밍 하는 것이다. 이것을 추상화라한다.
