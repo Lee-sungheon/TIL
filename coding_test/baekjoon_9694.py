@@ -20,14 +20,14 @@ for tc in range(1, T+1):
     K_distance[0] = 0
     heapq.heappush(queue, [0, 0])
     while queue:
-        mid = heapq.heappop(queue)
-        if K_distance[mid[1]] < mid[0]:
+        s_cost, s = heapq.heappop(queue)
+        if K_distance[s] < s_cost:
             continue
-        for end in distance[mid[1]]:
-            if K_distance[end[0]] > mid[0] + end[1]:
-                res[end[0]] = res[mid[1]] + [end[0]]
-                K_distance[end[0]] = mid[0] + end[1]
-                heapq.heappush(queue, [K_distance[end[0]], end[0]])
+        for e, e_cost in distance[s]:
+            if K_distance[e] > s_cost + e_cost:
+                res[e] = res[s] + [e]
+                K_distance[e] = s_cost + e_cost
+                heapq.heappush(queue, [K_distance[e], e])
     if K_distance[M-1] == INF:
         print("Case #{}: -1" .format(tc))
     else:

@@ -1,5 +1,9 @@
-import copy
 # 스타트 택시
+import copy
+import sys
+
+input = sys.stdin.readline
+
 def bfs(start, fuel):
     dq = [(start, 0, fuel)]
     delta = [(0, 1), (1, 0), (-1, 0), (0, -1)]
@@ -39,11 +43,11 @@ def bfs2(start, fuel):
         x, y = tmp[0]
         cnt = tmp[1]
         f = tmp[2]
+        if f < 0:
+            return end
         if matrix2[x][y] == -1:
             end.append(([x, y], cnt))
             matrix2[x][y] = 0
-            return end
-        if f <= 0:
             return end
         for dx, dy in delta:
             nx, ny = x + dx, y + dy
