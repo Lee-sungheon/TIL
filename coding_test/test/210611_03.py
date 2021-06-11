@@ -1,9 +1,3 @@
-
-# a + b = 29
-# a ^ b = 25
-# a ^ (29 - a) = 25
-# a ^ 29 - a ^ a = 25
-
 def bitwiseEquations(a, b):
     result = []
     for i in range(len(a)):
