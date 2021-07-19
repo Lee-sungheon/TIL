@@ -386,3 +386,26 @@
 #### repaint / reflow
 
 `repaint`는 색상이 변경되거나 글자의 내용이 바뀌었을 때 발생되는 연산이다. `reflow`는 하나의 DOM객체의 크기나 위치가 변경되엇 을 때(레이아웃의 변경작업), 다른 DOM객체들의 위치와 크기가 함께 변경하는것을 말한다.
+
+
+
+#### React Hook Form
+
+- 공식 페이지
+  - https://react-hook-form.com/
+- 특징
+  - DX(develper Experience)
+    - 코드의 양을 줄여줌
+    - forms를 만들 때 직관적인 경험을 제공
+  - HTML standard
+    - 기존 HTML 마크업을 활용
+    - 조건 기반 유효성 검사
+  - Super Light
+    - 패키지 사이즈가 작고 다른 의존관계를 가지지 않은 작은 라이브러리
+  - Performance
+    - Re-renders를 최소하 하며, 빠른 마운팅을 통한 뛰어난 UX를 제공
+  - Adoptable
+    - form의 state는 local에서 관리되기 떄문에 다른 의존성 없이 쉽게 적용 가능
+
+- 사용법
+  - 공식 홈페이지 참조!
