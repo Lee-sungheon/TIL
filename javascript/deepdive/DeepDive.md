@@ -966,3 +966,145 @@
       ```
 
     - ES6 모듈 기능을 사용하더라도 트랜스파일링이나 번들링이 필요하기 때문에 아직까지는 브라우저의 ES6 모듈 기능보다는 Webpack 등의 모듈 번들러를 사용하는 것이 일반적임
+
+
+
+## 15. let, const 키워드와 블록 레벨 스코프
+
+- `var` 키워드 선언 변수의 문제점
+
+  1. 변수 중복 선언 허용
+
+     ```js
+     var x = 1;
+     var x = 100;
+     console.log(x); // 100
+     ```
+
+  2. 함수 레벨 스코프
+
+     - `var` 키워드로 선언한 변수는 오로지 함수의 코드 블록만을 지역 스코프로 인정
+
+     ```js
+     var i = 1;
+     for (var i = 0; i < 5; i++) {
+       console.log(i); // 0 1 2 3 4
+     }
+     console.log(i); // 5
+     ```
+
+  3. 변수 호이스팅
+     - `var` 키워드로 변수를 선언하면 변수 호이스팅에 의해 변수 선언문이 스코프의 선두로 끌어올려진 것처럼 동작
+     - 단, 할당문 이전에 변수를 참조하면 언제나 `undefined` 를 반환
+
+- `let` 키워드
+
+  - 변수 중복 선언 금지
+
+    ```js
+    let bar = 123;
+    let bar = 456; // SyntaxError: Identifier 'bar' has already been declared
+    ```
+
+  - 블록 레벨 스코프
+
+    ```js
+    let foo = 1;
+    {
+      let foo = 2;
+      let bar = 3;
+    }
+    console.log(foo); // 1
+    console.log(bar); // ReferenceError: bar is not defined
+    ```
+
+  - 변수 호이스팅
+
+    - 변수 호이스팅이 발생하지만, 발생하지 않는 것처럼 동작
+
+    ```js
+    console.log(foo); // ReferenceError: foo is not defined
+    let foo;
+    ```
+
+    - `let` 키워드로 선언한 변수는 "선언 단계"와 "초기화 단계"가 분리되어 진행
+    - 스코프의 시작 지점부터 초기화 시작 지점까지 변수를 참조할 수 없는 구간을 **일시적 사각지대** 라고 부름
+
+    ```js
+    // 런타임 이전에 선언 단계 실행
+    // 초기화 이전의 일시적 사각지대에서는 변수 참조 불가
+    console.log(foo); // ReferenceError: foo is not defined
+    
+    let foo;	// 변수 선언문에서 초기화 단계가 실행
+    console.log(foo);	// undefined
+    
+    foo = 1;	// 할당문에 할당 단계가 실행
+    console.log(foo);	// 1
+    ```
+
+    ```js
+    let foo = 1;	// 전역 변수
+    {
+      console.log(foo);	// ReferenceError: Cannot access 'foo' before initialization
+      let foo = 2;	// 지역 변수
+    }
+    ```
+
+  - 전역 객체와 let
+
+    - `var` 키워드로 선언한 전역 변수와 전역 함수, 선언하지 않은 변수에 값을 할당한 암묵적 전역은 객체 window의 프로퍼티가 됨
+    - `let` 키워드로 선언한 전역 변수는 전역 객체의 프로퍼티가 아님
+    - `let` 전역 변수는 보이지 않는 개념적인 블록 내에 존재
+
+    ```js
+    var x = 1;
+    y = 1;
+    function foo() {}
+    console.log(window.x, x); // 1 1
+    console.log(window.y, y); // 1 1
+    console.log(window.foo, foo); // f foo() {} f foo() {}
+    
+    let z = 1;
+    console.log(window.z); // undefined
+    console.log(z); // 1
+    ```
+
+- `const` 키워드
+
+  - 보통 상수를 선언하기 위해 사용
+
+  - `let` 과 특징이 거의 비슷
+
+  - 선언과 초기화
+
+    - `const` 키워드로 선언한 변수는 반드시 선언과 동시에 초기화해야 함
+
+    ```js
+    const foo = 1;
+    const foo; // SyntaxError: Missing initializer in const declaration
+    ```
+
+  - 재할당 금지
+
+    - `const` 키워드로 선언한 변수는 재할당이 금지됨
+
+    ```js
+    const foo = 1;
+    foo = 2;	// TypeError: Assignment to constant variable
+    ```
+
+  - 상수로 사용
+
+    - 상수의 이름은 스네이크 케이스`(_)`로 표현하는 것이 일반적
+    - 상태 유지와 가독성, 유지보수가 용이해짐
+
+  - `const` 키워드와 객체
+
+    - `const` 키워드로 선언된 변수에 객체를 할당한 경우 값을 변경할 수 있음
+    - `const` 키워드는 재할당을 금지할 뿐 "불변"을 의미하는 것은 아님
+
+- `var` vs `let` vs `const`
+
+  - ES6 를 사용한다면 `var` 키워드는 사용하지 않기
+  - 재할당이 필요한 경우에 한정히 `let` 키워드를 사용. 이 때 변수의 스코프는 최대한 좁게 만들기
+  - 변경이 발생하지 않고 읽기 전용으로 사용하는(재할당이 필요 없는 상수) 원시 값과 객체에는 `const` 사용. `const` 키워드는 재할당을 금지하므로 `var`, `let` 보다 안전
