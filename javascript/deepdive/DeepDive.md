@@ -1129,3 +1129,79 @@
 
 ## 17. 생성자 함수에 의한 객체 생성
 
+- 생성자 함수를 정의하고 `new` 연산자와 함께 호출하면 해당 함수는 생성자 함수로 동작
+
+- `new` 연산자 없이 호출하면 해당 함수는 일반 함수로 호출
+
+- 일반 객체는 호출할 수 없지만 함수는 호출할 수 있다
+
+- constructor 은 함수 선언문과 함수 표현식으로 정의된 함수
+
+- non-constructo 은 화살표 함수와 메서드 축약 표현으로 정의된 함수
+
+- `new.target`
+
+  - 생성자 함수가 new 연산자 없이 호출되는 것을 방지하기 위함
+
+  - new 연산자와 함께 생성자 함수로서 호출되면 함수 내부의 new.target은 자기 자신을 가리킴
+
+  - new 연산자 없이 일반 함수로서 호출된 함수 내부의 new.target은 `undefined`
+
+  - IE에선 지원하지 않으므로 스코프 세이프 생성자 패턴을 사용
+
+    ```js
+    function Circle(radius){
+      if (!new.target) {
+        return new Circle(radius);
+      }
+      this.radius = radius;
+      this.getDiameter = function () {
+        return 2 * this.radius;
+      };
+    }
+    
+    // new 연산자 없이 생성자 함수를 호출하여도 new.target을 통해 생성자 함수로서 호출됨
+    const circle = Circle(5);
+    ```
+
+  - 대부분의 빌트인 생성자 함수(Object, String, Number, Boolean, Function, Array, Date, RegExp, Promise 등) 는 new 연산자와 함께 호출되었는지를 확인 후 적절한 값을 반환
+
+
+
+## 18. 함수와 일급 객체
+
+- 일급 객체
+
+  - 무명의 리터럴로 생성할 수 있음. 즉, 런타임에 생성이 가능
+  - 변수나 자료구조(객체, 배열 등)에 저장할 수 있음
+  - 함수의 매개변수에 전달할 수 있음
+  - 함수의 반환값으로 사용할 수 있음
+
+- 함수 객체의 프로퍼티
+
+  - arguments 프로퍼티
+
+    - arguments 객체는 매개변수를 확정할 수 없는 **가변 인자 함수**를 구현할 떄 유용
+
+    - Rest 파라미터(ES6)
+
+      ```js
+      // arguments
+      function sum() {
+        const array = Array.prototype.slice.call(arguments);
+        return array.reduce(function (pre, cur) {
+          return pre + cur;
+        }, 0);
+      }
+      
+      console.log(sum(1, 2));
+      
+      // Rest 파라미터 도입
+      function sum(...args) {
+        return args.reduce((pre, cur) => pre + cur, 0);
+      }
+      
+      console.log(sum(1, 2));
+      ```
+
+  - caller 프로퍼티
