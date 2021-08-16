@@ -1181,7 +1181,7 @@
 
   - arguments 프로퍼티
 
-    - arguments 객체는 매개변수를 확정할 수 없는 **가변 인자 함수**를 구현할 떄 유용
+    - arguments 객체는 매개변수를 확정할 수 없는 **가변 인자 함수**를 구현할 때 유용
 
     - Rest 파라미터(ES6)
 
@@ -1204,4 +1204,163 @@
       console.log(sum(1, 2));
       ```
 
-  - caller 프로퍼티
+  - length 프로퍼티
+
+    - 함수를 정의할 때 선언한 매개변수의 개수를 가리킴
+    - arguments 객체의 length 프로퍼티는 인자의 개수를 가르키고, 함수 객체의 length 프로퍼티는 매개변수의 개수를 가르킴
+
+  - name 프로퍼티
+
+    - 함수 객체의 name 프로퍼티는 함수 이름을 나타냄
+
+    - ES6 이후로 정식 표준이 됨
+
+      ```js
+      var nameFunc = function foo() {};
+      console.log(nameFunc.name);	// foo;
+      
+      var anonymousFunc = function() {};
+      // ES5: name 프로퍼티는 빈 문자열을 값으로 가짐
+      // ES6: name 프로퍼티는 함수 객체를 가리키는 변수 이름을 값으로 가짐
+      console.log(anoymousFunc.name);	// anonymousFunc
+      
+      function bar() {}
+      console.log(bar.name);	// bar
+      ```
+
+  - `__proto__` 접근자 프로퍼티
+
+    - [[Prototype]] 내부 슬롯이 가리키는 프로토타입 객체에 접근하기 위해 사용하는 접근자 프로퍼티
+
+    - 내부 슬롯에는 직접 접근할 수 없고 접근자 프로퍼티를 통해 간접적으로 접근이 가능
+
+    - `hasOwnProperty` 메서드 : 인수로 전달받은 프로퍼티 키가 객체 고유의 프로퍼티 키인 경우에만 true를 반환하고 상속받은 프로토타입의 프로퍼티 키인 경우 false를 반환
+
+      ```js
+      const obj = { a: 1 };
+      
+      // 객체 리터럴 방식으로 생성한 객체의 프로토타입 객체는 Object.prototype
+      console.log(obj.__proto__ === Object.prototype);	// true
+      
+      // hasOwnProperty 메서드는 Object.prototype의 메서드
+      console.log(obj.hasOwnProperty('a'));	// true
+      console.log(obj.hasOwnProperty('__proto__'));	// false
+      ```
+
+  - Prototype 프로퍼티
+
+    - 생성자 함수로 호출할 수 없는 함수 객체, 즉 constructor만이 소유하는 프로퍼티
+
+      ```js
+      // 함수 객체는 prototype 프로퍼티를 소유
+      (function () {}).hasOwnProperty('prototype');	// -> true
+      
+      // 일반 객체는 prototype 프로퍼티를 소유하지 않음
+      ({}).hasOwnProperty('prototype');	// -> false
+      ```
+
+
+
+## 프로토타입
+
+- 객체지향 프로그래밍
+  - 객체의 집합으로 프로그래밍을 표현하려는 프로그래밍 패러다임
+  - 추상화 : 다양한 속성 중에서 프로그램에 필요한 속성만 간추려 내어 표현하는 것
+  - 객체
+    - 속성을 통해 여러 개의 값을 하나의 단위로 구성한 복합적인 자료 구조
+    - 상태 데이터(프로퍼티)와 동작(메서드)을 하나의 논리적인 단위로 묶은 복합적인 자료 구조
+  - 프로퍼티 : 객체의 상태를 나타내는 데이터
+  - 메서드 : 상태 데이터를 조작할 수 있는 동작
+
+- 상속과 프로토타입
+
+  - 상속은 객체지향 프로그래밍의 핵심 개념
+
+  - 자바스크립트는 **프로토타입을 기반으로 상속을 구현**하여 불필요한 중복을 제거
+
+    ```js
+    function Circle(radius) {
+      this.radius = radius;
+      this.getArea = function () {
+        return Math.PI * this.radius ** 2;
+      };
+    }
+    
+    const circle1 = new Circle(1);
+    const circle2 = new Circle(2);
+    
+    console.log (circle1.getArea === circle2.getArea)	// false
+    
+    function Circle(radius) {
+      this.radius = radius;
+    }
+    // 프로토타입은 Circle 생성자 함수의 prototype 프로퍼티에 바인딩되어 있음
+    Circle.prototype.getArea = function () {
+      return Math.PI * this.radius ** 2;
+    };
+    
+    const circle1 = new Circle(1);
+    const circle2 = new Circle(2);
+    
+    console.log(circle1.getArea === circle2.getArea)	// true
+    ```
+
+- 프로토타입 객체
+
+  - 객체 간 상속을 구현하기 위해 사용됨
+  - 모든 객체는 하나의 프로토타입을 갖음
+  - 프로토타입은 생성자 함수가 생성되는 시점에 더불어 생성됨
+
+- 프로토타입 체인
+
+  - 자바스크립트는 객체의 프로퍼티(메서드 포함)에 접근하려고 할 때 해당 객체에 접근하려는 프로퍼티가 없다면 [[Prototype]] 내부 슬롯의 참조를 따라 자신의 부모 역할을 하는 프로토타입의 프로퍼티를 순차적으로 검색함
+  - 프로토타입 체인은 자바스크립트가 객체지향 프로그래밍의 상속을 구현하는 메커니즘
+  - `Object.prototye` 을 프로토타입 체인의 종점이라고 하며, [[Prototype]] 내부 슬롯의 값은 null 임
+
+- `instanceof` 연산자
+
+  ```js
+  객체 instanceof 생성자 함수
+  ```
+
+  - 이항 연산자로서 좌변에 객체를 가리키는 식별자, 우변에 생성자 함수를 가리키는 식별자를 피연산자로 받음
+    - 우변의 피연산자가함수가 아닌 경우 TypeError가 발생
+    - 우변의 생성자 함수의 prototype에 바인딩된 객체가 좌변의 객체의 프로토타입 체인 상에 존재하면 true로 평가되고, 그렇지 않은 경우에는 false로 평가됨
+
+- 프로퍼티 존재 확인
+
+  - `in` 연산자
+
+    - 객체 내에 특정 프로퍼티가 존재하는지 여부를 확인함
+
+    - 상속받은 모든 프로토타입의 프로퍼티도 확인하므로 주의가 필요
+
+      ```js
+      key in object
+      ```
+
+  - `Object.prototype.hasOwnProperty` 메서드
+
+    - 인수로 전달 받은 프로퍼티 키가 객체 고유의 프로퍼티 키인 경우만 true를 반환
+    - 상속받은 프로토타입의 프로퍼티 키인 경우 false를 반환
+
+- 프로퍼티 열거
+
+  - `for...in` 문
+
+    ```js
+    for (변수선언문 in 객체) { ... }
+    ```
+
+    - 객체의 프로퍼티 개수만큼 순회하며 for...in 문의 변수 선언문에서 선언한 변수에 프로퍼티 키를 할당
+    - `in` 연산자처럼 순회 대상 객체의 프로퍼티 뿐만 아니라 상속받은 프로토타입의 프로퍼티까지 열거
+    - 즉, for...in 문은 객체의 프로토타입 체인 상에 존재하는 모든 프로토타입의 프로퍼티 중에서 프로퍼티 어트리뷰트 [[Enumerable]]의 값이 true인 프로퍼티를 순회하며 열거함
+    - 프로퍼티를 열거할 때 순서를 보장하지 않으므로 주의가 필요(대부분의 모던 브라우저는 순서를 보장하고 있음)
+    - **배열에는 for 문이나 for...of 문 또는 forEach 메서드를 사용하기를 권장**
+      - 배열도 객체이므로 프로퍼티와 상속받은 프로퍼티가 포함될 수 있음
+
+  - `Object.keys/values/enries` 메서드
+
+    - `for...in` 문은 객체 자신의 고유 프로퍼티뿐 아니라 상속받은 프로퍼티도 열거하므로 `Object.prototype.hasOwnProperty` 메서드를 사용하여 객체 자신의 프로퍼티인지 확인하는 추가 처리가 필요함
+    - 객체 자신의 고유 프로퍼티만 열거하기 위해서는 `object.keys/values/entries` 메서드를 사용하는 것을 권장
+
