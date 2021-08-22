@@ -1261,7 +1261,7 @@
 
 
 
-## 프로토타입
+## 19. 프로토타입
 
 - 객체지향 프로그래밍
   - 객체의 집합으로 프로그래밍을 표현하려는 프로그래밍 패러다임
@@ -1364,3 +1364,115 @@
     - `for...in` 문은 객체 자신의 고유 프로퍼티뿐 아니라 상속받은 프로퍼티도 열거하므로 `Object.prototype.hasOwnProperty` 메서드를 사용하여 객체 자신의 프로퍼티인지 확인하는 추가 처리가 필요함
     - 객체 자신의 고유 프로퍼티만 열거하기 위해서는 `object.keys/values/entries` 메서드를 사용하는 것을 권장
 
+
+
+## 20. strict mode
+
+- strict mode
+
+  - 자바스크립트 언어의 문법을 좀 더 엄격히 적용하여 오류를 발생시킬 가능성이 높거나 자바스크립트 엔진의 최적화 작업에 문제를 일으킬 수 있는 코드에 대해 명시적인 에러를 발생시킴
+  - `'use strict';` 를 전역의 선두 또는 함수 몸체의 선두에 추가하여 적용
+  - 전역에 strict mode를 적용하는 것은 피하는 것이 좋음 => 외부 서드파티 라이브러리를 사용하는 경우 non-strict mode와 혼용되어 오류를 발생시킬 수 있음
+  - 함수단위로 strict mode를 적용하는 것도 좋지 않음 => 즉시 실행 함수로 감싼 스크립트 단위로 적용하는 것을 추천
+
+- strict mode가 밸싱시키는 에러
+
+  - 암묵적 전역
+
+    - 선언하지 않은 변수를 참조하면 ReferenceError가 발생
+
+      ```js
+      (function () {
+        'use strict';
+        
+        x = 1;
+        console.log(x);	// ReferenceError: x is not defined
+      }());
+      ```
+
+  - 변수, 함수, 매개변수의 삭제
+
+    - delete 연산자로 변수, 함수, 매개변수를 삭제하면 SyntaxError가 발생
+
+      ```js
+      (function () {
+        'use strict';
+        
+        var x = 1;
+        delete x;	// SyntaxError: Delete of an unqualified identifier in strict mode.
+        
+        function foo(a) {
+          delete a;	// SyntaxError: Delete of an unqualified identifier in strict mode.
+        }
+        delete foo;	// SyntaxError: Delete of an unqualified identifier in strict mode.
+      }());
+      ```
+
+  - 매개변수 이름의 중복
+
+    - 중복된 매개변수 이름을 사용하면 SyntaxError가 발생
+
+      ```js
+      (function () {
+        'use strict';
+        
+        // SyntaxError: Duplicate parameter name not allowed in this context
+        function foo(x, x) {
+          return x + x;
+        }
+        console.log(foo(1, 2));
+      }());
+      ```
+
+  - with 문의 사용
+
+    - With 문은 성능과 가독성이 나빠지는 문제가 있으므로 SyntaxError가 발생
+
+      ```js
+      (function () {
+        'use strict';
+        
+        // SyntaxError: Strict mode code may not include a with statment
+        with({ x: 1 }) {
+          console.log(x);
+        }
+      }());
+      ```
+
+- strict mode 적용에 의한 변화
+
+  - 일반 함수의 this
+
+    - strict mode에서 함수를 일반 함수로 호출하면 this에 undefined가 바인딩 됨
+
+    - 에러는 발생하지 않음
+
+      ```js
+      (function () {
+        'use strict';
+        
+        function foo() {
+          console.log(this);	// undefined
+        }
+        foo();
+        
+        function Foo() {
+          console.log(this);	// Foo
+        }
+        new Foo();
+      }());
+      ```
+
+  - arguments 객체
+
+    - strict mode에서는 매개변수에 전달된 인수를 재할당하여 변경해도 arguments 객체에 반영되지 않음
+
+      ```js
+      (function (a) {
+        'use strict';
+        a = 2;
+        console.log(arguments);	// { 0: 1, length: 1 }
+      }(1));
+      ```
+
+      
