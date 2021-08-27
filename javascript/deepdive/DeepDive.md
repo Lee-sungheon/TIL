@@ -1475,4 +1475,225 @@
       }(1));
       ```
 
+
+
+
+## 21. 빌트인 객체
+
+- 표준 빌트인 객체
+
+  - ECMAScript 사양에 정의된 객체, 애플리케이션 전역의 공통 기능을 제공
+
+  - 자바스크립트 실행 환경과 관계없이 언제나 사용할 수 있음
+
+  - 전역 객체의 프로퍼티로서 제공되므로 별도의 선언 없이 전역 변수처럼 언제나 참조할 수 있음
+
+  - 자바스크립트는 Object, String, Number, Symbol, RegExp, Array, Function, Promise, JSON, Error 등 40여 개의 표준 빌트인 객체를 제공
+
+  - Math, Reflect, JSON을 제외한 표준 빌트인 객체는 모두 인스턴스를 생성할 수 있는 생성자 함수 객체
+
+    ```js
+    const strObj = new String('Lee');	// String {"Lee"}
+    console.log(typeof strObj);	// object
+    ```
+
+  - 생성자 함수인 표준 빌트인 객체가 생성한 인스턴스의 프로토타입은 표준 빌트인 객체의 prototype 프로퍼티에 바인딩된 객체
+
+- 원시값과 래퍼 객체
+
+  - 문자열, 숫자, 불리언 값에 대해 객체처럼 접근하면 생성되는 임시 객체를 **래퍼 객체**라고 함
+
+    ```js
+    const str = 'hello';
+    
+    // 원시 타입인 문자열이 프로퍼티와 메서드를 갖고 있는 객체처럼 동작
+    console.log(str.length);	// 5
+    console.log(str.toUpperCase());	// HELLO
+    console.log(typeof str);	// string
+    ```
+
+- 전역 객체
+
+  - 코드가 실행되기 이전 단계에 자바스크립트 엔진에 의해 어떤 객체보다 먼저 생성되는 특수한 객체
+  - 어떤 객체에도 속하지 않은 최사위 객체
+  - 브라우저 환경에서는 window, Node.js에서는 global이 전역 객체를 가리킴
+  - `globalThis`
+    - ES11에서 도입
+    - 브라우저 환경과 Node.js 환경에서 전역 객체를 가리키던 다양한 식별자를 통일한 식별자
+
+
+
+## this
+
+- this 키워드
+
+  - 메서드가 자신이 속한 객체의 프로퍼티를 참조하려면 먼저 **자신이 속한 객체를 가리키는 식별자를 참조할 수 있어야 함**
+
+  - this는 자신이 속한 객체 또는 자신이 생성할 인스턴스를 가리키는 자기 참조 변수
+
+  - this를 통해 자신이 속한 객체 또는 자신이 생성할 인스턴스의 프로퍼티나 메서드를 참조할 수 있음
+
+  - this 바인딩은 함수 호출 방식에 의해 동적으로 결정됨
+
+    - 바인딩이란 식별자와 값을 연결하는 과정을 의미
+    - this 바인딩은 this와 this가 가리킬 객체를 바인딩하는 것
+
+    ```js
+    console.log(this)	// window
+    
+    function square(number) {
+      // 일반 함수 내부에서 this는 전역 객체 window를 가리킨다.
+      console.log(this)
+      return number * number;
+    }
+    
+    square(2);	// window
+    
+    const person = {
+      name: 'Lee',
+      getName() {
+        // 메서드 내부에서 this는 메서드를 호출한 객체를 가르킨다.
+        console.log(this);	// {name: 'Lee', getName: f}
+        return this.name;
+      }
+    };
+    
+    function Person(name) {
+      this.name = name;
+      // 생성자 함수 내부에서 this는 생성자 함수가 생성할 인스턴스를 가리킨다. 
+      console.log(this);
+    }
+    
+    const me = new Person('Lee');	// Person {name: "Lee"}
+    ```
+
+- 함수 호출 방식과 this 바인딩
+
+  - 일반 함수 호출
+
+    - 기본적으로 일반 함수 호출 시  this에는 전역 객체가 바인딩
+
+    - 일반 함수로 호출된 모든 함수(중첩 함수, 콜백 함수 포함) 내부의 this에는 전역 객체가 바인딩
+
+    - 메서드 내부의 중첩 함수나 콜백 함수의 this 바인딩을 메서드의 this 바인딩과 일치시키기 위한 방법
+
+      ```js
+      var value = 1;
       
+      // this 바인딩 that 변수에 할당
+      const obj = {
+        value: 100,
+        foo() {
+          // this 바인딩(obj)을 변수 that에 할당
+          const that = this;
+          
+          // 콜백 함수 내에서 this 대신 that을 참조
+          setTimeout(function () {
+            console.log(that.value);	// 100
+          }, 100);
+        }
+      };
+      
+      // Function.prototype.bind 메서드 사용
+      const obj2 = {
+        value: 100,
+        foo() {
+          // 콜백 함수에 명시적으로 this 할당
+          setTimeout(function () {
+            console.log(that.value);	// 100
+          }.bind(this), 100);
+        }
+      };
+      
+      // 화살표 함수 사용
+      const obj3 = {
+        value: 100,
+        foo() {
+          setTimeout(() => console.log(this.value), 100);
+        }
+      };
+      ```
+
+  - 메서드 호출
+
+    - 메서드 내부의 this에는 메서드를 호출한 객체가 바인딩
+
+    - 메서드 내부의 this는 메서드를 소유한 객체가 아닌 메서드를 호출한 객체에 바인딩 되므로 주의 필요
+
+      ```js
+      function Person(name) {
+        this.name = name;
+      }
+      
+      Person.prototype.getName = function () {
+        return this.name;
+      };
+      
+      const me = new Person('Lee');
+      
+      // getName 메서드를 호출한 객체는 me
+      console.log(me.getName());	// Lee
+      
+      Person.prototype.name = 'Kim';
+      
+      // getName 메서드를 호출한 객체는 Person.prototype
+      console.log(Person.protoype.getName());	// Kim
+      ```
+
+  - 생성자 함수 호출
+
+    - 생성자 함수 내부의 this에는 생성자 함수가 (미래에) 생성할 인스턴스가 바인딩
+
+      ```js
+      function Circle(radius) {
+      	// 생성자 함수 내부의 this는 생성자 함수가 생성할 인스턴스를 가리킴
+        this.radius = radius;
+        this.getDiameter = function () {
+          return 2 * this.redius;
+        };
+      }
+      
+      const circle1 = new Circle(5);
+      const circle2 = new Circle(10);
+      
+      console.log(circle1.getDiameter());	// 10
+      console.log(circle2.getDiameter());	// 20
+      
+      // new 연산자와 함께 호출하지 않으면 생성자 함수로 동작하지 않음. 즉, 일반적 함수의 호출
+      const circle3 = Circle(15);
+      
+      // 일반 함수로 호출된 Circle에는 반환문이 없으므로 암묵적으로 undifined를 반환
+      console.log(circle3);	// undifined
+      
+      // 일반 함수로 호출된 Circle 내부의 this는 전역 객체를 가리킴
+      console.log(radius);	// 15
+      ```
+
+  - Function.prototype.apply/call/bind 메서드에 의한 간접 호출
+
+    - Function.prototype.apply/call/bind 메서드에 첫번째 인수로 전달된 객체가 바인딩
+
+    - apply와 call 메서드는 this로 사용할 객체와 인수 리스트를 인수로 전달받아 함수를 호출
+
+      ```js
+      function getThisBinding() {
+        return this;
+      }
+      
+      // this로 사용할 객체
+      const thisArg = { a: 1 };
+      
+      console.log(getThisBinding());	// window
+      
+      // getThisBinding 함수를 호출하면서 인수로 전달할 객체를 getThisBinding 함수의 this에 바인딩
+      // apply 메서드는 호출할 함수의 인수를 배열로 묶어 전달
+      console.log(getThisBinding.apply(thisArg, [1, 2, 3]));	// {a: 1}
+      
+      // call 메서드는 호출할 함수의 인수를 쉼표로 구분한 리스트 형식으로 전달
+      console.log(getThisBinding.call(thisArg, 1, 2, 3));	// {a: 1}
+      ```
+
+    - apply와 call 메서드의 본질적인 기능은 함수를 호출하는 것이며, 차이는 인자를 전달하는 방법이 다름
+
+    - bind 메서드는 메서드의  this와 메서드 내부 중첩 함수 또는 콜백 함수의 this가 불일치하는 문제를 해결하기 위해 유용하게 사용됨
+
