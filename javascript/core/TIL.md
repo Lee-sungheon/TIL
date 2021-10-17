@@ -243,5 +243,255 @@
     - 지역 변수 : 함수 내부에서 선언한 변수
     - 코드의 안정성을 위해서는 가급적 전역변수 사용을 최소화해야 함
 
-  
+
+
+
+### 03. this
+
+- this 는 실행 컨텍스트가 생성될 때 함께 결정 => 함수를 호출할 때 결정
+
+- 상황에 따른 this
+
+  - 전역 공간
+    - 전역 객체를 가리킴
+    - 전역 컨텍스트를 생성하는 주체가 바로 전역 객체기 때문
+    - 브라우저에선 `window`, Node에서는 `global`
+
+  -  메서드로서 호출할 때 그 메서드 내부
+
+    - 함수 vs 메서드 ?
+
+      - 메서드 : 객체의 프로퍼티에 할당된 상태에서 객체의 메서드로 호출할 경우
+
+      - 함수 : 위의 경우가 아닌 경우 모두 함수로 동작
+
+        ```js
+        var func = function (x) {
+          console.log(this, x);
+        };
+        func(1);	// Window { ... }
+        
+        var obj = {
+          method: func
+        };
+        obj.method(2);	// { method: f }
+        obj['method'](2);	// { method: f }
+        ```
+
+    - 메서드 내부에서 this
+
+      - this는 호출한 주체에 대한 정보가 담김
+
+      - 함수를 메서드로 호출하는 경우 주체는 함수명 앞의 객체가 됨
+
+        ```js
+        var obj = {
+          methodA: function () { console.log(this); },
+          inner: {
+            methodB: function () { console.log(this); }
+          }
+        };
+        obj.methodA();	// { methodA: f, inner: {...} }
+        obj.inner.methodB();	// { methodB: f }
+        ```
+
+  - 함수로 호출할 때 그 내부에서의 this
+
+    - 함수 내부에서의 this
+
+      - 함수로서 호출하는 것은 호출 주체를 명시하지 않고 개발자가 코드에 직접 관여해서 실행한 것
+
+      - 호출 주체의 정보를 알 수 없으므로 this는 전역 객체를 가리킴
+
+      - 더글라스 크락포드는 이를 명백한 설계상의 오류라고 말함
+
+        ```js
+        var obj1 = {
+          outer: function () {
+            console.log(this);
+            var innerFunc = function () {
+              console.log(this);
+            };
+            innerFunc();
+            
+            var obj2 = {
+              innerMethod: innerFunc
+            };
+            obj2.innerMethod();
+          }
+        };
+        obj1.outer();
+        
+        // obj1 / window / obj2 가 this가 됨
+        ```
+
+      - this 바인딩은 함수를 실행하는 당시의 주변 환경은 중요하지 않고,  오직 해당 함수를 호출하는 구문 앞에 점 또는 대괄호 표기가 있는지 없는지에 따라 바인딩 됨
+
+    - 메서드 내부 함수에서 this를 우회하는 방법
+
+      - ES5 : 변수를 활용
+
+        ```js
+        var obj = {
+          outer: function () {
+            console.log(this);			// { outer: f }
+            var innerFunc1 = function () {
+              console.log(this);		// Window { ... }
+            };
+            innerFunc1();
+            
+            var self = this;
+            var innerFunc2 = function () {
+              console.log(self);		// { outer: f }
+            };
+            innerFunc2();
+          }
+        };
+        obj.outer();
+        ```
+
+      - ES6
+
+        - 화살표 함수를 사용
+        - 화살표 함수는 실행 컨텍스트를 생성할 때 this 바인딩 과정 자체가 빠지게 됨 -> 상위 스코프의 this를 그대로 활용 가능
+
+        ```js
+        var obj = {
+          outer: function () {
+            console.log(this);			// { outer: f }
+            var innerFunc = () => {
+              console.log(this);		// { outer: f }
+            };
+            innerFunc();
+          }
+        };
+        obj.outer();
+        ```
+
+        - call, apply 등의 메서드를 활용하는 방법도 있음
+
+  - 콜백 함수 호출 시 그 함수 내부에서의 this
+
+    - 콜백 함수에서 this는 제어권을 가지는 함수(메서드)가 콜백 함수에서 this를 무엇으로 할지에 따라 달라짐
+
+    - 특별히 정의하지 않은 경우에는 기본적으로 함수와 마찬가지로 전역객체를 바라봄
+
+      ```js
+      setTimeout(function () { console.log(this); }, 300);
+      
+      [1, 2, 3, 4, 5].forEach(function (x) {
+        console.log(this, x);
+      });
+      
+      document.body.innerHTML += '<button id="a">클릭</button>';
+      document.body.querySelector('#a').addEventListener('click', function (e) {
+        console.log(this, e);
+      });
+      
+      // (1), (2) : this 는 전역 객체, (3) : this는 querySelector('#a')
+      ```
+
+  - 생성자 함수 내부에서의 this
+
+    - 프로그래밍적으로 '생성자'는 구체적인 인스턴스를 만들기 위한 일종의 틀
+
+    - 자바스크립트에서는 new 명령어와 함께 함수를 호출하면 해당 함수가 생성자로서 동작하게 됨
+
+    - 생성자 함수를 호출하면 생성자의 prototype 프로퍼티를 참조하는 `__proto__`라는 프로퍼티가 있는 객체(인스턴스)를 만들고, 미리 준비된 공통 속성 및 개성을 해당 객체(this)에 부여
+
+      ```js
+      var Cat = function (name, age) {
+        this.bark = '야옹';
+        this.name = name;
+        this.age = age;
+      };
+      var choco = new Cat('초코', 7);
+      var nabi = Cat('나비', 5);
+      console.log(choco, nabi);		// Cat {bark: '야옹', name: '초코', age: 7} undefined
+      ```
+
+- 명시적으로 this를 바인딩하는 방법
+
+  - call 메서드
+
+    - `Function.prototype.call(thisArg[, arg1[, arg2[, ...]]])`
+
+    - call 메서드는 메서드의 호출 주체인 함수를 즉시 실행하도록 하는 명령
+
+    - call 메서드를 이용하면 임의의 객체를 this로 지정할 수 있음
+
+      ```js
+      var func = function (a, b, c) {
+        console.log(this, a, b, c);
+      };
+      
+      func(1, 2, 3);		// Window{ ... } 1 2 3
+      func.call({ x: 1 }, 4, 5, 6)	// { x: 1 } 4 5 6
+      
+      var obj = {
+        a: 1,
+        method: function (x, y) {
+          console.log(this.a, x, y);
+        }
+      };
+      
+      obj.method(2, 3);		// 1 2 3
+      obj.method.call({ a: 4 }, 5, 6);	// 4 5 6
+      ```
+
+  - apply 메서드
+
+    - `Function.prototype.apply(thisArg[, argsArray])`
+
+    - apply 메서드는 call 메서드와 기능적으로 완전히 동일
+
+    - `apply` 는 두 번째 인자를 배열로 받아 그 배열의 요소들을 호출할 함수의 매개변수로 지정
+
+    - `call` 은 첫 번째 인자를 제외한 나머지 모든 인자들을 호출할 함수의 매개변수로 지정
+
+      ```js
+      var func = function (a, b, c) {
+          console.log(this, a, b, c);
+      };
+      
+      func.apply({x: 1}, [4, 5, 6]);		// { x: 1 } 4 5 6
+      
+      var obj = {
+        a: 1,
+        method: function (x, y) {
+          console.log(this.a, x, y);
+        }
+      };
+      obj.method.apply({ a: 4 }, [5, 6]);		// 4 5 6
+      ```
+
+  - call / apply 메서드의 활용
+
+    - 유사배열객체에 배열 메서드를 적용
+    - 생성자 내부에서 다른 생성자를 호출
+    - 여러 인수를 묶어 하나의 배열로 전달하고 싶을 때 (apply)
+
+  - bind 메서드
+
+    - `Function.prototype.bind(thisArg[, arg1[, arg2[, ...]]])`
+
+    - ES5에 추가, call과 비슷하지만 즉시 호출하지는 않고 넘겨받은 this 및 인수들을 바탕으로 새로운 함수를 반환하기만 하는 메서드
+
+    - 함수에 this를 미리 적용하는 것과 부분 적용 함수를 구현하는 두 가지 목적을 지님
+
+      ```js
+      var func = function (a, b, c, d) {
+        console.log(this, a, b, c, d);
+      };
+      func(1, 2, 3, 4);											// Window{ ... } 1 2 3 4
+      
+      var bindFunc1 = func.bind({ x: 1 });
+      bindFunc1(5, 6, 7, 8);								// { x: 1 } 5 6 7 8
+      
+      var bindFunc2 = func.bind({ x: 1 }, 4, 5);
+      bindFunc2(6, 7);					// { x: 1 } 4 5 6 7
+      bindFunc2(8, 9);					// { x: 1 } 4 5 8 9
+      ```
+
+      
 
