@@ -214,16 +214,18 @@
       d();	// error
       ```
 
-    - 리액트에서는 함수 선언문이 좋을까? 함수 표현식이 좋을까?
+    - 함수 선언문 vs 함수 표현식?
 
-      - 조쉬랑 얘기해보기..?
       - 함수 선언문의 장점?
-        - export default function을 한번에 처리할 수 있다..? Temporal Dead Zone 방지..?
+        - export default function을 한번에 처리할 수 있다
+        -  Temporal Dead Zone 방지
       - 함수 표현식의 장점?
-        - 클로저 사용..? 호이스팅의 예기치 못한 동작 예방..? 함수의 중복 시, 혼란을 일으키는 원인이 줄어듬..?
+        - 클로저 사용 가능
+        - 호이스팅의 예기치 못한 동작 예방
+        - 함수의 중복 시, 혼란을 일으키는 원인이 줄어듬
 
   - `outerEnviromentRefernce`
-
+  
     - 스코프 
       - 식별자에 대한 유효범위
       - ES5 까지는 오직 함수에 의해서만 스코프가 생성됨
@@ -238,7 +240,7 @@
       - 이러한 특성 덕분에 여러 스코프에서 동일한 식별자를 선언한 경우 **무조건 스코프 체인 상에서 가장 먼저 발견된 식별자에게만 접근 가능** 하게 됨
 
   - 전역 변수와 지역 변수
-
+  
     - 전역 변수 : 전역 공간에서 선언한 변수
     - 지역 변수 : 함수 내부에서 선언한 변수
     - 코드의 안정성을 위해서는 가급적 전역변수 사용을 최소화해야 함
@@ -495,3 +497,233 @@
 
       
 
+### 04. 콜백 함수
+
+- 콜백 함수란?
+
+  - 다른 코드(함수 또는 메서드)에게 인자를 넘겨줌으로써 그 제어권도 함꼐 위임한 함수
+
+- 제어권
+
+  - 호출 시점
+
+    - 콜백 함수의 제어권을 넘겨받은 코드는 콜백 함수 호출 시점에 대한 제어권을 가짐
+
+    ```js
+    var count = 0;
+    var cbFunc = function () {
+      console.log(count);
+      if (++count > 4) clearInterval(timer);
+    };
+    var timer = setInterval(cbFunc, 300);
+    ```
+
+    | code                      | 호출 주체  | 제어권      |
+    | ------------------------- | ---------- | ----------- |
+    | cbFunc();                 | 사용자     | 사용자      |
+    | setInterval(cbFunc, 300); | setInteval | setInterval |
+
+  - 인자
+
+    - 콜백 함수의 제어권을 넘겨받은 코드는 콜백 함수를 호출할 때 인자에 어떤 값들을 어떤 순서로 넘길 것인지에 대한 제어권을 가짐
+
+    ```js
+    var newArr = [10, 20, 30].map(function (index, currentValue) {
+      console.log(index, currentValue);
+      return currentValue + 5;
+    });
+    console.log(newArr);
+    
+    // 10 0
+    // 20 1
+    // 30 2
+    // [5, 6, 7]
+    
+    // map 메서드에게 제어권이 있으므로 콜백 함수를 넘길 때는 map 메서드의 규칙에 맞춰 넘기지 않으면 예상치 못한 결과를 불러일으킴
+    ```
+
+  - this
+
+    - 콜백 함수도 함수이기 때문에 기본적으로는 this가 전역객체를 참조하지만, 제어권을 넘겨받을 코드에서 콜백 함수에 별도로 this가 될 대상을 지정하는 경우에는 그 대상을 참조하게 됨
+
+      ```js
+      setTimeout(function () { console.log(this); }, 300);	// (1) Window { ... }
+      
+      [1, 2, 3, 4, 5].forEach(function (x) {
+        console.log(this);			// (2) Window { ... }
+      });	
+      
+      document.body.innerHTML += '<button id="a">클릭</button>';
+      document.body.querySelector('#a').addEventListener('click', function (e) {
+        console.log(this, e);					// (3) <button id="a">클릭</button>
+      });															// MouseEvent { isTrusted: true, ... }
+      ```
+
+      (1) : setTimeout 내부에서 콜백 함수를 호출할 때 call 메서드의 첫번째 인자에 전역객체를 넘김
+
+      (2) : forEach는 별도의 인자를 this로 받지만 해당 코드에선 별도로 this를 넘겨주지 않았으므로 전역객체를 가리킴
+
+      (3) : addEventListener는 내부에서 콜백 함수를 호출할 때 call 메서드의 첫 번째 인자에 addEventListener 메서드의 this를 그대로 넘기도록 정의돼 있음 => 따라서 this는 HTML 엘리먼트를 가르킴
+
+- 콜백 함수는 함수
+
+  - 콜백 함수로 어떤 객체의 메서드를 전달하더라도 그 메서드는 메서드가 아닌 함수로서 호출됨
+
+    ```js
+    var obj = {
+      vals: [1, 2, 3],
+      logValues: function(v, i) {
+        console.log(this, v, i);
+      }
+    };
+    obj.logValues(1, 2);							// this -> obj
+    [4, 5, 6].forEach(obj.logValues);	// this -> window
+    ```
+
+  - 어떤 함수의 인자로 객체의 메서드를 전달하더라도 이는 결국 메서드가 아닌 함수
+
+- 콜백 함수 내부의 this에 다른 값 바인딩하기
+
+  - 전통적 방식
+
+    - this를 다른 변수에 담아 콜백 함수로 활용할 함수에서는 this 대신 그 변수를 사용하게 하고, 이를 클로저로 만드는 방식
+
+    ```js
+    var obj1 = {
+      name: 'obj1',
+      func: function () {
+        var self = this;
+        return function () {
+          console.log(self.name);
+        };
+      }
+    };
+    setTimeout(obj1.func(), 1000);
+    ```
+
+  - this를 사용하지 않는 방식
+
+    - 간결하고 직관적이지만 재활용이 불가능함
+
+    ```js
+    var obj1 = {
+      name: 'obj1',
+      func: function () {
+        console.log(obj1.name);
+      }
+    };
+    setTimeout(obj1.func, 1000);
+    ```
+
+  - bind 메서드 활용
+
+    - 위의 두방법을 모두 보완하는 방법
+
+    ```js
+    var obj1 = {
+      name: 'obj1',
+      func: function () {
+        console.log(obj1.name);
+      }
+    };
+    setTimeout(obj1.func.bind(obj1), 1000);
+    
+    var obj2 = { name: 'obj2' };
+    setTimeout(obj1.func.bind(obj2), 1500);
+    ```
+
+- 콜백 지옥과 비동기 제어
+
+  - 콜백 지옥
+    - 콜백 함수를 익명 함수로 전달하는 과정이 반복되어 코드의 들여쓰기 수준이 감당하기 힘들 정도로 깊어지는 현상
+    - 주로 이벤트 처리나 서버 통신과 같이 비동기적 작업을 수행하기 위해 이런 형태가 자주 등장
+    - 가독성이 떨어지고 코드를 수정하기 어려움
+  - 비동기 vs 동기
+    - 동기
+      - 현재 실행 중인 코드가 완료된 후에야 다음 코드를 실행하는 방식
+      - CPU의 계산에 의해 즉시 처리가 가능한 대부분의 코드
+    - 비동기
+      - 현재 실행 중인 코드의 완료 여부와 무관하게 즉시 다음 코드로 넘어가는 방식
+      - 별도의 요청(setTimeout), 실행 대기(addEventListener), 보류(XMLHttpRequest) 등과 관련된 코드
+
+  - 콜백 지옥 해결법
+
+    - 기명 함수로 변환
+
+    - Promise
+
+      - ES6에 도입
+      - new 연산자와 함께 호출한 Promise의 인자로 넘겨주는 콜백 함수는 호출할 때 바로 실행
+      - 콜백 함수의 내부에 resolve 또는 reject 함수를 호출하는 구문이 있을 경우 둘 중 하나가 실행되기 전까지는 다음(then) 또는 오류 구문(catch)으로 넘어가지 않음
+
+      ```js
+      const addCoffee = function(name) {
+        return function(prevName) {
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              var newName = prevName ? (prevName + ', ' + name) : name;
+              console.log(newName);
+              resolve(newName);
+            }, 500);
+          });
+        };
+      };
+      addCoffee('에스프레소')()
+      	.then(addCoffee('아메리카노'))
+      	.then(addCoffee('카페모카'))
+      	.then(addCoffee('카페라떼'));
+      ```
+
+    - Generator
+
+      - ES6 도입
+      - `*` 가 붙은 함수
+      - Generator 함수를 실행하면 Iterator가 반환되고, Iterator는 next라는 메서드를 가지고 있음
+      - next 메서드를 호출하면 Generator 함수 내부에서 가장 먼저 등장하는 yield 에서 함수의 실행을 멈춤
+
+      ```js
+      var addCoffee = function (prevName, name) {
+        setTimeout(function () {
+          coffeeMaker.next(prevName ? prevName + ', ' + name : name);
+        }, 500);
+      };
+      var coffeeGenerator = function* () {
+        var espresso = yiled addCoffee('', '에스프레소');
+        var americano = yiled addCoffee(espresso, '아메리카노');
+        var mocha = yiled addCoffee(americano, '카페모카');
+        var latte = yiled addCoffee(mocha, '카페라떼');
+      };
+      var coffeeMaker = coffeeGenerator();
+      coffeeMaker.next();
+      ```
+
+    - Async / await
+
+      - ES2017 도입
+      - 비동기 작업을 수행하고자 하는 함수 앞에 async를 표기
+      - 함수 내부에서 실질적인 비동기 작업이 필요한 위치마다 await를 표기
+      - await 뒤의 내용을 Promise로 자동 전환하고, 해당 내용이 resolve 된 이후에야 다음으로 진행 (Promise의 then과 유사)
+
+      ```js
+      var addCoffee = function (name) {
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            resolve(name);
+          }, 500);
+        });
+      };
+      var coffeeMaker = async function () {
+        var coffeList = '';
+        var _addCoffee = async function (name) {
+          coffeeList += (coffeeList += (coffeeList ? ',' : '') + await addCoffee(name));
+        };
+        await _addCoffee('에스프레소');
+        await _addCoffee('아메리카노');
+        await _addCoffee('카페모카');
+        await _addCoffee('카페라떼');
+      }
+      ```
+
+      
+
+  
