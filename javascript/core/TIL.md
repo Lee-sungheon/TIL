@@ -470,17 +470,39 @@
   - call / apply 메서드의 활용
 
     - 유사배열객체에 배열 메서드를 적용
+  
+      - 유사배열객체 : 키가 0 또는 양의 정수인 프로퍼티가 존재하고 length 프로퍼티 값이 0 또는 양의 정수인 객체
+      - ES6에서는 유사배열객체 또는 순회 가능한 모든 종류의 데이터 타입을 배열로 전환하는 `Array.from` 메서드를 도입
+  
     - 생성자 내부에서 다른 생성자를 호출
-    - 여러 인수를 묶어 하나의 배열로 전달하고 싶을 때 (apply)
+  
+      - 생성자 내부에 닫른 생성자와 공통된 내용이 있을 경우 call 또는 apply를 이용해 다른 생성자를 호출
+  
+        ```js
+        function Person(name, gender) {
+          this.name = name;
+          this.gender = gender;
+        }
+        function Student(name, gender, school) {
+          Person.call(this, name, gender);
+          this.school = school;
+        }
+        function Employee(name, gender, company) {
+          Person.apply(this, [name, gender]);
+          this.company = company;
+        }
+        ```
+  
+    - 여러 인수를 묶어 하나의 배열로 전달하고 싶을 때 (apply) -> spread operator로 대체 가능
 
   - bind 메서드
-
+  
     - `Function.prototype.bind(thisArg[, arg1[, arg2[, ...]]])`
-
+  
     - ES5에 추가, call과 비슷하지만 즉시 호출하지는 않고 넘겨받은 this 및 인수들을 바탕으로 새로운 함수를 반환하기만 하는 메서드
-
+  
     - 함수에 this를 미리 적용하는 것과 부분 적용 함수를 구현하는 두 가지 목적을 지님
-
+  
       ```js
       var func = function (a, b, c, d) {
         console.log(this, a, b, c, d);
@@ -494,7 +516,7 @@
       bindFunc2(6, 7);					// { x: 1 } 4 5 6 7
       bindFunc2(8, 9);					// { x: 1 } 4 5 8 9
       ```
-
+  
       
 
 ### 04. 콜백 함수
@@ -726,4 +748,282 @@
 
       
 
+
+### 05. 클로저
+
+- 클로저의 의미 및 원리
+
+  - 클로저?
+
+    - 어떤 함수 A에서 선언한 변수 a를 참조하는 내부함수 B를 외부로 전달할 경우 A의 실행 컨텍스트가 종료된 이후에도 변수 a가 사라지지 않는 현상
+    - 함수를 선언할 때 만들어지는 유효범위가 사라진 후에도 호출할 수 있는 함수
+    - 이미 생명 주기가 끝난 외부 함수의 변수를 참조하는 함수
+    - 자신이 생성될 때의 스코프에서 알 수 있었던 변수들 중 언젠가 자신이 실행될 때 사용할 변수들만을 기억하여 유지시키는 함수
+
+  - 클로저가 발생하는 원리?
+
+    - 가비지 컬렉터의 동작 방식 때문에 발생함
+    - 가비지 컬렉터는 어떤 값을 참조하는 변수가 하나라도 있다면 그 값은 수집 대상에 포함시키지 않음
+    - 클로저의 outerEnvironmentReference가 외부 함수의 LexicalEnvironment를 필요로 하므로 가비지 컬렉터의 수집 대상에 포함되지 않음
+
+  - 클로저가 되는 경우는 다양함
+
+    - return과 함께 외부 함수의 변수를 참조하는 내부 함수
+
+      ```js
+      var outer = function () {
+        var a = 1;
+        var inner = function () {
+          return ++a;
+        };
+        return inner;
+      };
+      
+      var outer2 = outer();
+      console.log(outer2());	// 2
+      console.log(outer2());	// 3
+      ```
+
+    - return 없이 발생하는 경우
+
+      ```js
+      // (1) setInterval / setTimeout -> 콜백함수 내부에서 지역변수를 참조
+      
+      (function () {
+        var a = 0;
+        var intervalId = null;
+        var inner = function () {
+          if (++a >= 10) {
+            clearInterval(intervalId);
+          }
+          console.log(a);
+        };
+        intervalId = setInterval(inner, 1000);
+      })();
+      
+      // (2) setListener -> handler 함수 내부에서 지역변수를 참조
+      
+      (function () {
+        var count = 0;
+        var button = document.createElement('button');
+        button.innerText = 'click';
+        button.addEventListener('click', function () {
+          console.log(++count, 'times clicked');
+        });
+        document.body.appendChild(button);
+      })();
+      ```
+
+- 클로저와 메모리 관리
+
+  - 클로저는 개발자의 의도대로 GC의 수거대상이 되지않도록 하는 것이므로 '메모리 소모'에 대한 관리법을 잘 파악해서 적용해야함
+
+  - 관리법
+
+    - GC의 참조 카운트를 0으로 만들어주면 됨
+
+    - 식별자에 참조형이 아닌 기본형 데이터(보통 null이나 undefined)를 할당하면 됨
+
+      ```js
+      var outer = function () {
+        var a = 1;
+        var inner = function () {
+          return ++a;
+        };
+        return inner;
+      };
+      
+      outer = null;
+      ```
+
+- 클로저 활용 사례
+
+  - 콜백 함수 내부에서 외부 데이터를 사용하고자 할 때
+
+    ```js
+    var fruits = ['apple', 'banana', 'peach'];
+    var $ul = document.createElement('ul');
+    
+    fruits.forEach(function (fruit) {
+      var $li = document.createElemnt('li');
+      $li.innerText = fruit;
+      $li.addEventListener('click', function () {
+        alert('your choice is ' + fruit);
+      });
+      $ul.appendChild($li);
+    });
+    document.body.appendChild($ul);
+    ```
+
+    콜백 함수 내부에서 외부 데이터인 `fruit`를 사용하고 있음 -> 콜백 함수에 들어가는 함수가 공통 함수라면 다음과 같이 바뀔 수 있음
+
+    ```js
+    var fruits = ['apple', 'banana', 'peach'];
+    var $ul = document.createElement('ul');
+    
+    var alertFruit = function (fruit) {
+      alert('your choice is ' + fruit);
+    };
+    
+    fruits.forEach(function (fruit) {
+      var $li = document.createElemnt('li');
+      $li.innerText = fruit;
+      $li.addEventListener('click', alertFruit.bind(null, fruit));
+      $ul.appendChild($li);
+    });
+    document.body.appendChild($ul);
+    ```
+
+    이 방법은 this가 원래의  this와 달라진다는 단점이 있음
+
+    ```js
+    var fruits = ['apple', 'banana', 'peach'];
+    var $ul = document.createElement('ul');
+    
+    var alertFruitBuilder = function (fruit) {
+      return function () {
+        alert('your choice is ' + fruit);
+      };
+    };
+    
+    fruits.forEach(function (fruit) {
+      var $li = document.createElemnt('li');
+      $li.innerText = fruit;
+      $li.addEventListener('click', alertFruitBuilder(fruit));
+      $ul.appendChild($li);
+    });
+    document.body.appendChild($ul);
+    ```
+
+    고차함수를 이용한 방법으로 클로저를 적극 활용 => 함수형 프로그래밍에서 자주 쓰이는 방식
+
   
+
+  - 접근 권한 제어(정보 은닉)
+
+    - 정보은닉은 어떤 모듈의 내부 로직에 대해 외부로의 노출을 최소화해서 모듈간의 결합도를 낮추고 유연성을 높이고자 하는 현대 프로그래밍 언어의 중요한 개념 중 하나
+    - 자바스크립트는 변수 자체에 접근 권한을 직접 보여하도록 설계 돼 있지 않음
+    - 클로저를 이용한다면 `public`한 값과 `private`한 값을 구분하는 것이 가능
+
+    ```js
+    var createCar = function () {
+      var fuel = Math.ceil(Math.random() * 10 + 10);
+      var power = Math.ceil(Math.random() * 3 + 2);
+      var moved = 0;
+      
+      var publicMembers = {
+        get moved () {
+          return moved;
+        },
+        run: function () {
+          var km = Math.ceil(Math.random() * 6);
+          var wastedFuel = km / power;
+          if (fuel < wasteFuel) {
+            console.log('이동불가');
+            return;
+          }
+          fuel -= wasteFuel;
+          moved += km;
+          console.log(km + 'km 이동 (총 ' + movied + 'km). 남은 연료: ' + fuel);
+        }
+      };
+      
+      Object.freeze(publicMembers);
+      return publicMembers;
+    };
+    ```
+
+    - 접근권한 제어 방법
+
+      1. 함수에서 지역변수 및 내부함수 등을 생성
+
+      2. 외부에 접근권한을 주고자 하는 대상들로 구성된 참조형 데이터(대상이 여럿일 때는 객체 또는 배열, 하나일 때는 함수)를 return 함
+
+         -> return한 변수들은 공개 멤버가 되고, 그렇지 않은 변수들은 비공개 멤버가 됨
+
+  - 부분 적용 함수
+
+    - n개의 인자를 받는 함수에 미리 m개의 인자만 넘겨 기억시켰다가, 나중에 (n-m)개의 인자를 넘기면 비로소 원래 함수의 실행 결과를 얻을 수 있게끔 하는 함수
+    - `this` 를 바인딩해야한다는 점을 제외하면 `bind` 메서드의 실행 결과가 바로 부분 적용 함수가 됨
+
+    ```js
+    var partial3 = function () {
+      var originalPartialArgs = arguments;
+      var func = originalPartialArgs[0];
+      if (typeof func !== 'function') {
+        throw new Error('첫 번째 인자가 함수가 아닙니다.');
+      }
+      
+      return function() {
+        var partialArgs = Array.prototype.slice.call(originalPartialArgs, 1);
+        var restArgs = Array.prototype.slice.call(arguments);
+        for (var i = 0; i < partialArgs.length; i++) {
+          if (partialArgs[i] === Symbol.for('EMPTY_SPACE')) {
+            partialArgs[i] = restArgs.shift();
+          }
+        }
+        return func.apply(this, partialArgs.concat(restArgs));
+      };
+    };
+    
+    var add = function () {
+      var result = 0;
+      for (var i = 0; i < arguments.length; i++) {
+        result += arguments[i];
+      }
+      return result;
+    };
+    
+    var _ = Symbol.for('EMPTY_SPACE');
+    var addPartial = partial3(add, 1, 2, _, 4, 5, _, _, 8, 9);
+    console.log(addPartial(3, 6, 7, 10));		// 55
+    
+    var dog = {
+      name: '강아지',
+      greet: partial3(function(prefix, suffix) {
+        return prefix + this.name + suffix;
+      }, '왈왈, ')
+    };
+    
+    dog.greet('배고파요!');
+    ```
+
+    
+
+  - 커링 함수
+
+    - 여러 개의 인자를 받는 함수를 하나의 인자만 받는 함수로 나눠서 순차적으로 호출될 수 있게 체인 형태로 구성한 함수
+
+    - 중간 과정상의 함수를 실행한 결과는 그 다음 인자를 받기 위해 대기만 할 뿐으로, 마지막 인자가 전달되기 전까지는 원본 함수가 실행되지 않음
+
+    - 인자가 많아질수록 가독성 떨어짐
+
+    - 각 단계에서 받은 인자들은 모두 마지막 단계까지 참조되다가, 마지막 호출로 실행 컨테스트가 종료된 후 한꺼번에 GC의 수거 대상이 됨
+
+    - 함수형 프로그래밍에서는 지연실행<sup>lazy execution</sup> 이라고 부름
+
+    - 원하는 지점까지 지연시켰다가 실행하는 것이 요긴항 상황이라면 커링을 쓰기에 적절
+
+      ```js
+      var getInformation = function (baseUrl) {
+        return function (path) {
+          return function (id) {
+            return fetch(baseUrl + path + '/' + id);
+          };
+        };
+      };
+      
+      // ES6
+      var getInformation = baseUrl => path => id => fetch(baseUrl + path + '/' + id);
+      
+      var imageUrl = 'http://imageAddress.com/';
+      
+      var getImage = getInformation(imageUrl);
+      var getEmoticon = getImage('emoticon');
+      var getIcon = getImage('icon');
+      
+      var emoticon1 = getEmoticon(100);
+      var emoticon2 = getEmoticon(102);
+      var Icon1 = getIcon(205);
+      var Icon2 = getIcon(234);
+      ```
