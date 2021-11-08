@@ -105,6 +105,7 @@
         - `httpRequest`로 받은 데이터를 저장한 객체를 복사할 때 등 순수한 정보만 다룰 때 활용하기 좋음
 
 - undefined와 null
+
   - undefined
     - 사용자가 명시적으로 지정할 수도 있지만 값이 존재하지 않을 때 JS 엔진이 자동으로 부여하는 경우도 있음
       1. 값을 대입하지 않은 변수(var)에 접근할 때
@@ -149,7 +150,9 @@
 - `LexicalEnvironment`
 
   - 처음은 `VariableEnvironment` 와 같지만 변경사항이 실시간으로 적용됨
+
   - `enviromentRecord`
+
     - 현재 컨텍스트와 관련된 코드의 식별자 정보들이 저장
     - 컨텍스트 내부 전체를 처음부터 끝까지 쭉 훑어나가며 순서대로 수집
     - 이로 인해 코드가 실행되기도 전에 자바스크립트 엔진은 해당 환경에 속한 코드의 변수명들을 모두 알게 됨 -> **호이스팅 개념**이 등장
@@ -218,14 +221,14 @@
 
       - 함수 선언문의 장점?
         - export default function을 한번에 처리할 수 있다
-        -  Temporal Dead Zone 방지
+        - Temporal Dead Zone 방지
       - 함수 표현식의 장점?
         - 클로저 사용 가능
         - 호이스팅의 예기치 못한 동작 예방
         - 함수의 중복 시, 혼란을 일으키는 원인이 줄어듬
 
   - `outerEnviromentRefernce`
-  
+
     - 스코프 
       - 식별자에 대한 유효범위
       - ES5 까지는 오직 함수에 의해서만 스코프가 생성됨
@@ -240,7 +243,7 @@
       - 이러한 특성 덕분에 여러 스코프에서 동일한 식별자를 선언한 경우 **무조건 스코프 체인 상에서 가장 먼저 발견된 식별자에게만 접근 가능** 하게 됨
 
   - 전역 변수와 지역 변수
-  
+
     - 전역 변수 : 전역 공간에서 선언한 변수
     - 지역 변수 : 함수 내부에서 선언한 변수
     - 코드의 안정성을 위해서는 가급적 전역변수 사용을 최소화해야 함
@@ -255,11 +258,12 @@
 - 상황에 따른 this
 
   - 전역 공간
+
     - 전역 객체를 가리킴
     - 전역 컨텍스트를 생성하는 주체가 바로 전역 객체기 때문
     - 브라우저에선 `window`, Node에서는 `global`
 
-  -  메서드로서 호출할 때 그 메서드 내부
+  - 메서드로서 호출할 때 그 메서드 내부
 
     - 함수 vs 메서드 ?
 
@@ -334,22 +338,7 @@
       - ES5 : 변수를 활용
 
         ```js
-        var obj = {
-          outer: function () {
-            console.log(this);			// { outer: f }
-            var innerFunc1 = function () {
-              console.log(this);		// Window { ... }
-            };
-            innerFunc1();
-            
-            var self = this;
-            var innerFunc2 = function () {
-              console.log(self);		// { outer: f }
-            };
-            innerFunc2();
-          }
-        };
-        obj.outer();
+        var obj = {  outer: function () {    console.log(this);			// { outer: f }    var innerFunc1 = function () {      console.log(this);		// Window { ... }    };    innerFunc1();        var self = this;    var innerFunc2 = function () {      console.log(self);		// { outer: f }    };    innerFunc2();  }};obj.outer();
         ```
 
       - ES6
@@ -358,16 +347,7 @@
         - 화살표 함수는 실행 컨텍스트를 생성할 때 this 바인딩 과정 자체가 빠지게 됨 -> 상위 스코프의 this를 그대로 활용 가능
 
         ```js
-        var obj = {
-          outer: function () {
-            console.log(this);			// { outer: f }
-            var innerFunc = () => {
-              console.log(this);		// { outer: f }
-            };
-            innerFunc();
-          }
-        };
-        obj.outer();
+        var obj = {  outer: function () {    console.log(this);			// { outer: f }    var innerFunc = () => {      console.log(this);		// { outer: f }    };    innerFunc();  }};obj.outer();
         ```
 
         - call, apply 등의 메서드를 활용하는 방법도 있음
@@ -379,18 +359,7 @@
     - 특별히 정의하지 않은 경우에는 기본적으로 함수와 마찬가지로 전역객체를 바라봄
 
       ```js
-      setTimeout(function () { console.log(this); }, 300);
-      
-      [1, 2, 3, 4, 5].forEach(function (x) {
-        console.log(this, x);
-      });
-      
-      document.body.innerHTML += '<button id="a">클릭</button>';
-      document.body.querySelector('#a').addEventListener('click', function (e) {
-        console.log(this, e);
-      });
-      
-      // (1), (2) : this 는 전역 객체, (3) : this는 querySelector('#a')
+      setTimeout(function () { console.log(this); }, 300);[1, 2, 3, 4, 5].forEach(function (x) {  console.log(this, x);});document.body.innerHTML += '<button id="a">클릭</button>';document.body.querySelector('#a').addEventListener('click', function (e) {  console.log(this, e);});// (1), (2) : this 는 전역 객체, (3) : this는 querySelector('#a')
       ```
 
   - 생성자 함수 내부에서의 this
@@ -402,14 +371,7 @@
     - 생성자 함수를 호출하면 생성자의 prototype 프로퍼티를 참조하는 `__proto__`라는 프로퍼티가 있는 객체(인스턴스)를 만들고, 미리 준비된 공통 속성 및 개성을 해당 객체(this)에 부여
 
       ```js
-      var Cat = function (name, age) {
-        this.bark = '야옹';
-        this.name = name;
-        this.age = age;
-      };
-      var choco = new Cat('초코', 7);
-      var nabi = Cat('나비', 5);
-      console.log(choco, nabi);		// Cat {bark: '야옹', name: '초코', age: 7} undefined
+      var Cat = function (name, age) {  this.bark = '야옹';  this.name = name;  this.age = age;};var choco = new Cat('초코', 7);var nabi = Cat('나비', 5);console.log(choco, nabi);		// Cat {bark: '야옹', name: '초코', age: 7} undefined
       ```
 
 - 명시적으로 this를 바인딩하는 방법
@@ -423,22 +385,7 @@
     - call 메서드를 이용하면 임의의 객체를 this로 지정할 수 있음
 
       ```js
-      var func = function (a, b, c) {
-        console.log(this, a, b, c);
-      };
-      
-      func(1, 2, 3);		// Window{ ... } 1 2 3
-      func.call({ x: 1 }, 4, 5, 6)	// { x: 1 } 4 5 6
-      
-      var obj = {
-        a: 1,
-        method: function (x, y) {
-          console.log(this.a, x, y);
-        }
-      };
-      
-      obj.method(2, 3);		// 1 2 3
-      obj.method.call({ a: 4 }, 5, 6);	// 4 5 6
+      var func = function (a, b, c) {  console.log(this, a, b, c);};func(1, 2, 3);		// Window{ ... } 1 2 3func.call({ x: 1 }, 4, 5, 6)	// { x: 1 } 4 5 6var obj = {  a: 1,  method: function (x, y) {    console.log(this.a, x, y);  }};obj.method(2, 3);		// 1 2 3obj.method.call({ a: 4 }, 5, 6);	// 4 5 6
       ```
 
   - apply 메서드
@@ -452,57 +399,34 @@
     - `call` 은 첫 번째 인자를 제외한 나머지 모든 인자들을 호출할 함수의 매개변수로 지정
 
       ```js
-      var func = function (a, b, c) {
-          console.log(this, a, b, c);
-      };
-      
-      func.apply({x: 1}, [4, 5, 6]);		// { x: 1 } 4 5 6
-      
-      var obj = {
-        a: 1,
-        method: function (x, y) {
-          console.log(this.a, x, y);
-        }
-      };
-      obj.method.apply({ a: 4 }, [5, 6]);		// 4 5 6
+      var func = function (a, b, c) {    console.log(this, a, b, c);};func.apply({x: 1}, [4, 5, 6]);		// { x: 1 } 4 5 6var obj = {  a: 1,  method: function (x, y) {    console.log(this.a, x, y);  }};obj.method.apply({ a: 4 }, [5, 6]);		// 4 5 6
       ```
 
   - call / apply 메서드의 활용
 
     - 유사배열객체에 배열 메서드를 적용
-  
+
       - 유사배열객체 : 키가 0 또는 양의 정수인 프로퍼티가 존재하고 length 프로퍼티 값이 0 또는 양의 정수인 객체
       - ES6에서는 유사배열객체 또는 순회 가능한 모든 종류의 데이터 타입을 배열로 전환하는 `Array.from` 메서드를 도입
-  
+
     - 생성자 내부에서 다른 생성자를 호출
-  
+
       - 생성자 내부에 닫른 생성자와 공통된 내용이 있을 경우 call 또는 apply를 이용해 다른 생성자를 호출
-  
+
         ```js
-        function Person(name, gender) {
-          this.name = name;
-          this.gender = gender;
-        }
-        function Student(name, gender, school) {
-          Person.call(this, name, gender);
-          this.school = school;
-        }
-        function Employee(name, gender, company) {
-          Person.apply(this, [name, gender]);
-          this.company = company;
-        }
+        function Person(name, gender) {  this.name = name;  this.gender = gender;}function Student(name, gender, school) {  Person.call(this, name, gender);  this.school = school;}function Employee(name, gender, company) {  Person.apply(this, [name, gender]);  this.company = company;}
         ```
-  
+
     - 여러 인수를 묶어 하나의 배열로 전달하고 싶을 때 (apply) -> spread operator로 대체 가능
 
   - bind 메서드
-  
+
     - `Function.prototype.bind(thisArg[, arg1[, arg2[, ...]]])`
-  
+
     - ES5에 추가, call과 비슷하지만 즉시 호출하지는 않고 넘겨받은 this 및 인수들을 바탕으로 새로운 함수를 반환하기만 하는 메서드
-  
+
     - 함수에 this를 미리 적용하는 것과 부분 적용 함수를 구현하는 두 가지 목적을 지님
-  
+
       ```js
       var func = function (a, b, c, d) {
         console.log(this, a, b, c, d);
@@ -516,7 +440,7 @@
       bindFunc2(6, 7);					// { x: 1 } 4 5 6 7
       bindFunc2(8, 9);					// { x: 1 } 4 5 8 9
       ```
-  
+
       
 
 ### 04. 콜백 함수
@@ -657,10 +581,13 @@
 - 콜백 지옥과 비동기 제어
 
   - 콜백 지옥
+
     - 콜백 함수를 익명 함수로 전달하는 과정이 반복되어 코드의 들여쓰기 수준이 감당하기 힘들 정도로 깊어지는 현상
     - 주로 이벤트 처리나 서버 통신과 같이 비동기적 작업을 수행하기 위해 이런 형태가 자주 등장
     - 가독성이 떨어지고 코드를 수정하기 어려움
+
   - 비동기 vs 동기
+
     - 동기
       - 현재 실행 중인 코드가 완료된 후에야 다음 코드를 실행하는 방식
       - CPU의 계산에 의해 즉시 처리가 가능한 대부분의 코드
@@ -1027,3 +954,129 @@
       var Icon1 = getIcon(205);
       var Icon2 = getIcon(234);
       ```
+
+
+
+### 06. 프로토타입
+
+- 프로토타입
+  - 자바스크립트는 프로토타입 기반 언어
+
+  - 클래스 기반 언어에서는 '상속'을 사용하지만, 프로토타입 기반 언어에서는 어떤 객체를 원형으로 삼고 이를 복제(참조)함으로써 상속과 비슷한 효과를 얻음
+
+  - 프로토타입 흐름
+    - 어떤 생성자 함수(Constructor)를 `new` 연산자와 함께 호출
+    - `Constructor` 에서 정의된 내용을 바탕으로 새로운 인스턴스가 생성
+    - 이때 `instance` 에는 `__proto__` 라는 프로퍼티가 자동으로 부여
+    - 이 프로퍼티는 `Contructor` 의 `prototype` 이라는 프로퍼티를 참조
+    
+  - `__proto__` 는 생략 가능한 프로퍼티
+
+    ```js
+    var Person = function (name) {
+      this._name = name;
+    };
+    Person.prototype.getName = function () {
+      return this._name;
+    };
+    
+    var suzi = new Person('Suzi');
+    suzi.__proto__._name = 'SUZI__proto__';
+    suzi.__proto__.getName();	// SUZI_proto__
+    
+    var suzi = new Person('Suzi', 28);
+    suzi.getName();		// Suzi;
+    var iu = new Person('Jieun', 28);
+    iu.getName();
+    ```
+
+    - `__proto__` 를 생략하지 않으면 this는 `__proto` 를 가리키지만, 이를 생략하면 instance를 가리킴
+    - `__proto__` 는 생략가능하므로 생성자 함수의 prototype에 어떤 메서드나 프로퍼티가 있다면 인스턴스에 마치 자신의 것처럼 해당 메서드나 프로퍼티에 접근할 수 있음
+    - `Array` 의 인스턴스의 `__proto__` 은 `Array.prototype` 을 참조하여 prototye에 있는 메소드를 자신의 것처럼 호출할 수 있으나, `Array` 의 프로퍼티 내부에 있지 않은 `from, isArray` 등의 메서드들은 인스턴스가 직접 호출할 수 없음
+
+  - constructor 프로퍼티
+
+    - 생성자 함수의 `prototype` 객체 내부에는 `constructor` 라는 프로퍼티가 있음 (인스턴스도 마찬가지)
+
+    - 원래의 생성자 함수(자기 자신)을 참조함
+
+    - 인스턴스로부터 그 원형이 무엇인지 알 수 있는 수단이 됨
+
+      ```js
+      var arr = [1, 2];
+      Array.prototype.constructor === Array	// true
+      arr.__proto__.constructor === Array		// true
+      arr.constructor === Array							// true
+      
+      var arr2 = new arr.constructor(3, 4);
+      console.log(arr2);		// [3, 4]
+      ```
+
+    - 읽기 전용 속성이 부여된 예외적인 경우(기본형 리터럴 변수 - number, string, boolean)를 제외하고는 값을 바꿀 수 있음
+
+    - `constructor`을 변경하더라도 참조하는 대상이 변경될 뿐 이미 만들어진 인스턴스의 원형이 바뀐다거나 데이터 타입이 변하는 것은 아님
+
+      ```js
+      // 모두 동일한 대상을 가리킴
+      [Constructor]
+      [instance].__proto__.constructor
+      [instance].constructor
+      Object.getPrototypeOf([instance]).constructor
+      [Constructor].prototype.constructor
+      ```
+
+      ```js
+      // 모두 동일한 객체에 접근할 수 있음
+      [Constructor].prototype
+      [instance].__proto__
+      [instance]
+      Object.getPrototypeOf([instance])
+      ```
+
+- 프로토타입 체인
+
+  - 메서드 오버라이드
+
+    - 인스턴스가 동일한 이름의 프로퍼티 또는 메서드를 가지면 오버라이딩이 됨
+
+    - `__proto__` 를 이용해 원본에 우회적으로 접근이 가능함
+
+      ```js
+      var Person = function (name) {
+        this.name = name;
+      };
+      Person.prototype.getName = function () {
+        return this.name;
+      };
+      
+      var iu = new Person('지금');
+      iu.getName = function () {
+        return '바로 ' + this.name; 
+      };
+      console.log(iu.getName());		// 바로 지금
+      
+      console.log(iu.__proto__.getName.call(iu));		// 지금
+      ```
+
+  - 프로토타입 체인
+
+    - 어떤 데이터의 `__proto__` 프로퍼티 내부에서 다시 `__proto__` 프로퍼티가 연쇄적으로 이어진 것을 **프로토타입 체인**이라고 함
+
+    - 프로토타입 체인을 따라가며 검색하는 것을 **프로토타입 체이닝**이라고 함
+
+    - 어떤 메서드를 호출하면 자바스크립트 엔진은 데이터 자신의 프로퍼티들을 검색해서 원하는 메서드가 있으면 그 메서드를 실행하고, 없으면 `__proto__`를 검색해서 있으면 그 메서드를 실행하는 식으로 진행
+
+      ```js
+      var arr = [1, 2];
+      Array.prototype.toString.call(arr);		// 1, 2
+      Object.prototype.toString.call(arr);	// [object Array]
+      arr.toString();												// 1, 2
+      
+      arr.toString = function () {
+        return this.join('_');
+      };
+      arr.toString();												// 1_2
+      ```
+
+      - arr 변수는 배열이므로 `Array.toString` -> `Array.prototype.toString` -> `Object.prototype.toString` 의 순서로 프로토타입 체이닝을 실행
+
