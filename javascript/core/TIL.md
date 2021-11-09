@@ -1079,4 +1079,54 @@
       ```
 
       - arr 변수는 배열이므로 `Array.toString` -> `Array.prototype.toString` -> `Object.prototype.toString` 의 순서로 프로토타입 체이닝을 실행
-
+  
+  - 객체 전용 메서드의 예외 사항
+  
+    - 어떤 생성자 함수든 `prototype` 은 반드시 객체이기 때문에 `Object.prototype` 이 언제나 프로토타입 체인의 최상단에 존재하기 됨
+  
+    - 따라서, 객체에서만 사용할 메서드는 다른 데이터 타입처럼 프로토타입 객체 안에 정의할 수가 없음 -> 다른 데이터 타입도 해당 메서드를 사용할 수 있기 때문
+  
+    - 객체 전용 메서드는 `Object` 에 스태틱 메서드로 부여할 수 밖에 없음
+  
+    - 생성자 함수인 `Object` 와 인스턴스인 객체 리터럴 사이에는 `this` 를 통한 연결이 불가능하기 때문에 `this`의 사용을 포기하고 대상 인스턴스를 인자로 직접 주입해야하는 방식으로 구현
+  
+    - `Object.prototype` 에는 어떤 데이터에서도 활용할 수 있는 범용적인 메서드들만 있음 (`toString, hasOwnProperty, valueOf, isPrototypeOf` 등)
+  
+    - `Object.create(null)` 를 이용하면 `__proto__` 가 없는 객체를 생성함 -> 기본 기능에는 제약이 있지만 성능상 이점을 가짐
+  
+      ```js
+      var _proto = Object.create(null);
+      _proto.getValue = function(key) {
+        return this[key];
+      };
+      var obj = Object.create(_proto);
+      obj.a = 1;
+      console.log(obj.getValue('a'));	// 1
+      console.dir(obj);								// __proto 에 getValue 만 있음
+      ```
+  
+  - 다중 프로토타입 체인
+  
+    - 자바스크립트의 기본 내장 데이터 타입들은 모두 프로토타입 체인이 1단계(객체)이거나 2단계(나머지)로 끝나느 경우만 있음
+  
+    - 사용자가 생성자 함수의 `prototype` 이 연결하고자 하는 상위 생성자 함수의 인스턴스를 바라보게 해주면 다중 프로토타입 체인이 가능해짐
+  
+      ```js
+      var Grade = function () {
+        var args = Array.prototype.slice.call(arguments);
+        for (var i = 0; i < args.length; i++) {
+          this[i] = args[i];
+        }
+        this.length = args.length;
+      };
+      var g = new Grade(100, 80);
+      
+      Grade.prototype = [];
+      
+      g.pop();		// Grade(1) [100]
+      g.push(90);	// Grade(2) [100, 90]
+      
+      ==> 안되는데,,,???
+      ```
+  
+      
