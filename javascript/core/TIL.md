@@ -1078,7 +1078,7 @@
       arr.toString();												// 1_2
       ```
 
-      - arr 변수는 배열이므로 `Array.toString` -> `Array.prototype.toString` -> `Object.prototype.toString` 의 순서로 프로토타입 체이닝을 실행
+      - arr 변수는 배열이므로 `arr.toString` -> `Array.prototype.toString` -> `Object.prototype.toString` 의 순서로 프로토타입 체이닝을 실행
   
   - 객체 전용 메서드의 예외 사항
   
@@ -1119,14 +1119,13 @@
         }
         this.length = args.length;
       };
-      var g = new Grade(100, 80);
       
       Grade.prototype = [];
       
+      var g = new Grade(100, 80);
+      
       g.pop();		// Grade(1) [100]
       g.push(90);	// Grade(2) [100, 90]
-      
-      ==> 안되는데,,,???
       ```
   
       
