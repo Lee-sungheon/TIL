@@ -1129,3 +1129,17 @@
       ```
   
       
+
+
+
+
+
+### 	번외01. Event Loop
+
+- https://medium.com/sjk5766/javascript-%EB%B9%84%EB%8F%99%EA%B8%B0-%ED%95%B5%EC%8B%AC-event-loop-%EC%A0%95%EB%A6%AC-422eb29231a8
+- https://velog.io/@thms200/Event-Loop-%EC%9D%B4%EB%B2%A4%ED%8A%B8-%EB%A3%A8%ED%94%84
+
+### 번외02. Symbol
+
+- https://another-light.tistory.com/105
+- https://poiemaweb.com/es6-symbol
