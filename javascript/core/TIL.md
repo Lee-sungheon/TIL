@@ -338,18 +338,43 @@
       - ES5 : 변수를 활용
 
         ```js
-        var obj = {  outer: function () {    console.log(this);			// { outer: f }    var innerFunc1 = function () {      console.log(this);		// Window { ... }    };    innerFunc1();        var self = this;    var innerFunc2 = function () {      console.log(self);		// { outer: f }    };    innerFunc2();  }};obj.outer();
+        var obj = {  
+          outer: function () {    
+            console.log(this);			// { outer: f }    
+            var innerFunc1 = function () {      
+              console.log(this);		// Window { ... }    
+            };    
+            innerFunc1();        
+            var self = this;    
+            var innerFunc2 = function () {      
+              console.log(self);		// { outer: f }    
+            };    
+            innerFunc2();  
+          }
+        };
+        
+        obj.outer();
         ```
-
+      
       - ES6
-
+      
         - 화살표 함수를 사용
         - 화살표 함수는 실행 컨텍스트를 생성할 때 this 바인딩 과정 자체가 빠지게 됨 -> 상위 스코프의 this를 그대로 활용 가능
-
+      
         ```js
-        var obj = {  outer: function () {    console.log(this);			// { outer: f }    var innerFunc = () => {      console.log(this);		// { outer: f }    };    innerFunc();  }};obj.outer();
+        var obj = {  
+          outer: function () {   
+            console.log(this);			// { outer: f }    
+            var innerFunc = () => {     
+              console.log(this);		// { outer: f }    
+            };   
+            innerFunc();  
+          }
+        };
+        
+        obj.outer();
         ```
-
+        
         - call, apply 등의 메서드를 활용하는 방법도 있음
 
   - 콜백 함수 호출 시 그 함수 내부에서의 this
@@ -371,7 +396,14 @@
     - 생성자 함수를 호출하면 생성자의 prototype 프로퍼티를 참조하는 `__proto__`라는 프로퍼티가 있는 객체(인스턴스)를 만들고, 미리 준비된 공통 속성 및 개성을 해당 객체(this)에 부여
 
       ```js
-      var Cat = function (name, age) {  this.bark = '야옹';  this.name = name;  this.age = age;};var choco = new Cat('초코', 7);var nabi = Cat('나비', 5);console.log(choco, nabi);		// Cat {bark: '야옹', name: '초코', age: 7} undefined
+      var Cat = function (name, age) {  
+        this.bark = '야옹';  
+        this.name = name; 
+        this.age = age;
+      };
+      var choco = new Cat('초코', 7);
+      var nabi = Cat('나비', 5);
+      console.log(choco, nabi);		// Cat {bark: '야옹', name: '초코', age: 7} undefined
       ```
 
 - 명시적으로 this를 바인딩하는 방법
@@ -385,48 +417,85 @@
     - call 메서드를 이용하면 임의의 객체를 this로 지정할 수 있음
 
       ```js
-      var func = function (a, b, c) {  console.log(this, a, b, c);};func(1, 2, 3);		// Window{ ... } 1 2 3func.call({ x: 1 }, 4, 5, 6)	// { x: 1 } 4 5 6var obj = {  a: 1,  method: function (x, y) {    console.log(this.a, x, y);  }};obj.method(2, 3);		// 1 2 3obj.method.call({ a: 4 }, 5, 6);	// 4 5 6
+      var func = function (a, b, c) { 
+        console.log(this, a, b, c);
+      };
+      func(1, 2, 3);		// Window{ ... } 1 2 3
+      func.call({ x: 1 }, 4, 5, 6)	// { x: 1 } 4 5 6
+      
+      var obj = {  
+        a: 1,  
+        method: function (x, y) {    
+          console.log(this.a, x, y);
+        }
+      };
+      obj.method(2, 3);		// 1 2 3
+      obj.method.call({ a: 4 }, 5, 6);	// 4 5 6
       ```
-
+  
   - apply 메서드
-
+  
     - `Function.prototype.apply(thisArg[, argsArray])`
-
+  
     - apply 메서드는 call 메서드와 기능적으로 완전히 동일
-
+  
     - `apply` 는 두 번째 인자를 배열로 받아 그 배열의 요소들을 호출할 함수의 매개변수로 지정
 
     - `call` 은 첫 번째 인자를 제외한 나머지 모든 인자들을 호출할 함수의 매개변수로 지정
 
       ```js
-      var func = function (a, b, c) {    console.log(this, a, b, c);};func.apply({x: 1}, [4, 5, 6]);		// { x: 1 } 4 5 6var obj = {  a: 1,  method: function (x, y) {    console.log(this.a, x, y);  }};obj.method.apply({ a: 4 }, [5, 6]);		// 4 5 6
+      var func = function (a, b, c) {    
+        console.log(this, a, b, c);
+      };
+      func.apply({x: 1}, [4, 5, 6]);		// { x: 1 } 4 5 6
+      
+      var obj = {  
+        a: 1, 
+        method: function (x, y) {   
+          console.log(this.a, x, y); 
+        }
+      };
+      obj.method.apply({ a: 4 }, [5, 6]);		// 4 5 6
       ```
-
+  
   - call / apply 메서드의 활용
-
+  
     - 유사배열객체에 배열 메서드를 적용
-
+  
       - 유사배열객체 : 키가 0 또는 양의 정수인 프로퍼티가 존재하고 length 프로퍼티 값이 0 또는 양의 정수인 객체
       - ES6에서는 유사배열객체 또는 순회 가능한 모든 종류의 데이터 타입을 배열로 전환하는 `Array.from` 메서드를 도입
-
+  
     - 생성자 내부에서 다른 생성자를 호출
-
+  
       - 생성자 내부에 닫른 생성자와 공통된 내용이 있을 경우 call 또는 apply를 이용해 다른 생성자를 호출
-
+  
         ```js
-        function Person(name, gender) {  this.name = name;  this.gender = gender;}function Student(name, gender, school) {  Person.call(this, name, gender);  this.school = school;}function Employee(name, gender, company) {  Person.apply(this, [name, gender]);  this.company = company;}
+        function Person(name, gender) {  
+          this.name = name;  
+          this.gender = gender;
+        }
+        
+        function Student(name, gender, school) {  
+          Person.call(this, name, gender);
+          this.school = school;
+        }
+        
+        function Employee(name, gender, company) { 
+          Person.apply(this, [name, gender]); 
+          this.company = company;
+        }
         ```
-
+  
     - 여러 인수를 묶어 하나의 배열로 전달하고 싶을 때 (apply) -> spread operator로 대체 가능
-
+  
   - bind 메서드
-
+  
     - `Function.prototype.bind(thisArg[, arg1[, arg2[, ...]]])`
-
+  
     - ES5에 추가, call과 비슷하지만 즉시 호출하지는 않고 넘겨받은 this 및 인수들을 바탕으로 새로운 함수를 반환하기만 하는 메서드
-
+  
     - 함수에 this를 미리 적용하는 것과 부분 적용 함수를 구현하는 두 가지 목적을 지님
-
+  
       ```js
       var func = function (a, b, c, d) {
         console.log(this, a, b, c, d);
@@ -440,14 +509,14 @@
       bindFunc2(6, 7);					// { x: 1 } 4 5 6 7
       bindFunc2(8, 9);					// { x: 1 } 4 5 8 9
       ```
-
+  
       
 
 ### 04. 콜백 함수
 
 - 콜백 함수란?
 
-  - 다른 코드(함수 또는 메서드)에게 인자를 넘겨줌으로써 그 제어권도 함꼐 위임한 함수
+  - 다른 코드(함수 또는 메서드)에게 인자를 넘겨줌으로써 그 제어권도 함께 위임한 함수
 
 - 제어권
 
@@ -728,7 +797,7 @@
         intervalId = setInterval(inner, 1000);
       })();
       
-      // (2) setListener -> handler 함수 내부에서 지역변수를 참조
+      // (2) addEventListener -> handler 함수 내부에서 지역변수를 참조
       
       (function () {
         var count = 0;
@@ -1107,7 +1176,7 @@
   
   - 다중 프로토타입 체인
   
-    - 자바스크립트의 기본 내장 데이터 타입들은 모두 프로토타입 체인이 1단계(객체)이거나 2단계(나머지)로 끝나느 경우만 있음
+    - 자바스크립트의 기본 내장 데이터 타입들은 모두 프로토타입 체인이 1단계(객체)이거나 2단계(나머지)로 끝나는 경우만 있음
   
     - 사용자가 생성자 함수의 `prototype` 이 연결하고자 하는 상위 생성자 함수의 인스턴스를 바라보게 해주면 다중 프로토타입 체인이 가능해짐
   
@@ -1130,7 +1199,16 @@
   
       
 
+### 07. 클래스
 
+- 클래스와 인스턴스
+  - 클래스 
+    - 어떤 사물의 공통 속성을 모아 정의한 추상적 개념
+    - 상위 클래스(superclass)의 조건을 충족하면서 더욱 더욱 구체적인 조건이 추가된 것을 하위 클래스(subclass)라고 함
+  - 인스턴스
+    - 클래스의 속성을 지니는 구체적인 사례
+- 자바스크립트의 클래스
+  - 
 
 
 
