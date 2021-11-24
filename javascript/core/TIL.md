@@ -1205,10 +1205,227 @@
   - 클래스 
     - 어떤 사물의 공통 속성을 모아 정의한 추상적 개념
     - 상위 클래스(superclass)의 조건을 충족하면서 더욱 더욱 구체적인 조건이 추가된 것을 하위 클래스(subclass)라고 함
+    - 클래스는 사용하기에 따라 추상적인 대상(프로토타입 메서드)이 될 수도 있고 구체적인 개체(스태틱 메서드)가 될 수도 있음
   - 인스턴스
     - 클래스의 속성을 지니는 구체적인 사례
+    - 하나의 인스턴스는 하나의 클래스만을 바탕으로 만들어짐
+
 - 자바스크립트의 클래스
-  - 
+  - 자바스크립트는 프로토타입 기반 언어이므로 클래스의 개념이 존재하지 않음 -> 하지만 클래스 관점에서 접근하면 비슷하게 해석할 수 있는 요소가 많음
+  - 클래스 관점에서 바라본 프로토타입
+    - 프로토타입 생성자 : prototype 객체 내부 요소들이 인스턴스에 상속 (클래스 상속)
+    - 프로토타입 메서드 : 인스턴스에 상속되는 메서드 (클래스 인스턴스 멤버)
+    - 스태틱 메서드 : 인스턴스에 상속되지 않는 메서드 (클래스 스태틱 멤버)
+
+- 클래스 상속
+
+  - 프로토타입 체인을 이용해서 클래스를 흉내 낼 수 있음 (ES5까지)
+
+  - 기본 구현
+
+    - 클래스는 인스턴스와의 관계에서는 구체적인 데이터를 지니지 않고 오직 인스턴스가 사용할 메서드만을 지니는 추상적인 '틀'로서만 작용하게끔 작성해야함
+
+    ```js
+    var Rectangle = function (width, height) {
+      this.width = width;
+      this.height = height;
+    };
+    Rectangle.prototype.getArea = function () {
+      return this.width * this.height;
+    };
+    var rect = new Rectangle(3, 4);
+    console.log(rect.getArea());			// 12
+    
+    var Square = function (width) {
+      Rectangle.call(this, width, width);
+    };
+    Square.prototype = new Rectangle();
+    var sq = new Square(5);
+    
+    var rect2 = new sq.constructor(2, 3);
+    ```
+
+    - 위의 방법은 2가지 문제를 지님
+      - 클래스에 있는 값이 인스턴스에 영향을 줄  수 있는 구조
+      - `constructor` 는 `Rectangle` 을 바라보고 있어 구조적으로 안정성이 떨어짐
+
+  - 클래스가 구체적인 데이터를 지니지 않게 하는 방법 + constructor 복구
+
+    - 인스턴스 생성 후 프로퍼티 제거
+
+      ```js
+      var extendClass1 = function (SuperClass, SubClass, subMethods) {
+        SubClass.prototype = new SuperClass();
+        for (var prop in SuperClass.prototype) {
+          if (SubClass.prototype.hasOwnProperty(prop)) {
+            delete SubClass.prototype[prop];
+          }
+        }
+        SubClass.prototype.constructor = SubClass;
+        if (subMethods) {
+          for (var method in subMethods) {
+            SubClass.prototype[method] = subMethods[method];
+          }
+        }
+        Object.freeze(SubClass.prototype);
+        return SubClass;
+      };
+      
+      var Square = extendClass1(Rectangle, function (width) {
+        Rectangle.call(this, width, width);
+      });
+      ```
+
+    - 빈 생성자 함수(Bridge) 활용
+
+      ```js
+      var extendClass2 = (function () {
+        var Bridge = function () {};
+        return function (SuperClass, SubClass, subMethods) {
+          Bridge.prototype = SuperClass.prototype;
+          SubClass.prototype = new Bridge();
+        	SubClass.prototype.constructor = SubClass;
+          if (subMethods) {
+            for (var method in subMethods) {
+              SubClass.prototype[method] = subMethods[method];
+            }
+          }
+          Object.freeze(SubClass.prototype);
+          return SubClass;
+        };
+      })();
+      ```
+
+    - Object.create 활용
+
+      ```js
+      var extendClass3 = function (SuperClass, SubClass, subMethods) {
+        SubClass.prototype = Object.create(SuperClass.prototype);
+        SubClass.prototype.constructor = SubClass;
+        if (subMethods) {
+          for (var methods in subMethods) {
+            SubClass.prototype[method] = subMethods[method];
+          }
+        }
+        Object.freeze(SubClass.prototype);
+        return SubClass;
+      };
+      ```
+
+  - 상위 클래스에 접근 수단 제공 (super)
+
+    ```js
+    var extendClass = function (SuperClass, SubClass, subMethods) {
+      SubClass.prototype = Object.create(SuperClass.prototype);
+      SubClass.prototype.constructor = SubClass;
+      SubClass.prototype.super = function (propName) {
+        var self = this;
+        if (!propName) return function () {
+          SuperClass.apply(self, arguments);
+        }
+        var prop = SuperClass.prototype[propName];
+        if (typeof prop !== 'function') return prop;
+        return function () {
+          return prop.apply(self, arguments);
+        };
+      }
+      if (subMethods) {
+        for (var method in subMethods) {
+          SubClass.prototype[method] = subMethods[method];
+        }
+      }
+      Object.freeze(SubClass.prototype);
+      return SubClass;
+    };
+    
+    var Rectangle = function (width, height) {
+      this.width = width;
+      this.height = height;
+    };
+    Rectangle.prototype.getArea = function () {
+      return this.width * this.height;
+    };
+    
+    var Square = extendClass(
+    	Rectangle,
+      function (width) {
+        this.super()(width, width);
+      }, {
+        getArea: function () {
+          console.log('size is : ', this.super('getArea')());
+        }
+      }
+    );
+    
+    var sq = new Square(10);
+    sq.getArea();
+    console.log(sq.super('getArea')());
+    ```
+
+    
+
+
+- ES6의 클래스 및 클래스 상속
+
+  - ES6에 클래스 문법이 도입
+
+    ```js
+    // ES5 
+    var ES5 = function (name) {
+      this.name = name;
+    };
+    ES5.staticMethod = function () {
+      return this.name + ' staticMethod';
+    };
+    ES5.prototype.method = function () {
+      return this.name + ' method';
+    };
+    var es5Instance = new ES5('es5');
+    console.log(ES5.staticMethod());		// es5 staticMethod
+    console.log(es5Instance.method());	// es5 method
+     
+    // ES6 
+    var ES6 = class {
+      constructor (name) {
+        this.name = name;
+      }
+      static staticMethod () {
+        return this.name + ' staticMethod';
+      }
+      method () {
+        return this.name + ' method';
+      }
+    };
+    var es6Instance = new ES6('es6');
+    console.log(ES6.staticMethod());		// es6 staticMethod
+    console.log(es6Instance.method());	// es6 method
+    
+    // 클래스 상속
+    var Rectangle = class {
+      constructor (width, height) {
+        this.width = width;
+        this.height = height;
+      }
+      getArea () {
+        return this.width * this.height;
+      }
+    };
+    var Square = class extends Rectangle {
+      constructor (width) {
+        super(width, width);
+      }
+      getArea () {
+        console.log('size is : ', super.getArea());
+      }
+    };
+    ```
+
+  - 상속
+
+    - `class` 명령어 뒤에 `extends class명` 을 추가해 상속 관계를 설정
+    - `constructor` 내부에서는 `super` 를 함수처럼 사용할 수 있으며, 이 함수는 `SuperClass` 의 `constructor` 을 실행함
+    - 다른 메서드에서 `super` 는 객체처럼 사용할 수 있으며, 이때 객체는 `SuperClass.prototype` 을 바라보며, 호출한 메서드의 `this` 는 `super` 가 아닌 원래의 `this` 를 따름
+
 
 
 
