@@ -26,6 +26,29 @@
 
     - 값이 담긴 주솟값들로 이루어진 묶음을 가리키는 주솟값을 복제
     - 가변성<sup>mutability</sup>
+    
+  - Object는 다른 참조형 타입의 하위 분류
+
+    - 1급 객체
+
+      - 변수나 데이터 구조안에 담을 수 있음
+      - 파라미터로 전달 가능
+      - 반환값으로 사용 가능
+      - 동적으로 프로퍼티 할당 가능
+
+    - 배열은 객체
+
+      ```jsx
+      const arr = [1, 2, 3];
+      
+      arr[4] = 'test';
+      arr['property'] = 'string value';
+      arr['obj'] = {};
+      arr['{}'] = [1, 2, 3];
+      arr['func'] = function () {
+        return 'hello';
+      };
+      ```
 
 - 메모리와 데이터
 
