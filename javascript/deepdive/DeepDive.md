@@ -1909,3 +1909,116 @@
 
 
 
+## 48. 모듈
+
+- 모듈의 일반적 의미
+
+  - 모듈 
+
+    - 애플리케이션을 구성하는 개별적 요소로서 재사용 가능한 코드 조각
+    - 일반적으로 모듈은 기능을 기준으로 파일 단위로 분리함
+    - 모듈이 성립하려면 모듈은 자신만의 **파일 스코프(모듈 스코프)**를 가질 수 있어야 함
+    - 자신만의 파일 스코프를 갖는 모듈의 모든 자산은 캡슐화되어 다른 모듈에서 접근할 수 없다.
+    - 즉, 모듈은 개별적 존재로서 애플리케이션과 분리되어 존재
+    - 코드의 단위를 명확히 분리하여 어플리케이션을 구성할 수 있고, 재사용성이 좋아서 개발 효율성과 유지보수성을 높일 수 있음
+
+  - export
+
+    - 모듈은 공개가 필요한 자산에 한정하여 명시적으로 선택정 공개가 가능
+
+  - import
+
+    - 모듈 사용자 : 공개된 모듈의 자산을 사용하는 모듈
+    - 모듈 사용자는 모듈이 공개<sup>export</sup>한 자산 중 일부 또는 전체를 선택해 자신의 스코프 내로 불러들여 재사용할 수 있음
+
+    ![스크린샷 2022-07-23 오후 8.37.28](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-07-23 오후 8.37.28.png)
+
+- 자바스크립트와 모듈
+  - 자바스크립트는 모듈이 성립하기 위해 필요한 파일 스코프와 import, export를 지원하지 않음
+  - 자바스크립트 파일을 여러 개의 파일로 분리하여 script 태그로 로드해도 분리된 자바스크립트 파일들은 결국 하나의 자바스크립트 파일 내에 있는 것처럼 동작함
+  - 즉, 모든 자바스크립트 파일은 하나의 전역을 공유
+  - 자바스크립트의 모듈 시스템을 해결하기 위한 방법
+    - CommonJS
+    - AMD<sup>Asynchronous Module Definition</sup>
+    - 브라우저 환경에서 모듈을 사용하기 위해서는 CommonJS 또는 AMD를 구현한 모듈 로더 라이브러리를 사용해야 함
+  - Node.js는 모듈 시스템의 사실상 표준인 CommonJS를 채택, 독자적 진화를 거쳐 ECMAScript 표준 사양은 아니지만 모듈 시스템을 지원함
+
+
+
+- ES6 모듈(ESM)
+
+  - ES6에서는 클라이언스 사이드 자바스크립트에서도 동작하는 모듈 기능을 추가함(IE를 제외한 대부분의 브라우저에서 지원)
+
+  - 사용법
+
+    - script 태그에 type="module" 어트리뷰트를 추가하면 로드된 자바스크립트 파일은 모듈로서 동작함
+
+    - 일반적인 자바스크립트 파일이 아닌 ESM임을 명확히 하기 위해 ESM의 파일 확장자는 `mjs`를 사용할 것을 권장
+
+      ```ts
+      <script type="module" src="app.mjs"></script>
+      ```
+
+  - 모듈 스코프
+
+    - ESM은 독자적인 모듈 스코프를 가짐
+    - ESM이 아닌 일반적인 자바스크트립트 파일은 script 태그로 분리해서 로드해도 독자적인 모듈 스코프를 갖지 않음
+
+  - export 키워드
+
+    - 모듈 내부에서 선언한 식별자를 외부에 공개하여 다른 모듈들이 재사용할 수 있게 하려면 export 키워드를 사용
+    - export 키워드는 선언문 앞에 사용
+    - 변수, 함수 클래스 등 모든 식별자를 export 할 수 있음
+    - 선언문 앞에 매번 export 키워드를 붙이는 것이 번거롭다면 export할 대상을 하나의 객체로 구성하여 한 번에 export 할 수도 있음
+
+  - import 키워드
+
+    - 다른 모듈에서 공개한 식별자를 자신의 모듈 스코프 내부에 로드하려면 import 키워드를 사용
+
+    - 다른 모듈이 export한 식별자 이름으로 import해야 하며 ESM의 경우 파일 확장자를 생략할 수 없음
+
+    - 모듈이 export한 식별자 이름을 일일이 지정하지 않고 하나의 이름으로 한 번에 import 할 수도 있음
+
+      - 이 때, import 되는 식별자는 as 뒤에 지정한 이름의 객체에 프로퍼티로 할당됨
+
+        ```ts
+        import * as lib from './lib.mjs';
+        
+        console.log(lib.pi);
+        console.log(lib.square(10));
+        ```
+
+    - 모듈이 export 한 식별자 이름을 변경하여 import 할 수도 있음
+
+      ```ts
+      import { pi as PI, square as sq } from './lib.mjs';
+      
+      console.log(PI);
+      console.log(sq(10));
+      ```
+
+    - 모듈에서 하나의 값만 export 한다면 default 키워드를 사용할 수 있음
+
+      - default 키워드는 기본적으로 이름 없이 하나의 값을 export 함
+
+      - default 키워드를 사용하는 경우 var, let, const 키워드는 사용할 수 없음
+
+      - default 키워드와 함께 export한 모듈은 {} 없이 임의의 이름으로 import 함
+
+        ```ts
+        // lib.mjs
+        export default x => x * x;
+        
+        // lib2.mjs
+        export default const foo = () => {};
+        // => SyntaxError: Unexpected token 'const'
+        // export default () => {};
+        
+        // app.mjs
+        import square from './lib.mjs';
+        
+        console.log(square(3));
+        ```
+
+        
+
