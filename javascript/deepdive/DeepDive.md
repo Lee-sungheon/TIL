@@ -1783,6 +1783,37 @@
 
 
 
+## 44. REST API
+
+- REST API
+
+  - REpresentational State Transfer
+  - REST의 기본 원칙을 성실히 지킨 서비스 디자인을 'Restful'이라고 표현
+  - REST는 HTTP를 기반으로 클라이언트가 서버의 리소스에 접근하는 방식을 규정한 아키텍처
+  - REST API는 REST 기반으로 서비스 API를 구현한 것을 의미
+
+- REST API의 구성
+
+  ![스크린샷 2022-07-24 오후 8.07.38](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-07-24 오후 8.07.38.png)
+
+- REST API 설계 원칙
+
+  - URI는 리소스를 표현해야 함
+
+    - URI는 리소스를 표현하는 데 중점을 두어야 함
+    - 리소스를 식별할 수 있는 이름은 동사보다는 명사를 사용
+    - 이름에 get 같은 행위에 대한 표현이 들어가서는 안 됨
+
+  - 리소스에 대한 행위는 HTTP 요청 메서드로 표현
+
+    - HTTP 요청 메서드는 클라이언트가 서버에게 요청의 종류와 목적(리소스에 대한 행위)을 알리는 방법
+    - 주로 5가지 요청 메서드(GET, POST, PUT, PATCH, DELETE 등)를 사용하여 CRUD를 구현
+    - 리소스에 대한 행위는 HTTP 요청 메서드를 통해 표현하며 URI에 표현하지 않는다.
+
+    ![스크린샷 2022-07-24 오후 8.11.04](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-07-24 오후 8.11.04.png)
+
+
+
 ## 47. 에러 처리
 
 - 에러 처리의 필요성
