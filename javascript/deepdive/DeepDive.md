@@ -1814,6 +1814,46 @@
 
 
 
+## 45. 프로미스
+
+- 프로미스의 생성
+
+  - Promise 생성자 함수를 new 연산자와 함께 호출하면 프로미스 객체를 생성함
+
+  - ES6에서 도입된 Promise는 호스트 객체가 아닌 ECMAScript 사양에 정의된 표준 빌트인 객체임
+
+  - Promise 생성자 함수는 비동기 처리를 수행할 콜백 함수를 인수로 전달받는데 이 콜백 함수는 resolve와 reject 함수를 인수로 전달받음
+
+    ```ts
+    const promise = new Promise((resolve, reject) => {
+      // Promise 함수의 콜백 함수 내부에서 비동기 처리를 수행
+      if (/* 비동기 처리 성공 */) {
+        resolve('result');
+      } else {/* 비동기 처리 실패 */
+      	reject('failur reason');
+      }
+    })
+    ```
+
+  - 비동기 처리 진행 상태 정보
+
+    ![스크린샷 2022-08-14 오후 7.17.00](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-08-14 오후 7.17.00.png)
+
+    - 프로미스의 상태는 resolve 또는 reject 함수를 호출하는 것으로 결정됨
+
+    ![스크린샷 2022-08-14 오후 7.18.03](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-08-14 오후 7.18.03.png)
+
+    - fullfilled 또는 rejected 상태를 settled 상태라고 함
+      - settled 상태는 pending 이 아닌 상태로 비동기 처리가 수행된 상태를 말함
+      - 일단 settled 상태가 되면 더는 다르 상태로 변화할 수 없음
+    - **프로미스는 비동기 처리 상태와 결과를 관리하는 객체**
+
+    
+
+
+
+
+
 ## 47. 에러 처리
 
 - 에러 처리의 필요성
