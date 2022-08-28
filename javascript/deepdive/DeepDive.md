@@ -1848,6 +1848,65 @@
       - 일단 settled 상태가 되면 더는 다르 상태로 변화할 수 없음
     - **프로미스는 비동기 처리 상태와 결과를 관리하는 객체**
 
+- 프로미스의 후속 처리 메서드
+
+  - 프로미스의 비동기 처리 상태가 변화하면 후속 처리 메서드에 인수로 전달한 콜백 함수가 선택적으로 호출됨
+
+  - Promise.prototype.then
+
+    - then 메서드는 두 개의 콜백 함수를 인수로 전달받음
+
+      - 첫번째 콜백 함수(성공 처리 콜백 함수)는 프로미스가 fullfilled 상태가 되면 호출됨. 이때 콜백 함수는 프로미스의 비동기 처리 결과를 인수로 전달받음
+      - 두 번째 콜백 함수(실패 처리 콜백 함수)는 프로미스가 rejected 상태가 되면 호출됨. 이때 콜백 함수는 프로미스의 에러를 인수로 전달받음
+
+      ```ts
+      new Promise(resolve => resolve('fulfilled'))
+      	.then(v => console.log(v), e => console.log(e));	// fulfilled
+      
+      new Promise((_, reject) => reject(new Error('rejected')))
+      	.then(v => console.log(v), e => console.log(e));	// Error: rejected
+      ```
+
+  - Promise.prototype.catch
+
+    - catch 메서드는 한 개의 콜백 함수를 인수로 전달 받음
+
+    - 프로미스가 rejected 상태인 경우만 콜백 함수가 호출됨
+
+      ```ts
+      new Promise((_, reject) => reject(new Error('rejected')))
+      	.catch(e => console.log(e)); 	// Error: rejected
+      ```
+
+  - Promise.prototype.finally
+
+    - finally 메서드는 한 개의 콜백 함수를 인수로 전달받음
+    - 콜백 함수는 프로미스의 성공과 실패와 상관없이 무조건 한 번 호출됨
+    - finally 메서드는 프로미스의 상태와 상관없이 공통적으로 수행해야 할 처리 내용이 있을 때 유용
+
+    ```js
+    const pormiseGet = url => {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.send();
+        
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve(JSON.parse(xhr.response));
+          } else {
+            reject(new Error(xhr.status));
+          }
+        };
+      });
+    };
+    
+    promiseGet('https://jsonplaceholder.typicode.com/posts/1')
+    	.then(res => console.log(res))
+    	.catch(err => console.log(err))
+    	.finally(() => console.log('bye!'));
+    ```
+
     
 
 
