@@ -1873,6 +1873,8 @@
 
     - 프로미스가 rejected 상태인 경우만 콜백 함수가 호출됨
 
+    - catch 메서드를 모든 then 메서드를 호출한 이후에 호출하면 비동기 처리에서 발생한 에러(rejected)뿐만 아니라 then 메서드 내부에서 발생한 에러까지 모두 캐치할 수 있음
+
       ```ts
       new Promise((_, reject) => reject(new Error('rejected')))
       	.catch(e => console.log(e)); 	// Error: rejected
@@ -1907,8 +1909,62 @@
     	.finally(() => console.log('bye!'));
     ```
 
-    
+- 프로미스의 정적 메서드
 
+  - Promise는 주로 생성자 함수로 사용되지만 함수도 객체이므로 메서드를 가질 수 있음
+
+  - Promise.resolve / Promise.reject
+
+    - Promise.resolve와 Promise.reject 메서드는 이미 존재하는 값을 래핑하여 프로미스를 생성하기 위해 사용
+
+      ```ts
+      const reseolvedPromise = Promise.resolve([1, 2, 3]);
+      resolvedPromise.then(console.log);	// [1, 2, 3]
+      
+      const resolvedPromise2 = new Promise(resolve => resolve([1, 2, 3]));
+      resolvedPromise2.then(console.log);	// [1, 2, 3
+      
+      const rejectedPromise = Promise.reject(new Error('Error!'));
+      rejectedPromise.catch(console.log);	// Error: Error!
+      
+      const rejectedPromise2 = new Promise((_, reject) => reject(new Error('Error!')));
+      rejectedPromise2.catch(console.log);	// Error: Error!
+      ```
+
+  - Promise.all
+
+    - 여러 개의 비동기 처리를 모두 병렬 처리할 때 사용
+    - 처리 순서가 보장됨
+    - 인수로 전달받은 배열의 프로미스가 하나라도 rejected 상태가 되면 프로미스가 fulfilled 상태가 되는 것을 기다리지 않고 즉시 종료
+    - Promise.all 메서드는 인수로 전달받은 이터러블의 요소가 프로미스가 아닌 경우 Promise.resolve 메서드를 통해 프로미스로 래핑함
+
+  - Promise.race
+
+    - Promise.all 메서드와 동일하게 프로미스를 요소로 갖는 배열 등의 이터러블을 인수로 전달받음
+    - 가장 먼저 fulfilled 상태가 된 프로미스의 처리 결과를 resolve하는 새로운 프로미스를 반환
+    - 인수로 전달받은 배열의 프로미스가 하나라도 rejected 상태가 되면 에러를 reject하는 새로운 프로미스를 즉시 반환
+
+  - Promise.allSettled
+
+    - ES11(ECMAScript 2020) 에 도입
+    - Promise.allSettled 메서드가 반환한 배열에는 fullfilled 또는 rejected 상태와는 상관없이 Promise.allSettled 메서드가 인수로 전달받은 모든 프로미스의 처리 결과가 모두 담겨 있음
+
+- 마이크로태스크 큐
+
+  - 마이크로태스크 큐는 태스크 큐보다 우선순위가 높음
+
+  - 이벤트 루프는 콜 스택이 비면 먼저 마이크로태스크 큐에서 대기하고 있는 함수를 가져와 실행하고 마이크로태스크 큐가 비면 태스크 큐에서 대기하고 있는 함수를 가져와 실행함
+
+    ```ts
+    setTimeout(() => console.log(1), 0);
+    Promise.resolve()
+    	.then(() => console.log(2))
+    	.then(() => console.log(3));
+    
+    // 2 -> 3 -> 1
+    ```
+
+    
 
 
 
