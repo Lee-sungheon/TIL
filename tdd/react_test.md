@@ -85,3 +85,54 @@
     ![스크린샷 2022-09-09 오후 5.23.28](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-09-09 오후 5.23.28.png)
 
     ![스크린샷 2022-09-09 오후 5.23.37](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-09-09 오후 5.23.37.png)
+
+
+
+## Jest 파일 구조 & 사용법
+
+- describe : 여러 관련 테스트를 그룹화하는 블록을 만듬
+- it (= test) : 개별 테스트를 수행하는 곳. 각 테스트를 작은 문장처럼 설명
+- expect : 값을 테스트할 때마다 사용하는 함수. 혼자서는 거의 사용되지 않으며 matcher와 함께 사용됨
+- matcher : 다른 방법으로 값을 테스트하도록 'matcher'를 사용 
+
+
+
+## React Testing Library 주요 API
+
+- render 함수
+  - DOM에 컴포넌트를 랜더링하는 함수 인자로 랜더링할 React 컴포넌트가 들어감
+  - Return은 RTL에서 제공하는 쿼리 함수와 기타 유틸리티 함수를 담고 있는 객체를 리턴(Destructuring 문법으로 원하는 쿼리 함수만 얻어올 수 있다.)  => 소스 코드가 복잡해지면 비추천
+  - screen 객체를 사용하기 : 사용해야 할 쿼리가 많아질수록 코드가 복잡해질 수 있음
+
+
+
+## 쿼리 함수
+
+- 쿼리함수
+
+  - 쿼리는 페이지에서 요소를 찾기 위해 테스트 라이브러리가 제공하는 방법
+  - 여러 유형의 쿼리("get", "find", "query") 있음
+  - 이들 간의 차이점은 요소가 발견되지 않으면 쿼리에서 오류가 발생하는지 또는 Promise를 반환하고 다시 시도하는지 여부
+
+- get, fine, query 차이점
+
+  - getBy
+    - 쿼리에 일치하는 노드를 반환
+    - 일치하는 요소가 없거나 둘 이상의 일치가 발견되면 설명 오류를 발생
+    - 둘 이상의 요소가 예상되는 경우 대신 getAllBy 사용
+  - queryBy
+    - 쿼리에 대해 일치하는 노드를 반환하고 일치하는 요소가 없으면 null을 반환 (테스트 실패 X)
+    - 둘 이상의 일치 항목이 발견되면 오류를 발생
+    - 확인된 경우 대신 queryAllBy 사용
+  - findBy
+    - 주어진 쿼리와 일치하는 요소가 발견되면 Promise를 반환
+    - 요소가 발견되지 않거나 기본 제한 시간인 1000ms 후에 둘 이상의 요소가 발견되면 약속이 거부됨
+    - 둘 이상의 요소를 찾아야 하는 경우 findAllBy 사용
+    - getBy + waitFor = findBy
+  - waitFor
+    - 일정 시간 동안 기다려야 할 때 waitFor을 사용하여 기대가 통과할 때까지 기다릴 수 있음
+
+  ​	![스크린샷 2022-09-18 오전 2.07.57](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-09-18 오전 2.07.57.png)
+
+
+
