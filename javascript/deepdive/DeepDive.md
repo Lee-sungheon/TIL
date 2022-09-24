@@ -1964,7 +1964,27 @@
     // 2 -> 3 -> 1
     ```
 
-    
+
+- fetch
+
+  - HTTP 요청 전송 기능을 제공하는 클라이언트 사이드 Web API
+
+  - XMLHttpRequest 객체보다 사용법이 간단하고 프로미스를 지원하기 때문에 비동기 처리를 위한 콜백 패턴의 단점에서 자유로움
+
+  - 비교적 최근에 추가된 Web API로서 인터넷 익스플로러를 제외한 대부분의 모던 브라우저에서 제공함
+
+  - HTTP 응담을 나타내는 Response 객체를 래핑한 Promise 객체를 반환
+
+    ```ts
+    const promise = fetch(url, [, options])
+    ```
+
+    ![스크린샷 2022-09-24 오후 10.49.16](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-09-24 오후 10.49.16.png)
+
+  - fetch 함수가 반환하는 프로미스는 HTTP 에러가 발생해도 에러를 reject 하지 않고 불리언 타입의 ok 상태를 false로 설정한 Response 객체를 resolve 함
+
+    - 오프라인 등의 네트워크 장애나 CORS 에러에 의해 요청이 완료되지 못한 경우에만 프로미스를 reject 함
+    - axios는 모든 HTTP 에러를 reject 하는 프로미스를 반환하여 모든 에러를 catch에서 처리할 수 있음
 
 
 
