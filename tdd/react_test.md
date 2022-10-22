@@ -152,5 +152,15 @@
     - 실제 개발하면서 많은 시간이 소요되는 부분은 디버깅 부분이기에 TDD를 사용하면 디버깅 시간이 줄어들고 실제 개발 시간도 줄어듬
     - 소스 코드 하나하나를 더욱 신중하게 짤 수 있기 때문에 깨끗한 코드가 나올 확률이 높음
 
-    
+
+
+
+## Query 사용 우선 순위
+
+- https://testing-library.com/docs/queries/about/#priority
+- useEvent > fireEvent
+  - userEvent는 fireEvent 를 사용해서 만들어짐
+  - userEvent의 내부 코드를 보면 fireEvent를 사용하면서 엘리먼트의 타입에 따라서 Label을 클릭했을 때, checkbox, radio 을 클릭했을 때 그 엘리먼트 타입에 맞는 더욱 적절한 반응을 보여줌
+
+
 
