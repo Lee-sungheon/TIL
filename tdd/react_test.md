@@ -164,3 +164,20 @@
 
 
 
+## MSW(Mock Serveice Workder)
+
+- 작동 방식
+
+  - 브라우저에 서비스 워커를 등록하여 외부로 나가는 네트워크 리퀘스트를 감지
+
+  - 그리고 그 요청을 실제 서버로 갈 때 중간에 가로채서 (intercept) MSW 클라이언트 사이드 라이브러리로 보냄
+
+  - 그 후 등록 된 핸들러에서 요청을 처리한 후 모의 응답을 브라우저로 보냄
+
+    ![스크린샷 2022-10-23 오후 8.02.25](/Users/iseongheon/Library/Application Support/typora-user-images/스크린샷 2022-10-23 오후 8.02.25.png)
+
+- 사용 방법
+
+  - https://mswjs.io/docs/getting-started/mocks/rest-api
+  - 
+
