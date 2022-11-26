@@ -1988,6 +1988,114 @@
 
 
 
+## 46. 제너레이터와 async/await
+
+- 제너레이터
+
+  - 코드 블록의 실행을 일시 중지했다가 필요한 시점에 재개할 수 있는 특수한 함수
+  - 일반 함수와의 차이
+    - 함수 호출자에게 함수 실행의 제어권을 양도할 수 있음
+    - 함수 호출자와 함수의 상태를 주고받을 수 있음
+    - 제너레이터 함수를 호출하면 제너레이터 객체(이터러블이면서 동시에 이터레이터인 제너레이터 객체)를 반환
+
+- 제너레이터 함수 정의
+
+  - `function*` 키워드로 선언
+
+  - 하나 이상의 `yield` 표현식을 포함
+
+    ```ts
+    // 함수 선언문
+    function* getDecFunc() {
+      yield 1;
+    }
+    
+    // 함수 표현식
+    const getExpFunc = function* () {
+      yield 1;
+    };
+    
+    // 제너레이터 메서드
+    const obj = {
+      * genObjMethod() {
+        yield 1;
+      }
+    };
+    
+    // 제너레이터 클래스 메서드
+    class MyClass {
+      * genClsMethod() {
+        yield 1;
+      }
+    }
+    ```
+
+  - 제너레이터 함수는 화살표 함수로 정의할 수 없음
+
+  - 제러에티너 함수는 new 연산자와 함꼐 생성자 함수로 호출할 수 없음
+
+    ```ts
+    function* getFunc() {
+      yield 1;
+    }
+    
+    new getFunc();	// TypeErro: genFunc is not a constructor
+    ```
+
+- 제너레이터 객체
+
+  - 제너레이터 함수를 호출하면 일반 함수처럼 코드 블록을 실행하는 것이 아니라 제너레이터 객체를 생성해 반환함
+
+  - 제너레이터 함수가 반환한 제너레이터 객체는 이터러블(Symbor.iterator 메서드를 상속받는)이면서 동시에 이터레이터(이터레이터 리절트 객체를 반환하는 next 메서드를 소유)
+
+    ```ts
+    function* getFunc() {
+      yield 1;
+      yield 2;
+      yield 3;
+    }
+    
+    const generator = getFunc();
+    console.log(Symbor.iterator in generator);	// true
+    console.log('next' in generator);	// true
+    ```
+
+  - 제너레이터 객체는 next 메서드를 갖는 이터레이터지만 이터레이터에 없는 return, throw 메서드를 갖음
+
+    ```ts
+    function* getFunc() {
+      yield 1;
+      yield 2;
+      yield 3;
+    } catch (e) {
+      console.error(e);
+    }
+    
+    const generator = getFunc();
+    
+    console.log(generator.next());	// {value: 1, done: false}
+    console.log(generator.return('End!'))	// {value: 'End!', done: true}
+    
+    function* getFunc2() {
+      yield 1;
+      yield 2;
+      yield 3;
+    } catch (e) {
+      console.error(e);
+    }
+    
+    const generator2 = getFunc2();
+    
+    console.log(generator.next());	// {value: 1, done: false}
+    console.log(generator.throw('Error!'))	// {value: undefined, done: true}
+    ```
+
+- 제너레이터의 일시 중지와 재개
+
+  - 
+
+
+
 
 ## 47. 에러 처리
 

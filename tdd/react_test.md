@@ -164,7 +164,7 @@
 
 
 
-## MSW(Mock Serveice Workder)
+## MSW(Mock Serveice Worker)
 
 - 작동 방식
 
@@ -179,5 +179,5 @@
 - 사용 방법
 
   - https://mswjs.io/docs/getting-started/mocks/rest-api
-  - 
+  - 브라우저와 통합 / 노드와 통합(=Jest 환경) 방식
 
