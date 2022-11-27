@@ -2092,6 +2092,142 @@
 
 - 제너레이터의 일시 중지와 재개
 
+  - yield 키워드는 제너레이터 함수의 실행을 일시 중지시키거나 yield 키워드 뒤에 오는 표현식의 평과 결과를 제너레이터 함수 호출자에게 반환함
+
+    ```ts
+    function* getFunc() {
+      yield 1;
+      yield 2;
+      yield 3;
+    }
+    
+    // 제너레이터 함수를 호출하면 제너레이터 객체를 반환
+    // 이터러블이면서 동시에 이터레이터인 제너레이터 객체는 next 메서드를 가짐
+    const generator = getFunc();
+    
+    // 처음 next 메서드를 호출하면 첫 번째 yield 표현식까지 실행되고 일시 중지됨
+    // next 메서드는 이터레이터 리절트 객체({value, done})을 반환
+    // value 프로퍼티에는 첫 번째 yield 표현식에서 yield된 값 1이 할당됨
+    // done 프로퍼티에는 제너레이터 함수가 끝까지 실행되었는지를 나타내는 false가 할당됨
+    console.log(generator.next());	// {value: 1, done: false}
+    
+    // 다시 next 메서드를 호출하면 두 번째 yield 표현식까지 실행되고 일시 중지됨
+    // next 메서드는 이터레이터 리절트 객체({value, done})을 반환
+    // value 프로퍼티에는 두 번째 yield 표현식에서 yield된 값 2이 할당됨
+    // done 프로퍼티에는 제너레이터 함수가 끝까지 실행되었는지를 나타내는 false가 할당됨
+    console.log(generator.next());	// {value: 2, done: false}
+    
+    // 다시 next 메서드를 호출하면 세 번째 yield 표현식까지 실행되고 일시 중지됨
+    // next 메서드는 이터레이터 리절트 객체({value, done})을 반환
+    // value 프로퍼티에는 세 번째 yield 표현식에서 yield된 값 3이 할당됨
+    // done 프로퍼티에는 제너레이터 함수가 끝까지 실행되었는지를 나타내는 false가 할당됨
+    console.log(generator.next());	// {value: 3, done: false}
+    
+    // 다시 next 메서드를 호출하면 남은 yield 표현식이 없으므로 제너레이터 함수의 마지막까지 실행
+    // next 메서드는 이터레이터 리절트 객체({value, done})을 반환
+    // value 프로퍼티에는 제너레이터 함수의 반환값 undefined가 할당됨
+    // done 프로퍼티에는 제너레이터 함수가 끝까지 실행되었는지를 나타내는 true가 할당됨
+    console.log(generator.next());	// {value: 3, done: false}
+    ```
+
+    ```ts
+    generator.next() -> yield -> generator.next() => yield -> ... -> generator.next() -> return
+    ```
+
+  - 이터레이터의 next 메서드와 달리 제너레이터 객체의 next 메서드에는 인수를 전달할 수 있음
+
+    - 제너레이터 객체의 next 메서드에 전달한 인수는 함수의 yield 표현식을 할당받는 변수에 할당됨
+
+    ```ts
+    function* getFunc() {
+      const x = yield 1;
+      const y = yield (x + 10);
+      return x + y;
+    }
+    
+    const generator = getFunc(0);
+    
+    let res = generator.next();
+    console.log(res);	// {value: 1, done: false}
+    
+    res = generator.next(10);
+    console.log(res);	// {value: 20, done: false}
+    
+    res = generator.next(10);
+    console.log(res);	// {value: 30, done: true}
+    ```
+
+- 제너레이터의 활용
+
+  - 이러터블의 구현
+
+    - 제너레이터 함수를 사용하면 이터레이션 프로토콜을 준수해 이터러블을 생성하는 방식보다 간단하게 이터러블을 구현 가능
+
+      ```ts
+      // 함수 구현
+      
+      const infiniteFibonacci = (function () {
+        let [pre, cur] = [0, 1];
+        
+        return {
+          [Symbol.iterator]() { return this; },
+          next() {
+            [pre, cur] = [cur, pre + cur];
+            // 무한 이터러블이므로 done 프로퍼티를 생략
+            return { value: cul };
+          }
+        }
+      }());
+      
+      for (const num of infiniteFibonacci) {
+        if (num > 10000) break;
+        console.log(num);	// 1 2 3 5 8 ... 2584 4181 6765
+      }
+      
+      // 제너레이터 함수 구현
+      const infiniteFibonacci = (function* () {
+        let [pre, cur] = [0, 1];
+        
+        while (true) {
+          [pre, cur] = [cur, pre + cur];
+          yield cur;
+        }
+      }());
+      
+      for (const num of infiniteFibonacci) {
+        if (num > 10000) break;
+        console.log(num);	// 1 2 3 5 8 ... 2584 4181 6765
+      }
+      ```
+
+  - 비동기 처리
+
+    - 제너레이터 함수를 사용하면 프로미스를 사용한 비동기 처리를 동기 처리처럼 구현할 수 있음
+
+      ```ts
+      const async = generatorFunc => {
+        const generator = generatorFunc();
+        
+        const onResolved = arg => {
+          const result = generator.next(arg);
+          
+          return result.done ? result.value : result.value.then(res => onResolved(res));
+        };
+        return onResolved;
+      };
+      
+      (async(function* fetchTodo() {
+        const url = 'https://jsonplaceholder.typicode.com/todos/1';
+        
+        const response = yield fetch(url);
+        const todo = yield response.json();
+        console.log(todo);
+        // { userId: 1, id: 1, title: 'delectus aut autem', completed: fale }
+      }))
+      ```
+
+- async/await
+
   - 
 
 
