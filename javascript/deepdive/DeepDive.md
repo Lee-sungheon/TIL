@@ -2228,7 +2228,76 @@
 
 - async/await
 
-  - 
+  - async 함수
+    - await 키워드는 반드시 async 함수 내부에서 사용해야 함
+    - async 함수는 async 키워드를 사용해 정의하며 언제나 프로미스를 반환
+    - async 함수가 명시적으로 프로미스를 반환하지 않더라도 async 함수는 암묵적으로 반환값을 resolve 하는 프로미스를 반환
+  - await 키워드
+    - 프로미스가 settled 상태(비동기 처리가 수행된 상태)가 될 때까지 대기하다가 settled 상태가 되면 프로미스가 resolve한 처리 결과를 반환
+    - await 키워드는 반드시 프로미스 앞에서 사용해야 함
+    - 비동기 처리의 순서가 보장되어야 할 때 사용하는게 좋음
+
+- 에러 처리
+
+  - 비동기 처리를 위한 콜백 패턴의 단점 중 가장 심각한 것은 에러 처리가 곤란하다는 것
+
+    - 에러는 호출자 방향으로 전파
+
+    - 콜 스택의 아래 방향(실행 중인 실행 컨텍스트가 푸시되기 직전에 푸시된 실행 컨텍스트 방향)으로 전파
+
+    - 비동기 함수의 콜백 함수를 호출한 것은 비동기 함수가 아니기 때문에 try ... catch 문을 사용해 에러를 캐치할 수 없음
+
+      ```ts 
+      try {
+        setTimeout(() > { throw new Error('Error!'); }, 1000);
+      } catch (e) {
+        // 에러를 캐치하지 못함
+        console.error('캐치한 에러', e);
+      }
+      ```
+
+  - async/await 에서 에러 처리는 try ... catch  문을 사용할 수 있음
+
+    - 프로미스를 반환하는 비동기 함수는 명시적으로 호출할 수 있기 때문에 호출자가 명확
+
+      ```ts
+      const fetch = require('node-fetch');
+      
+      const foo = async () => {
+        try {
+          const wrongUrl = 'https://wrong.url';
+          
+          const respnse = await fetch(wrongUrl);
+          const data = await response.json();
+          console.log(data); 
+        } catch (err) {
+          console.error(err);	// TypeError: Failed to fetch
+        }
+      };
+      
+      foo();
+      ```
+
+      
+
+    - async 함수 내에서 catch 문을 사용해서 에러 처리를 하지 않으면 async 함수는 발생한 에러를 reject 하는 프로미스를 반환
+
+      ```ts
+      const fetch = require('node-fetch');
+      
+      const foo = async () => {
+        const wrongUrl = 'https://wrong.url';
+      
+        const respnse = await fetch(wrongUrl);
+        const data = await response.json();
+        return data;
+      };
+      
+      foo().then(console.log).catch(console.err);	// TypeError: Failed to fetch
+      ```
+
+      
+
 
 
 
