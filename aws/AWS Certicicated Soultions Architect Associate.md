@@ -40,11 +40,11 @@
   - Statement의 구성 요소
 
     - Sid: 문장 ID로 문장의 식별자 (optional)
-    - Effect: 문장이 특정 API에 접근하는걸 허용할지 거부할지에 대한 내용 (Allow / Deny)
-    - Principal: 특정 정책이 적용될 사용자, 계정, 혹은 역할로 구성
-    - Action: effect에 기반해 허용 및 거부되는 API 호출의 목록
-    - Resource: 적용될 action의 리소스 목록
-    - Condition: statement가 언제 적용될지를 결정 (optional)
+    - 효과(Effect): 문장이 특정 API에 접근하는걸 허용할지 거부할지에 대한 내용 (Allow / Deny)
+    - 원칙(Principal): 특정 정책이 적용될 사용자, 계정, 혹은 역할로 구성
+    - 조치(Action): effect에 기반해 허용 및 거부되는 API 호출의 목록
+    - 리소스(Resource): 적용될 action의 리소스 목록
+    - 컨디션(Condition): statement가 언제 적용될지를 결정 (optional)
 
     ```json
     {
@@ -105,4 +105,62 @@
   - AWS Management Console (protected by password + MFA)
   - AWS Command Line Interface (CLI): protected by access keys
   - AWS Software Developer Kit (SDK): for code -> protected by access keys
-- 
+- 액세스 키 생성 방법
+  - AWS Console을 사용해서 생성할 수 있음
+  - 사용자들이 자신들의 액세스 키를 직접 관리
+  - 액세스 키는 비밀번호와 마찬가지로 암호와 같음 
+  - 액세스 키는 절대 공유 되면 안됨
+  - Access Key ID ~= username
+  - Secret Access Key ~= password
+- AWS CLI
+  - 명령줄 셀에서 명령어를 사용하여 AWS 서비스들과 상호작용할 수 있도록 해 주는 도구
+  - 모든 명령어가 aws로 시작
+  - CLI를 사용하면 AWS 서비스의 공용 API로 직접 액세스가 가능
+  - CLI를 통해 리소스를 관리하는 스크립트 개발해 일부 작업을 자동화할 수 있음
+- AWS SDK
+  - 소프트웨어 개발 키트
+  - 특정 언어로 된 라이브러리의 집합 => 프로그래밍 언어에 따라 개별 SDK가 존재
+  - SDK를 사용하면 AWS 서비스의 공용 API로 직접 액세스가 가능
+  - 터미널을 통한 접근이 아니라 코딩을 통해 애플리케이션 내에 심어두는 방식
+  - 다양한 프로그래밍 언어 지원 (JavaScript, Python, PHP, .NET, Ruby, Java, Go, Node.js, C++)
+  - 모바일 SDKs (Android, iOS, ...)
+  - IoT Device SDKs (Embedded C, Ariduino, ...)
+  - 예시: AWS CLI는 파이썬 AWS SDK로 구성 돼 있음
+
+
+
+### AWS 클라우드쉘
+
+- 특정 지역에서만 가능
+- AWS 클라우드에서 무료로 사용 가능한 터미널같은 개념
+- 장점
+  - CLI를 사용할 때 API 호출을 반환 
+    - --region 을 이용해 API 호출을 할 리전을 지정할 수도 있음
+    - 클라우드쉘에서 기본 리전은 현재 로그인 된 리전
+  - 전체 저장소가 있음
+  - 구성이 가능
+    - 글씨 크기, 테마 선택, 안전하게 붙여넣기 기능
+    - 파일 업로드 및 다운로드 가능
+    - 탭 구성 가능
+
+
+
+### AWS 서비스에 대한 IAM Role
+
+- AWS 서비스 몇 가지는 우리의 계정에서 실행해야 하며, 이를 위해서는 사용자와 마찬가지로 어떤 권한이 필요함
+- IAM Role은 사용자와 같지만 실제 사람이 사용하도록 만들어진 것이 아니고 AWS 서비스에 의해 사용되도록 만들어짐
+
+
+
+### IAM 보안 도구
+
+- IAM 자격 증명 보고서(Credentials Report)
+  - 계정 수준(account- level)에서 가능
+  - 보고서는 계정에 있는 사용자와 다양한 자격 증명의 상태를 포함
+- IAM 액세스 관리자(Access Adviser)
+  - 사용자 수준(user-level)에서 가능
+  - 사용자에게 부여된 서비스의 권한과 해당 서비스에 마지막으로 엑세스한 시간이 보임
+  - 해당 도구를 사용하여 어떤 권한이 사용되지 않는지 볼 수 있고 따라서 사용자의 권한을 줄여 최소권한의 원칙을 지킬 수 있음
+
+
+
