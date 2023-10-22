@@ -1480,6 +1480,37 @@
 
 
 
+## Section 09. Route 53
+
+### DNS
+
+- DNS란?
+
+  - DNS (Domain Name System):  사람에게 친숙한 호스트 이름을 대상 서버 IP 주소로 번역해 줌
+  - ex: www.google.com => 172.217.18.36
+  - DNS는 인터넷의 중추로 URL과 호스트 이름을 IP로 변환
+  - DNS는 계층적 이름 구조가 있음
+
+- DNS 관련 용어 (Terminologies)
+
+  - 도메인 레지스트라 (Domain Registrar): 도메인 이름을 등록하는 곳 - Route 53, GoDaddy, ...
+  - DNS 레코드 (DNS Records): A, AAAA, CNAME, NS, ...
+  - 존 파일 (Zone File): 모든 DNS 레코드를 포함
+  - 이름 서버 (Name Server): DNS 쿼리를 실제로 해결하는 서버
+  - 최상위 도메인 (Top Level Domain - TLD): .com, .us, .in, .gov, .org, ...
+  - 2단계 도메인 (Second Level Domain - SLD): amazon.com, google.com, ...
+  - FQDN: 전체 주소 도메인 이름 (Fully Qualified Domain Name) 의 약자 => 프로토콜까지 포함된 이름
+
+- DNS 동작 방법
+
+  ![KakaoTalk_Photo_2023-10-15-19-40-28](/Users/iseongheon/Downloads/KakaoTalk_Photo_2023-10-15-19-40-28.jpeg)
+
+
+
+### Route 53 개요
+
+
+
 
 
 
