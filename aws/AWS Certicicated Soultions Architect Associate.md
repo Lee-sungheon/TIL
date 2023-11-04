@@ -1909,5 +1909,230 @@
 
 
 
+## Section 12.  Amazon S3 소개
 
+### S3 개요
+
+- Amazon S3
+
+  - S3는 AWS의 주요 구성 요소
+  - 무한하게 확장할 수 있는 스토리지
+  - 많은 웹사이트들이 S3를 사용
+  - 많은 AWS 서비스들이 S3를 통합을 위해 사용
+
+- Amazon S3 - Use cases
+
+  - 백업과 스토리지
+  - 재해 복구
+  - 아카이브
+  - 하이브리드 클라우드 스토리지
+  - 애플리케이션 호스팅
+  - 미디어(동영상 파일이나 이미지 등) 호스팅
+  - 데이터 레이크 & 빅데이터 분석
+  - 소프트웨어 딜리버리
+  - 정적 웹사이트
+
+- Amazon S3 - Buckets
+
+  - S3는 버킷(디렉토리)에 객체(파일)를 저장함
+  - 버킷은 반드시 전역적으로 고유한 이름이 있어야 함 (모든 리전과 AWS에 존재하는 모든 계정에서)
+  - 버킷은 리전 수준에서 정의됨
+  - S3는 전역 서비스처럼 보이지만 버킷은 사실상 리전에서 생성됨
+  - 명명 규칙 (기억할 필욘 없음)
+    - 대문자나 밑줄이 없어야함
+    - 3 ~ 63자 사이
+    - IP X
+    - 소문자나 숫자로 시작해야 함
+    - 문자, 숫자, 하이픈만 됨
+    - 몇 가지 접두사, 접미사 제한이 있음
+
+- Amazon S3 - Objects
+
+  - 객체 (파일)는 키를 가짐
+  - 키는 파일의 전체 경로
+    - s3://my-bucket/**my_file.txt**
+  - 키는 접두사와 객체 이름으로 구성되어 있음
+    - s3://my-bucket/**my_folder/another_folder/my_file.txt**
+  - Amazone S3 그 자체로는 디렉토리의 개념은 없음
+  - 키는 길이가 굉장히 긴 이름으로 슬래시를 포함하며, 키는 접두사와 객체 이름으로 만들어짐
+
+  
+
+- Amazon S3 - Objects 구성요소
+
+  - 값은 본문의 내용
+    - 최대 객체 크기는 5TB
+    - 업로드하는 파일이 5GB보다 크다면 멀티파트 업로드를 사용해서 해당 파일을 여러 부분으로 나눠 업로드해야 함
+  - 메타데이터 (객체의 키-값 쌍 리스트 => 시스템이나 사용자에 의해 설정됨)
+  - 태그 (유니코드 키-값 쌍 => 최대 10개)
+    - 보안과 수명 주기에 유용
+  - 버전 ID (버전 관리를 활성화 한 경우)
+
+
+
+### S3 보안 및 버킷 정책
+
+- Amazon S3 - 보안
+  - 사용자 기반
+    - IAM 정책 - 어떤 API 호출이 특정 IAM 사용자를 위해 허용되어야 하는지를 승인
+  - 리소스 기반
+    - 버킷 정책 - S3 콘솔에서직접 할당할 수 있는 전체 버켓 정책
+    - 객체 엑세스 제어 목록 (ACL - Object Access Control List) - 세밀한 보안 (비활성화 가능)
+    - 버킷 엑세스 제어 목록 (ACL - Bucket Access Control List) - 덜 일반적 (비활성화 가능)
+  - IAM 원칙이 S3 객체에 엑세스하는 상황
+    - IAM 권한이 이를 허용하거나 리소스 정책이 이를 허용하는 경우
+    - 명백한 거부느 없음
+  - 암호화 (Encryption): 암호키를 사용하여 객체를 암호화
+
+- S3 Bucket Policies
+
+  - JSON 기반의 정책
+
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "PublicRead",
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": [
+            "s3:GetObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::examplebucket/*"
+          ]
+        }
+      ]
+    }
+    ```
+
+    - 리소스 (Resource) : 정책이 적용되는 버킷과 객체
+    - 결과 (Effect) : 액션을 허용 또는 거부
+    - 액션 (Action) : API 집합을 허용하거나 거부
+    - 원칙 (Principal) : 정책을 적용할 계정 또는 사용자를 제시
+
+  - 버킷 정책 사용
+
+    - 버킷에 대한 공개 액세스를 허용
+    - 업로드 시 객체를 강제로 암호화
+    - 또 다른 계정으로의 액세스를 허용
+
+- 블록 공개 액세스 (Block Public Access)에 대한 보안 설정 
+
+  - 기업 데이터 유출을 방지하기 위한 추가 보안 계층으로서 AWS가 개발
+  - 버킷을 공개하면 안 되는 경우, 이 설정을 그대로 두면 잘못된 S3 버킷 정책을 설정한 사람들에 대해 이러한 수준의 보안을 갖출 수 있음
+  - 계정 레벨에서 설정이 가능
+
+
+
+### S3 웹사이트
+
+- Amazon S3 - 정적 웹사이트 호스팅
+  - S3는 웹 사이트를 호스팅하고 인터넷에서 액세스할 수 있게 만들 수 있음
+  - 웹 사이트 URL은 이것을 생성하는 AWS 리전에 따라 달라짐 (2가지 경우)
+    - http://bucket-name.s3-website-aws-region.amazonaws.com
+    - http://bucket-name.s3-website.aws-region.amazonaws.com
+  - 읽기를 위해 버킷을 활성화한 후 403 Forbidden 오류가 발생한다면, 버킷을 공개로 해야함
+
+
+
+### S3 버전 관리
+
+- Amazon S3 - Versioning
+  - S3에서는 파일을 버전 관리할 수 있음
+  - 버킷 수준에서 활성화해야 하는 설정
+  - 동일한 키를 업로드하고 해당 파일을 덮어쓰는 경우 버전2, 버전3 등을 생성하게 됨
+  - 버킷을 버전 관리하는 것이 좋음
+    - 의도하지 않게 삭제하지 않도록 보호 (이전 버전 복구 가능)
+    - 이전 버전으로 쉽게 롤백할 수 있음
+  -  주의 사항
+    - 버전 관리를 활성화하기 전에 버전 관리가 적용되지 않은 모든 파일은 널(null) 버전을 갖게 됨
+    - 버전 관리를 중단해도 이전 버전을 삭제하지는 않음
+
+
+
+### S3 복제
+
+- Amazon S3 - Replication (CRR - 교차 리전 복제 & SRR - 같은 리전 복제)
+  - 소스 버킷과 복제 대상 버킷 둘 모두 버전 관리 기능이 활성화되어야 함
+  - Cross-Region Replication (CRR)
+  - Same-Region Replication (SRR)
+  - 버킷은 서로 다른 AWS 계정간에도 사용할 수 있음
+  - 복제는 비동기식으로 이루어짐
+  - S3에 적절한 IAM 권한(읽기, 쓰기)이 필요
+  - 사용 사례
+    - CRR - 컴플라이언스, 법규나 내부 체제 관리, 지연 시간을 줄일 경우, 계정간 복제
+    - 다수의 S3 버킷간의 로그 통합, 운영 환경과 개발 환경간의 실시간 복제를 필요로 할 때
+
+- Amazon S3 - Replication Notes
+  - 복제를 활성화한 후에는 새로운 객체만 복제 대상이 됨
+  - 기존의 객체를 복제하려면 S3 배치 복제 기능을 사용해야 함
+    - 기존 객체부터 복제에 실패한 객체까지 복제할 수 있는 기능
+  - 작업을 삭제하는 법
+    - 소스 버킷에서 대상 버킷으로 삭제 마커를 복제 (설정에서 선택 가능)
+    - 버전 ID로 삭제하는 경우 버전 ID는 복제되지 않음 (악의적인 삭제를 피하기 위해)
+  - 체이닝 복제는 불가
+    - 1번 버킷이 2번에 복제되어 있고 2번 버킷이 3번 버킷에 복제돼 있다고 해서 1번 버킷의 객체가 3번 버킷으로 복제되지 않음
+
+
+
+### S3 스토리지 클래스
+
+- S3 Stroage Classes
+  - Amazon S3 Standard-General Purpose
+  - Amazon S3 Standard-Infrequent Access (IA)
+  - Amazon S3 One Zone-Infrequent Access 
+  - Amazon S3 Glacier Instant Retrival
+  - Amazon S3 Clacier Deep Archive
+  - Amazon S3 Intelligent Tiering
+  - 스토리지 클래스를 수동으로 또는 Amazon S3 수명 주기 구성을 사용해서 수정할 수 있음
+- S3 내구성(Durability)과 가용성(Availability)
+  - 내구성
+    - 아마존 S3에 의해 객체가 손실되는 횟수
+    - 높은 내구성을 가짐 (99.999999999%의 내구성 보장)
+    - S3에 천만 개의 객체를 저장했을 때 평균적으로 10,000년에 한 번 객체 손실이 예상됨
+    - 모든 스토리지 클래스의 내구성은 동일
+  - 가용성
+    - 서비스가 얼마나 용이하게 제공되는지를 나타냄
+    - 스토리지 클래스에 따라 다름
+    - Example: S3 standard의 가용성은 99.99% => 1년에 약 53분 동안은 서비스를 사용할 수 없음
+- S3 Stroage Classes - General Purpose
+  - 99.99% 가용성
+  - 자주 액세스하는 데이터에 사용됨
+  - 지연 시간이 짧고 처리량이 높음
+  - AWS에서 2개의 기능 장애를 동시에 버틸 수 있음
+  - 사용 사례: 빅 데이터 분석, 모바일과 게임 애플리케이션, 콘텐츠 배포
+- S3 Stroage Classes - Infrequent Access
+  - 자주 액세스하지는 않지만 필요한 경우 빠르게 액세스해야  하는 데이터에 유용
+  - S3 standard보다 낮은 비용 (but, 검색 비용 발생)
+  - Amazon S3 Standard-Infrequent Access
+    - 99.9% 가용성
+    - 사용 사례: 재해 복구, 백업
+  - Amazon S3 One Zone-Infrequent Access 
+    - 단일 AZ에서 높은 내구성 (99.999999999%) => AZ가 파괴되면 데이터를 잃게 됨
+    - 99.5% 가용성
+    - 사용 사례: 온프레미스 데이터를 2차 백업, 재생성 가능한 데이터를 저장
+-  S3 Stroage Classes - Glacier Storage Classes
+  - 아카이빙과 백업을 위한 저비용 객체 스토리지
+  - 스토리지 비용 + 검색 비용
+  - Amazon S3 Glacier Instant Retrival
+    - 밀리초 단위로 검색 가능, 분기에 한 번 액세스하는 데이터에 아주 적합
+    - 최소 보관 기간 90일
+    - 백업이지만 밀리초 이내에 액세스 해야할 때 적합
+  - Amazon S3 Glacier Flexible Retrival
+    - Expedited (1 ~ 5분 이내), Standard (3 ~ 5시간 이내), Bulk (5 ~ 12시간) => 무료
+    - 최소 보관 기간 90일
+  - Amazon S3 Glacier Deep Archive - 장기 보관
+    - Standard (12시간),  Bulk (48시간)
+    - 최소 보관 기간 180일
+- S3 Stroage Classes - S3 Intelligent Tiering
+  - 사용 패턴에 따라 액세스된 티어 간에 객체를 이동할 수 있게 해줌
+  - 소액의 월별 모니터링 비용과 티어링 비용이 발생
+  - 검색 비용이 없음
+  - Frequent Access Tier (자동): 기본 티어
+  - Infrequent Access Tier (자동): 30일 동안 액세스하지 않는 객체 전용 티어
+  - Archive Instant Access tier (자동): 90일 동안 액세스하지 않는 객체 전용 티어
+  - Archive Access tier (선택): 90일에서 700일 이상까지 액세스하지 않는 객체에 구성 가능
+  - Deep Archive Access tier (선택): 180일에서 700일 이상까지 액세스하지 않는 객체에 구성 가능
 
