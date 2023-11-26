@@ -2136,3 +2136,701 @@
   - Archive Access tier (선택): 90일에서 700일 이상까지 액세스하지 않는 객체에 구성 가능
   - Deep Archive Access tier (선택): 180일에서 700일 이상까지 액세스하지 않는 객체에 구성 가능
 
+
+
+
+
+## Section 13. 고급 Amazon S3
+
+### S3 수명 주기 규칙
+
+- Amazon S3 - 스토리지 클래스 간 객채 옮기기
+  - 객체에 액세스를 자주 하지 않는다면 Standard IA로 이전 가능
+  - 객체를 아카이브화 하려는 걸 알고 있다면 Glacier 티어나  Deep Archive 티어로 이전 가능
+  - 객체들은 라이프사이클 규칙을 이용해서 자동으로 옮길 수도 있음
+- Amazon S3 - Lifecycle Rules
+  - Transition Actions - 다른 스토리지 클래스로 이전하기 위해 객체를 설정
+    - 생성된지 60일 후에 Standard IA 클래스로 이전
+    - 6개월 후에 Glacier 티어로 이동시켜 아카이브화
+  - Expiration actions - 일정한 시간 뒤에 만료되어서 객체를 삭제하도록 객체를 설정
+    - 액세스 로그 파일들을 365일 후에 삭제할 수 있음
+    - 버저닝을 사용중이라면 오래된 버전의 파일들을 삭제할 수 있음
+    - 불완전한 멀티파트 업로드를 삭제할 수 있음
+  - 규칙은 버킷 정체에 적용하거나 버킷 안의 특정한 경로에 적용할 수 있음
+  - 규칙은 특정한 객체 태그에 대해 지정할 수도 있음
+- Amazon S3 Analytics - Storage Class Analysis
+  - 올바른 스토리지 클래스로 객체를 전환할 수 있도록 도와줌
+  - Standard 나 Standard IA 에 관한 추천사항을 제시
+    - One-Zone IA나 Glacier와는 호환되지 않음
+  - 보고서는 매일 업데이트 됨
+  - 데이터 분석 결과가 나오는 게 보일때까지는 24 ~ 48시간이 걸림
+  - 합리적인 라이프사이클 규칙들을 조합하거나 개선하기 위한 좋은 첫걸음임
+
+
+
+### S3 요청자 지불
+
+- S3 - 요청자 지불
+  - 일반적으로는 버킷 소유자가 버킷과 관련된 모든 Amazon S3 스토리지 및 데이터 전송 비용을 지불
+  - 요청자 지불 버킷은 버킷 소유자가 아니라 요청자가 객체 데이터 다운로드 비용을 지불
+  - 대량의 데이터 셋을 다른 계정과 공유하려고 할 때 매우 유용
+  - 요청자가 AWS에서 인증을 받아야 함( = 익명이어서는 안됨)
+
+
+
+### S3 이벤트 알림
+
+- S3 Event Notifications
+  - 이벤트
+    - S3:ObjectCreated, S3: ObjectRemoved, S3:ObjectRestore, S3:Replication...
+  - 오브젝트 이름 필터링이 가능 (*.jpg)
+  - 사용 사례: S3에 업로드된 모든 이미지의 섬네일을 생성
+  - 원하는 만큼 S3 이벤트를 만들 수 있고, 어떤 타깃에도 전송할 수 있음
+  - S3 이벤트들은 통상적으로 몇 초 안에 대상으로 전달되지만 간혹 몇 분 정도 걸릴 수도 있음
+- S3 Event Notifications - IAM Permissions
+  - SNS 리소스 정책: SNS 토픽에 첨부하는 IAM 정책으로 S3 버킷이 SNS 토픽에 직접 메시지를 전송하도록 허용해줌
+  - SQS 리소스 정책: S3 서비스가 SQS Queue에 데이터를 전송하도록 허가해줌
+  - 람다 리소스 정책: S3 서비스가 람다 함수를 호출할 권한을 제공해줌
+- S3 Event Notifications with Amazon EventBridge
+  - 이벤트 -> S3 -> Amazone EventBridge
+  - 모든 이벤트는 결국 Amazon EventBridge로 가게 됨
+  - EventBridge에서 규칙을 설정할 수 있으며, 그 규칙들 덕분에 이벤트들을 18가지 AWS 서비스에 전송할 수 있음
+  - EventBridge를 JSON 룰과 함께 사용하면 훨씬 많은 고급 필터링 옵션을 사용할 수 있음 (메타데이터, 객체 사이즈, 이름 등)
+  - 다수의 전송 가능 - ex) Step Functions, Kinesis Streams, Firehose
+  - EventBridge 기능 - 아카이빙, 이벤트 중계, 안정적 전달
+
+
+
+### S3 퍼포먼스
+
+- S3 - 기준 성능
+  - Amazon S3는 요청이 아주 많을 때 자동으로 확장됨
+  - 지연 시간 100~200ms
+  - S3는 버킷 내에서 접두사당 초당 3,500개의 PUT/COPY/POST/DELETE 요청과 5,500개의 GET/HEAD 요청을 지원
+  - 버킷 내에서 접두사 수에 제한이 없음
+  - 접두사가 네 개이고 각각의 접두사에 읽기 요청을 균등하게 분산하면 초당 22,000개의 GET/HEAD 요청을 처리할 수 있음
+- S3 - 성능
+  - 멀티파트 업로드 (Multi-Part upload)
+    - 100MB가 넘는 파일에 추천
+    - 5GB가 넘는 파일은 반드시 사용해야 함
+    - 업로드를 병렬화하므로 전송 속도를 높여 대역폭을 최대화할 수 있음
+  - S3 전송 가속화 (Transfer Acceleration)
+    - 파일을 AWS 엣지 로케이션으로 전송해서 전송 속도를 높이고 데이터를 대상 리전에 있는 S3 버킷으로 전달
+    - 엣지 로케이션은 리전보다 수가 많음 
+    - 멀티파트 업로드와 같이 사용할 수 있음
+- S3 성능 - S3 바이트 범위 가져오기 (Byte-Range Fetches)
+  - 파일에서 특정 바이트 범위를 가져와서 GET 요청을 병렬화함
+  - 특정 바이트 범위를 가져오는 데 실패한 경우에 더 작은 바이트 범위에서 재시도 => 복원력이 높음
+  - 다운로드 속도를 높일 때 사용
+  - 파일의 일부만 검색해야할 때 사용
+
+
+
+### S3 셀렉트 & Glacier 셀렉트
+
+- S3 Select & Glacier Select
+  - SQL 문을 사용해 서버측 필터링을 수행함으로 인해 더 적은 양의 데이터를 검색
+  - 행과 열을 사용해 필터링 가능 (간단한 SQL문)
+  - 클라이언트 측에서 네트워크 전송이 줄어들고, CPU 비용도 줄어듬
+  - 속도는 400% 빨라지고 비용은 80% 줄어듬
+
+
+
+### S3 Batch Operations
+
+- S3 Batch Operation
+  - 단일 요청으로 기존 S3 객체에서 대량 작업을 수행하는 서비스
+    - 한 번에 많은 S3 객체의 메타데이터와 프로퍼티를 수정할 수 있음
+    - 배치 작업으로 S3 버킷 간에 객체를 복사할 수 있음
+    - **S3 버킷 내에 암호화 되지 않은 모든 객체를 암호화 할 수 있음**
+    - ACL, 태그 수정 가능
+    - S3 Glacier에서 한 번에 많은 객체를 복원할 수 있음
+    - Lambda 함수를 호출해 S3 Batch Operations의 모든 객체에서 사용자 지정 작업을 수행할 수도 있음
+  - 작업은 객체의 목록, 수행할 작업 옵션 매개 변수로 구성됨
+  - S3 Batch Operation을 사용하면 재시도를 관리할 수 있고 진행 상황을 추적하고 작업 완료 알림을 보내고 보고서 생성 등을 할 수 있음
+  - S3 Inventory라는 기능을 사용해 객체 목록을 가져오고 S3 Select를 사용해 객체를 필터링
+
+
+
+## Section 14. Amazon S3 보안
+
+### S3 암호화
+
+- Amazon S3 - Object Encryption
+  - S3 버킷에 있는 객체들을 암호화하는 방법은 네가지가 있음
+  - Server-Side Encryption (SSE)
+    - SSE-S3: Amazon S3에서 관리하는 키를 이용한 서버 측 암호화 (기본으로 활성화)
+    - SSE-KMS: KMS 키를 이용해서 암호화 키를 관리
+    - SSE-C: 고객이 제공한 키를 사용
+  - Client-Side Encryption
+- Amazon S3 Encryption - SSE-S3
+  - AWS가 처리하고 관리하고 소유한 키를 이용해서 암호화
+  - 객체는 서버 측에서 암호화가 됨
+  - 보안 유형은 AES-256
+  - 헤더를 "x-amz-server-side-encryption": "AES256" 으로 설정해야 함
+  - SSE-S3는 새로운 버킷과 새로운 객체에 대해 기본값으로 활성화되어 있음
+- Amazone S3 Encryption - SSE-KMS
+  - AWS KMS, 즉 키 관리 서비스를 이용해서 직접 자신의 키를 관리
+  - KMS 장점: 사용자가 키를 통제 + 키를 사용할 때마다 CloudTrail에 로깅됨
+  - 객체는 서버 측에서 암호화가 됨
+  - 헤더를 "x-amz-server-side-encryption": "aws:kms" 으로 설정해야 함
+- SSE-KMS Limitation
+  - 업로드를 할 때, GenerateDataKey KMS 자체 API를 사용해서 암호화를 해야함
+  - 다운로드를 할 때 Decrypt API를 사용해서 복호화를 해야함
+  - 모든 API 사용은 KMS의 초당 API 호출 쿼터에 합산 됨 (리전마다 초당 5500 / 10000 / 30000 요청이 가능)
+  - S3 버킷의 처리량이 아주 많고 모든 게 KMS 키로 암호화되어 있다면 일종의 스로틀링 활용 사례가 될 수 있음
+-  Amazon S3 Encryption - SSE-C
+  - 키가 AWS 외부에서 관리되지만 여전히 서버 측 암호화임
+  - Amazon S3는 우리가 제공한 암호화 키를 절대 저장하지 않음
+  - HTTPS가 반드시 사용됨
+  - 모든 요청에 HTTP 헤더의 일부로서 키를 전달해야 함
+- Amazon S3 Encryption - Client-Side Enctytion
+  - 클라이언트 라이브러리를 활용
+  - 클라리언트 측 암호화는 클라이언트가 직접 데이터를 암호화한 다음에 Amazon S3에 전송
+  - 데이터의 복호화는 Amazon S3 외부의 클라이언트 측에서 이루어짐
+  - 클라이언트가 키와 암호화 사이클을 완전하게 관리
+- Amazon S3 - Encryption in transit (SSL / TLS)
+  - 전송 중 암호화 또는 통신 중 암호화는 SSL 또는 TLS 라고 부름
+  - Amazon S3는 2개의 엔드포인트가 있음
+    - HTTP Endpoint - 암호화 X
+    - HTTPS Endpoint - 전송 중 암호화 O
+  - HTTPS  사용을 권고
+  - SSE-C 타입의 매커니즘을 이용한다면 HTTPS 프로토콜이 필수
+- 전송 중 암호화 강제하기
+  - S3 버킷 정책 - Statement - Condition - Bool - was:SecureTransport 를 false 로 설정
+
+
+
+### S3 기본 암호화
+
+- S3 기본 암호화
+
+  - 모든 버킷은 기본값으로 SSE-S3 암호화가 되어 있음
+
+  - 버킷 정책을 이용해서 암호화를 강제하고 올바른 암호화 헤더가 없는 경우에는 S3 객체를 PUT하는 API 호출을 거절할 수 있음
+
+  - 버킷 정책은 기본값보다 선제적으로 평가되기 때문에 원하는 암호화를 강제할 수 있음
+
+
+
+### S3 CORS 
+
+- CORS?
+  - Cross-Origin Resource Sharing (CORS)
+  - Origin = scheme (protocol) + host (domain) + port
+  - CORS는 웹 브라우저 기반 보안 메커니즘으로 메인 오리진을 방문하는 동안 다르 오리진에 대한 요청을 허용하거나 거부함
+  - Same origin: 같은 scheme + host + port
+  - 요청 체계의 일부로 다른 웹사이트에 요청을 보내야 할 때 다른 오리진이 CORS 헤더를 사용해서 요청을 허용하지 않는 한 해당 요청은 이행되지 않음 => 액세스 제어 허용 오리진 헤더
+- Amazon S3 - CORS
+  - 클라이언트가 S3 버킷에서 교차 오리진 요청을 하면 정확한 CORS 헤더를 활성화해야 함
+  - 이 작업을 빠르게 수행하려면 특정 오리진을 허용하거나 *를 붙여 모든 오리진을 허용
+
+
+
+### S3 MFA Delete
+
+- Amazon S3 - MFA Delete
+  - MFA (Multi-Factor Authentication) - 사용자가 장치에서 코드를 생성하도록 강제함
+  - MFA가 필요한 경우
+    - 객체 버전을 영구적으로 삭제할 때
+    -  버킷에서 버저닝을 중단할 때
+  - MFA가 필요하지 않은 경우
+    - 버저닝을 활성화할 때
+    - 삭제된 버전을 나열할 때
+  - MFA Delete를 사용하려면 먼저 버킷에서 버저닝을 활성화해야 함
+  - 버킷 소유자, 즉 루트 계정만이 MFA Delete를 활성화하거나 비활성화할 수 있음
+
+
+
+### S3 액세스 로그
+
+- S3 Access Logs
+  - 감사 목적으로 S3 버킷에 대한 모든 액세스를 기록할 수 있음
+  - 어떤 계정에서든 S3로 보낸 모든 요청은 승인 또는 거부 여부와 상관없이 다른 S3 버킷에 파일로 기록됨
+  - 해당 데이터는 Amazon Athena 같은 데이터 분석 도구로 분석할 수 있음
+  - 대상 로깅 버킷은 같은 AWS 리전에 있어야 함
+- 주의할 점
+  - 로깅 버킷을 모니터링하는 버킷과 동일하게 설정하면 안됨
+  - 동일하게 설정하면 로깅 루프가 생성되고 무한 반복되어 버킷의 크기가 기하급수적으로 증가하게 됨
+
+
+
+### S3 사전 서명된 URL
+
+- Amazon S3 - Pre-Signed URLs
+  - S3 콘솔, CLI, SDK를 사용하여 생성할 수 있는 URL
+  - URL 만료 기한
+    - S3 콘솔 : 최대 12시간
+    - AWS CLI : 최대 168시간
+  - 미리 서명된 URL을 생성할 때 URL을 받는 사용자는 URL을 생성한 사용자의 GET 또는 PUT에 대한 권한을 상속함
+  - 예시
+    - 로그인한 사용자만  S3 버킷에서 프리미엄 비디오를 다운로드할 수 있도록 허용
+    - 사용자 목록이 계속 변하는 경우 URL을 동적으로 생성해서 파일을 다운로드할 수 있게 해줌
+    - 일시적으로 사용자가 S3 버킷의 특정한 위치에 파일을 업로드하도록 허용
+
+
+
+### S3 잠금 정책 및 Glacier 볼트 잠금
+
+- S3 Glacier Vault Lock
+  - WORM (Write Once Read Many = 한 번 쓰고 여러 번 읽는다) 모델을 채택
+  - 볼트 잠금 정책을 생성 
+  - 향후 편집을 위해 정책을 잠금 (누구도 변경하거나 삭제할 수 없음)
+  - 규정 준수와 데이터 보존에 아주 유용
+- S3 Object Lock (버저닝 활성화 필수)
+  - WORM 모델을 채택
+  - 객체 잠금은 전체 S3 버킷 수준의 잠금 정책이 아니라 버킷 내의 모든 객체에 각각 적용할 수 있는 잠금
+  - 특정 객체 버전이 특정 시간 동안 삭제되는 걸 차단할 수 있음
+  - 보존 모드 (Retention mode) - 규정 준수 (Compliance)
+    - 사용자를 포함한 그 누구도 객체 버전을 덮어쓰거나 삭제할 수 없음
+    - 보존 모드 자체도 변경할 수 없으며, 보존 기간도 단축할 수 없음
+  - 보존 모드 (Retention mode) - 거버넌스 (Governance)
+    - 대부분의 사용자는 객체 버전을 덮어쓰거나 삭제하거나 로그 설정을 변경할 수 없음
+    - 관리자 같은 일부 사용자는 IAM을 통해 부여받은 특별 권한으로 보존 기간을 변경하거나 객체를 바로 삭제할 수 있음
+  - 보존 기간 (Retention Period): 고정된 기간 동안 객체를 보호할 수 있고, 원하는 만큼 기간을 연장할 수 있음
+  - 법적 보존 (Legal Hold)
+    - 법적 보존을 설정하면 S3 버킷 내 모든 객체를 무기한으로 보호함
+    - S3:PutObjectLegalHold IAM 권한을 가진 사용자는 어떤 객체에든 법적 보존을 설정하거나 제거할 수 있음
+
+
+
+### S3 액세스 포인트
+
+- S3 - Access Points
+  - 엑세스 포인트는 S3 버킷의 보안 관리를 간소화해줌
+  - 각각의 엑세스 포인트
+    - 각자의 DNS 이름을 가짐 (인터넷 오리진 or VPC 오리진)
+    - 엑세스 포인트 정책 (버킷 정책과 비슷) 첨부 - 보안 관리를 스케일링 가능
+
+- S3 - Access Points - VPC Origin
+  - S3 액세스 포인트의 VPC 오리진을 프라이빗 액세스가 가능하도록 정의할 수 있음
+  - 액세스 포인트에 접근하기 위해 VPC 엔드포인트를 만들어야 함
+  - VPC 엔드포인트에는 정책이 있고 그 정책은 타깃 버킷과 액세스 포인트에 대한 액세스를 허용해 줘야 함
+
+
+
+### S3 오브젝트 람다
+
+- S3 Object Lambda
+  - 호출자 애플리케이션이 객체를 받기 직전에 그 객체를 수정하려는 경우에 사용
+  - S3 액세스 포인트와 S3 오브젝트 람다 액세스 포인트가 필요
+  - 사용 사례
+    - 분석기나 비프로덕션 환경을 위해 PII 데이터, 즉 개인식별정보를 삭제하는 경우
+    - 데이터 형식을 XML에서 JSON으로 변환하는 경우
+    - 즉석에서 이미지 크기를 조정하거나 워터마크를 추가
+
+
+
+## Section 15. CloudFront 및 AWS 글로벌 액셀러레이터
+
+### CloudFront 개요
+
+- AWS CloudFront
+
+  - Content Delevery Nextwork (CDN)
+  - 서로 다른 엣지 로케이션에 미리 캐싱하여 읽기 성능을 높임 => 사용자 경험을 높임
+  - 216개의 엣지 로케이션을 통해 구성
+  - 컨텐츠가 전체적으로 분산되어 있으므로 DDoS 공격에서 보호를 받을 수 있음 (Shield, 어플리케이션 방화벽)
+
+- CloudFront - Origins
+
+  -  S3 bucket
+     - CloudFront를 통해 파일을 분산하고 캐싱할 수 있게 함
+     - 원본 접근 제어 (OAC, Origin Access Control) 를 통해 버킷에서는 CloudFront만 접근할 수 있게 보장
+     - OAC 는 기존의 OAI (Origin Access Identity) 를 대체
+     - Ingress를 사용할 수 있음 (S3에 파일을 업로드)
+  -  Custom Origin (HTTP)
+     - 애플리케이션 로드 밸런서
+     - EC2 인스턴스
+     - S3 웹사이트 (버킷을 활성화해서 정적 웹사이트로 설정해야 함)
+
+- CloudFront vs S3 Cross Region Replication (교차 리전 복제: CRR)
+
+  - CloudFront
+
+    - 글로벌 엣지 네트워크
+    - TTL에 의해 파일이 캐싱됨
+    - 전세계를 대상으로 한 정적 컨텐츠를 사용하고자 할 때 용이
+
+  - S3 Cross Region Replication
+
+    - 복제를 원하는 각 리전에 이 설정이 되어 있어야 함 (전세계 대상이 아님)
+    - 파일은 거의 실시간으로 갱신됨 => 캐싱 X
+    - 읽기 전용으로만 설정이 가능
+    - 일부 리전을 대상으로 동적 컨텐츠를 낮은 지연 시간으로 제공하고자 할 때 용이
+
+    
+
+### CloudFront - 어플리케이션 로드 밸런서를 원본으로 쓸 경우
+
+- CloudFront - ALB or EC2 as an origin
+  - EC2를 원본으로 사용하는 경우: EC2인스턴스를 public으로 열어주고 엣지 로케이션을 public으로 설정
+  - ALB를 원본으로 사용해서 EC2에 접근하는 경우: ALB를 public으로 열어주고 엣지 로케이션을 public으로 설정 => EC2 인스턴스는 로드밸런서의 보안 그룹에 의해 private가 가능
+
+
+
+### CloudFront - 지리적 제한 설정
+
+- CloudFront Geo Restriction
+  - 사용자들의 지역에 따라 배포 객체 접근을 제한할 수 있음
+    - 접근리스트 (Allowlist): 접근이 가능한 국가 목록을 만들 수 있음
+    - 블락리스트 (Blocklist): 접근이 불가능한 국가 목록을 만들 수 있음
+  - 국가는 서드 파티 지역 DB에서 설정한 것으로, 사용자의 IP가 어떤 국가에 해당하는지를 확인할 수 있음
+  - 사용 사례: 컨텐츠 저작권법으로 인한 제한
+
+
+
+### CloudFront - Price Classes
+
+- CloudFront - Pricing
+  - CloudFront 엣지 로케이션은 전 세계에 고루 분포
+  - 엣지 로케이션마다 데이터 전송 비용이 다름
+- CloudFront - Price Classes
+  - 비용 절감을 위해 CloudFront를 분산할 전 세계 엣지 로케이션 수를 줄일 수 있음
+  - 세가지 가격 등급이 있음
+    - Price Class All: 모든 리전 - 최상의 성능
+    - Price Class 200: 가장 비싼 리전들을 제외한 대부분의 리전
+    - Price Class 100: 가장 저렴한 리전
+
+
+
+### CloudFront - Cache Invalidation
+
+- CloudFront - Cache Invalidations
+  - CloudFront에는 항상 백엔드 오리진이 있음
+  - CloudFront 엣지 로케이션은 백엔드 오리진이 업데이트 될 때 업데이트 사항을 모름 => 캐시의 TTL 이 만료되면 백엔드 오리진으로부터 업데이트된 콘텐츠를 받음
+  - 캐시 무효화를 통해 전체 또는 일부의 캐시를 강제로 새로고침해서 캐시에 있는 TTL을 모두 제거할 수 있음
+  - 전체 파일 또는 특정 파일 경로를 무효화할 수 있음 (* or /images/*)
+
+
+
+### AWS Global Accelerator
+
+- Unicast IP vs Anycast IP
+  - Unicast IP
+    - 하나의 서버가 하나의 IP 주소를 가짐
+  - Anycast IP
+    - 모든 서버가 동일한 IP 주소를 가짐
+    - 클라이언트는 가장 가까운 서버로 라우팅됨
+- AWS Global Accelerator
+  - 애플리케이션을 라우팅하기 위해 AWS 내부 글로벌 네트워크를 활용
+  - 하나의 애플리케이션에서 2개의 Anycast IP가 생성됨
+  - 애니캐스트 IP는 사용자와 가장 가까운 엣지 로케이션으로 트래픽을 직접 전송
+  - 엣지 로케이션은 사설 AWS 네트워크를 거쳐 애플리케이션 로드 밸런서로 트래픽을 전송
+  - 특징
+    - 탄력적 IP, EC2 인스턴스, ALB, NLB, public or private
+    - 안정적인 성능
+      - 뭔가 잘못될 경우에는 신속한 리전 장애 조치가 이루어짐
+      - 아무것도 캐시하지 않기에 클라이언트 캐시와도 문제가 없음 (IP는 변하지 않음)
+      - 내부 AWS 네트워크
+    - 상태 확인 (Health Checks)
+      - Global Accelerator가 애플리케이션에 대해 상태 확인을 실행
+      - 애플리케이션이 글로벌한지 확인 (장애발생 시 1분 안에 정상 엔드 포인트로 실행)
+      - 재해 복구에 뛰어남
+    - 보안
+      - 2개의 외부 IP만 화이트리스트에 있으면 됨
+      - AWS Shield에 의해 DDoS 보호
+- AWS Global Accelerator vs CloudFront
+  - 공통점
+    - 동일한 글로벌 네트워크를 사용하고 전 세계의 엣지 로케이션을 사용함
+    - DDoS 보호를 위해 AWS Shield와 통합
+  - 차이점
+    - CloudFront
+      - 이미지나 비디오처럼 캐시 가능한 내용과 API나 동적 사이트 서빙처럼 동적 내용 모두에 대해 성능을 향상
+      - 콘텐츠는 엣지 로케이션으로부터 제공됨
+    - Global Accelerator
+      - TCP나 UDP상의 다양한 애플리케이션 성능을 향상시킴
+      - 패킷은 엣지 로케이션으로부터 하나 이상의 AWS 리전에서 실행되는 애플리케이션으로 프록시됨 => 캐싱  X
+      - 게임이나 IoT 또는 Voice over IP 같은 비 HTTP를 사용할 경우에 매우 적합
+      - 글로벌하게 고정 IP를 요구하는 HTTP를 사용할 때도 매우 유용
+      - 결정적이고 신속한 리전 장애 조치가 필요할 때도 좋음
+
+
+
+
+
+## Section 16. AWS 스토리지 추가 기능
+
+### AWS Snow Family
+
+- AWS Snow Family
+  - 아주 안전한 휴대기기를 말하며, 이것을 활용하여 엣지에서 데이터를 수집하고 처리하거나 데이터를 AWS 안팎으로 마이그레이션
+  - 데이터 마이그레이션 (Data migration)
+    - Snowcone
+    - Snowball Edge
+    - Snowmobile
+  - 엣지 컴퓨팅 (Edge computing)
+    - Snowcone
+    - Snowball Edge
+- Data Migrations with AWS Snow Family
+  - 네트워크를 통해 데이터를 전송하면 많은 시간이 걸림
+  - 빠르게 전송하기 위한 챌린지
+    - 연결 제한
+    - 대역폭 제한
+    - 데이터 전송 비용
+    - 공유되는 대역폭
+    - 불안정한 연결
+  - Snow Family
+    - 데이터 마이그레이션을 할 수 있게 해주는 오프라인 기기
+    - AWS는 우편을 통해 실제로 물리적인 기기를 배송해 줌
+    - 데이터를 해당 기기에 로딩하고 다시 AWS에 송부
+    - AWS는 해당 기기를 받아 자체 인프라에 삽입 후 해당 서비스로 가져오기나 내보내기를 함
+- Snowball Edge 
+  - 테라바이트나 페타바이트 용량의 데이터를 AWS와 교환하기 위해 사용
+  - 네트워크를 통해 데이터를 옮기는 대신에 사용
+  - 데이터 전송 작업당 비용을 지불
+  - 블록 스토리지나 Amazon S3 호환 객체 스토리지를 제공
+  - 스토리지가 최적화된 스노우볼 엣지
+    - 80TB 용량의 하드디스크 용량이 제공
+    - 블록 볼륨이나 S3 호환 객체 스토리지로 사용
+  - 컴퓨팅이 최적화된 스노우볼 엣지
+    - 용량은 42TB 또는 28TB
+  - 사용 사례
+    - 대규모 데이터의 클라우드 마이그레이션
+    - 데이터센터 폐지
+    - 재난복구
+- Snowcone
+  - 아주 작은 휴대 기기(2.1kg)이고, 견고하며 안전
+  - 데이터의 양이 적은 환경에 사용
+  - 에지 컴퓨팅, 스토리지, 데이터 전송에 사용됨
+  - 8TB의 HDD 스토리지 혹은 14TB SSD가 장착
+  - 공간제약이 있는 환경
+  - 배터리와 케이블은 직접 준비해야 함
+  - 오프라인으로 데이터를 발송하는 방법과 기기에 데이터를 담은 다음에 인터넷 연결이 가능할 때 그걸 데이터 센터에 연결하는 방법이 있음
+    - 후자의 방법은 AWS DataSync 서비스를 사용해서 데이터를 다시 AWS에 전송
+- AWS Snowmobile
+  - 데이터를 옮기는 실제 트럭
+  - 엑사바이트급 데이터를 옮길 수 있음 (1EB = 1000 PB = 1000000 TB)
+  - 한 대의 용량은 100PB
+  - 매우 안전하고, 온도 조절이 가능, GPS 추적과 24시간 감시가 가능
+  - 10PB 이상의 데이터를 옮긴 경우 Snowball 보다 더 좋음
+- What is Edge Computing?
+  - 엣지 컴퓨팅은 엣지 위치에서 데이터를 생성하는 중에 그 데이터를 처리하는 것을 의미
+  - 엣지 위치
+    - 인터넷이 없거나 클라우드에서 멀리 떨어져 있는 모든 것
+    - 도로에 있는 트럭이나 바다에 있는 배, 지하에 있는 광산 등
+    - 연결이 제한되거나 인터넷에 접속할 수 없거나 컴퓨팅 능력에 액세스 할 수 없는 경우
+  - 엣지 컴퓨팅을 위해 Snowball Edge / Snowcone 을 주문하고 세팅할 수 있음
+  - 활용 사례
+    - 데이터 전처리
+    - 엣지에서 이루어지는 머신러닝
+    - 미디어 스트림의 사전 트랜스코딩
+  - 데이터를 다시 AWS로 보내야한다면 기기를 반송할 수 있음
+- Snow Family - Edge Computing
+  - Snowcone & Snowcone SSD (경량)
+    - 2CPUs, 4GB 메모리, 유선 또는 무선 액세스
+    - 전원으로 USB-C나 배터리 옵션이 제공
+  - Snowball Edge - 컴퓨팅 최적화
+    - 104 vCPUs, 416 GB 메모리
+    - GPU 옵션 제공 (머신 러닝 또는 비디오 처리에 유용)
+    - 28TB의 NVMe나 42TB의 HDD 스토리지가 제공
+    - 스토리지 클러스터링 이용가능 (최대 16개 노드)
+  - Snowball Edge - 용량 최적화
+    - 40 vCpus, 80 GB 메모리, 80TB 스토리지
+  - 모든 기기들은 EC2 인스턴스와 람다 함수를 실행할 수 있음 (AWS IoT Greengrass 서비스 사용)
+  - 장기 배포 옵션: 1년 또는 3년 할인 가격
+- AWS OpsHub
+  - 과거에는 우리가 이런 기기를 사용할 때 CLI를 사용해야 했음
+  - 컴퓨터나 노트북에 설치하는 GUI 소프트웨어 => 클라우드에서 사용하는게 아니라 개인의 컴퓨터에 다운
+    - 싱글 또는 클러스터 기기를 열어서 설정 가능
+    - 파일을 전송
+    - Snow Family 기기에서 실행되는 인스턴스를 시작하고 관리할 수 있음
+    - 기기와 매트릭을 모니터링
+    - 호환되는 AWS 서비스들을 본인의 기기에서 시작할 수 있음
+
+
+
+### 아키텍처: Snowball 에서 Clacier 까지
+
+- Solution Architecture: Snowball into Glacier
+  - Snowball을 Glacier에 데이터를 직접 끌어올 순 없음
+  - Amazon S3를 사용해서 수명 주기 정책을 생성하여 Amazon Glacier로 객체를 전환할 수 있음
+
+
+
+### Amazon FSx
+
+- Amazon FSx - Overview
+  - AWS에서 완전 관리형 서비스로 타사 고성능 파일 시스템을 실행시킴
+- FSx for Windows (File Server)
+  -  완전 관리형 Windows 파일 서버 공유 드라이브
+  - SMB 프로토콜 & Windows NTFS 지원
+  - Microsoft Active Directory 통합을 지원 => 사용자 보안, ACLs, 사용자 할당량
+  - **Linux EC2 인스턴스에도 마운트할 수 있음**
+  - Microsoft's Distributed File System (DFS) Namespaces 지원 (파일 시스템을 그룹화 할 수 있음)
+  - 초당 수십 GB, 수백만 IOPS, 수백 PB의 데이터까지 확장 가능
+  - 스토리지 옵션
+    - SSD - 지연시간이 짧아야 하는 워크로드 (데이터베이스, 미디어 처리 데이터 분석)
+    - HDD - 넓은 스펙트럼의 워크로드 (홈 디렉터리, CMS)
+  - 프라이빗 연결로 온프레미스 인프라에서 액세스 가능
+  - 고가용성 다중 AZ에 대해 FSx for Windows File Server를 구성할 수 있음
+  - 데이터는 매일 S3에 백업됨
+- FSx for Lustre
+  - 원래 분산 파일 시스템으로 대형 연산에 쓰임
+  - Lustre = Linux + Cluster 를 합친 단어
+  - 머신 러닝과 HPX(고성능 연산)에 쓰임
+  - 동영상 처리나 금융 모델링, 전자 설계 자동화에 쓰임
+  - 초당 수백 GB 데이터 / 수백만 IOPS / 밀리초보다 짧은 지연 시간
+  - 스토리지 옵션
+    - SSD
+    - HDD
+  - S3와 무결절성 통합이 가능
+    - FSx로 S3를 파일 시스템처럼 읽어들일 수 있음
+    - FSx의 연산 출력값을 다시 S3로 쓸 수 있음
+  - VPN과 직접 연결을 통해 온프레미스 서버에서 사용 가능
+- FSx File System Deployment Options
+  - 스크래치 파일 시스템 (Scratch File System)
+    - 임시 스토리지
+    - 데이터가 복제되지 않음 (서버가 오작동하면 파일이 모두 유실)
+    - 초과 버스트 가능 (성능 6배 / TiB 처리량당 초당 200MB 속도)
+    - 단기 처리 데이터에 쓰이며 데이터 복제가 없어 비용을 최적화할 수 있음
+  - 영구 파일 시스템 (Persistent File System)
+    - 장기 스토리지
+    - 동일한 가용 영역에 데이터가 복제됨
+    - 서버가 오작동했을 때 몇분 내에 해당 파일이 대체됨
+    - 장기처리 및 민감한 데이터에 쓰임 
+- FSx for NetApp ONTAP
+  - AWS의 관리형 NetApp ONTAP 파일 시스템
+  - NFS, SMB, iSCSI 프로토콜과 호환 가능
+  - 온프레미스 시스템의 ONTAP이나 NAS에서 실행 중인 워크로드를 AWS로 옮길 수 있음
+  - 다양한 운영 체제에서 사용 가능
+    - Linux
+    - Windows
+    - MacOS
+    - VMware Cloud on AWS
+    - Amazon Workspaces & AppStream 2.0
+    - Amazon EC2, ECS and EKS
+  - 스토리지는 자동으로 확장, 축소 됨
+  - 복제와 스냅샷 기능 지원, 저비용, 데이터 중복 제거 기능
+  - **지정 시간 복제 기능 지원 (새 워크로드 등을 테스트할 때 유용)**
+- FSx for OpenZFS
+  - AWS의 관리형 OpenZFS 파일 시스템
+  - 여러 버전에서 NFS 프로토콜과 호환이 가능
+  - ZFS에서 실행되는 워크로드를 내부적으로 AWS에 옮길 때 사용
+  - 다양한 운영 체제에서 사용 가능 (NetApp ONTAP 과 동일)
+  - 백만 IOPS까지 확장 가능하고 지연 시간은 0.5 밀리초 이하
+  - 스냅샷, 얍축을 지원하고 비용은 적지만 데이터 중복제거 기능이 없음
+  - **지정 시간 복제 기능 지원 (새 워크로드 등을 테스트할 때 유용)**
+
+
+
+### 스토리지 Gateway
+
+- Hybrid Cloud for Stroage
+  - AWS는 하이브리드 클라우드를 권장함
+    - 일부는 AWS 클라우드에 있고
+    - 나머지는 그대로 온프레미스에 두는 방식
+  - 권장 이유
+    - 오래 걸리는 클라우드 마이그레이션을 해야하는 경우
+    - 보안 또는 규정 준수 요건이 있는 경우
+  - AWS Storage Gateway가 S3 데이터를 온프레미스에 두는데 가교 역할을 함
+- AWS Stroage Cloud Native Options
+  - 블록: Amazon EBS, EC2 인스턴스
+  - 파일: Amazon EFS, FSx
+  - 객체: Amazon S3, Glacier
+- AWS Storage Gateway
+  - 온프레미스 데이터와 클라우드 데이터 간의 가교 역할
+  - 사용 사례
+    - 재해 복구
+    - 백업 & 복구
+    - 스토리지 확장
+    - 온프레미스 캐시 & 낮은 지연시간의 파일 액세스
+  - Stroage Gateway 타입
+    - S3 File Gateway
+    - FSx File Gateway
+    - Volume Gateway
+    - Tape Gateway
+- Amazon S3 File Gateway
+  - S3 파일 게이트웨이로 구성한 모든 버킷은 NFS 및 SMB 프로토콜을 이용해서 액세스 가능
+  - **전체 S3 버킷이 아닌 최근에 사용한 파일만 파일 게이트웨이에 있음**
+  - Glacier을 제외한 여러 스토리지 클래스를 지원
+  - 수명 주기 정책을 사용하면 S3 Glacier로도 옮길 수 있음
+  - 버킷에 액세스하려면 각 파일 게이트웨이마다 IAM 역할을 생성해야 함
+  - Windows 파일 시스템 네이티브인 SMB 프로토콜을 사용하는 경우 사용자 인증을 위해 Active Directory와 통합해야 함
+- Amazon FSx File Gateway
+  - Amazon FSx for Windows File Server에 네이티브 액세스를 제공
+  - 자주 액세스하는 데이터의 로컬 캐시를 확보할 수 있음
+  - 윈도우 네이티브와 호환 가능 (SMB, NTFS, Active Directory, ...)
+  - 그룹 파일 공유나 온프레미스를 연결할 홈 디렉터리로 사용할 수 있음
+- Volume Gateway
+  - 블록 스토리지로 Amazon S3가 백업하는 iSCSI 프로토콜을 사용
+  - 볼륨이 EBS 스냅샷으로 저장되어 필요에 따라 온프레미스 볼륨을 복구할 수 있음
+  - Cached volume: 최근 데이터 액세스 시 지연 시간이 낮음
+  - Stored volume: 전체 데이터 세트가 온프레미스에 있으며 주기적으로 Amazon S3 백업이 따름
+- Tape Gateway
+  - 물리적으로 테이프를 사용하는 백업 시스템이 있는 회사가 백업에 테이프 대신에 클라우드를 활용해 데이터를 백업할 수 있게 해줌
+  - 가상 테이프 라이브러리(Virtual Tape Library - VTL)는 Amazon S3와 Glacier를 이용
+  - 테이프 기반 프로세스의 기존 백업 데이터를 iSCSI 인터페이스를 사용하여 백업
+  - 업계를 선도하는 백업 소프트웨어 벤더가 사용하는 서비스
+- Storage Gateway - Hardware appliance
+  - 온프레미스에 서버가 없는 경우 사용
+  - amazon.com 에서 구매 가능
+  - 파일 게이트웨이, 볼륨 게이트웨이 혹은 테이프 게이트웨이로 설정 가능
+  - 제대로 작동하려면 충분한 CPU, 메모리, 네트워크, SSD 캐시 리소스가 필요 
+  - 소규모 데이터 센터의 NFS 백업처럼 가상화가 없는 경우 유용
+
+
+
+### AWS 전송 제품군
+
+- AWS Transfer Family
+  - Amazon S3 또는 EFS의 안팎으로 데이터를 전송하려고 하고 싶은데 S3 APIs, EFS 네트워크 파일 시스템는 사용하고 싶지 않고 FTP 프로토콜만 사용하려는 경우에 사용
+  - 지원하는 프로토콜
+    - AWS Transfer for FTP (File Transfer Protocol )
+    - AWS Transfer for FTPs (File Transfere Protocol over SSL)
+    - AWS Transfer for SFTP (Secure File Transfer Protocol)
+  - 전송 제품군은 완전 관리형 인프라이며 확장성, 안정성이 높고 높은 가용성을 가짐
+  - 시간당 프로비저닝된 엔드 포인트 비용 + 전송 제품군 안팎으로 전송된 데이터당 GB 요금
+  - 서비스 내에서 사용자 자격 증명을 저장 및 관리 가능
+  - 기존의 인증 시스템과 통합할 수 있음 (Microsoft Active Directory, LDAP, Okta, Amazon Cognito, custom)
+  - 사용 사례
+    - S3나 EFS의 FTP 인터페이스를 갖기 위해
+    - 파일 공유
+    - 공개 데이터셋 공유
+    - CRM
+    - ERP
+
+
+
+### DataSync
+
+- AWS DataSync
+  - 데이터를 동기화하며 이를 통해 대용량의 데이터를 한 곳에서 다른 곳으로 옮길 수 있음
+    - 온프레미스나 AWS의 다른 클라우드 (NFS, SMB, HDFS, S3 API, ...)로 데이터를 옮길 수 있음
+    - 옮길 위치인 온프레미스나 연결한 다른 클라우드에 에이전트가 있어야 함
+    - 한 AWS 서비스에서 다른 AWS로 데이터를 옮길 수도 있음
+  - 동기화 가능한 서비스 
+    - Amazon S3 (모든 스토리지 클래스)
+    - Amazon EFS
+    - Amazon FSx (모든 운영채제)
+  - 복제 작업은 매번 실행하지 않고 매 시간, 매일, 혹은 매주 실행되도록 할 수 있음
+  - 파일 권한과 메타데이터 보존 기능 (NFS POSIX, SMB 권한 준수)
+  - 에이전트 하나의 태스크가 초당  10Gb까지 사용할 수 있으며 대역폭에 제한을 걸 수 있음
+
+
+
+### 모든 AWS 스토리지 옵션 비교
+
+- Storage Comparison
+  - S3: 객체 스토리지
+  - S3 Glacier: 객체 아카이브
+  - EBS volumes: 한 번에 한 개의 EC2 인스턴스에만 스토리지를 연결하는 경우
+  - Instance Stroage: 고성능 물리 스토리지를 필요로 하는 경우
+  - EFS: 다중 가용 영역 간 마운트를 해야 하면서 POSIX 파일 시스템을 쓰는 경우
+  - FSx for Windows: Windows 서버 파일 시스템을 필요로 하는 경우
+  - FSx for Lustre: 고성능 연산 Linux 파일 시스템이며 Lustre 클라이언트와 호환 가능해야 하는 경우
+  - FSx for NetApp: 높은 운영 체제 호환성과 네트워크 파일 시스템이 필요할 때
+  - FSx for OpenZFS: 관리형 ZFS 파일 시스템이 필요할 때
+  - Storage Gateway: S3 & FSx 파일 게이트웨이, 볼륨 게이트웨이 (캐시 & 저장), 테이프 게이트웨이
+  - Transfer Family: FTP, FTPS, SFTP 인터페이스를 필요로 하는 경우
+  - DataSync: 온프레미스에서 AWS, AWS에서 AWS로 일정에 따라 데이터를 동기화할 때
+  - Snowcone / Snowball / Snowmobile: 데이터를 옮기는 데 쓸 네트워크 용량이 없거나 물리적으로 대용량의 데이터를 옮겨야할 때
+
+
+
+
+
+
+
+
+
