@@ -3571,3 +3571,373 @@
 
   - 세분화된 액세스 제어를 통해 DynamoDB에서 행 수준 보안을 활성화 가능
 
+
+
+## Section 20. 서버리스 솔루션 아키텍처 토론
+
+### 모바일 애플리케이션: MyToDoList
+
+- Serverlessee Mobile Application: MyToDoList
+  - REST HTTPS
+    - Amazon API Gateway + AWS Lambda + DAX + DynamoDB
+  - authenticate
+    - Amazon Cognito + STS
+  - store files
+    - Amazon S3
+
+
+
+### 서버리스 웹사이트: MyBlog.com
+
+- Serverlessee hosted website: MyBlog.com
+  - 정적 콘텐츠
+    - CloudFront + S3
+  - REST API
+    - API Gateway + AWS Lambda + DAX + DynamoDB
+  - Upload photo
+    - Cloudfront + S3 + Lambda + S3 + SQS / SNS
+
+
+
+### 마이크로서비스 아키텍처
+
+- Micro Services architecture
+  - 1st 서비스
+    - Elastic Load Balancing + ECS + DynamoDB
+  - 2nd 서비스
+    - API Gateway + Lambda + ElastiCache
+  - 3rd 서비스
+    - Elastic Load Balancing + EC2 + RDS
+
+
+
+### 소프트웨어 업데이트 배포
+
+- 배포시 비용을 줄이는 방법
+  - CloudFront를 상위에 둔다
+    - 아키텍쳐 변화 X
+    - 엣지에서 소프트웨어 업데이트 파일은 캐시에 저장됨
+    - 동적이 아니라 정적이라서 절대 바뀌지 않음
+    - EC2 인스턴스는 서버리스가 아님
+    - CloudFront는 서버리스라서 확장함
+    - ASG가 많이 확장하지 않아 EC2와 네트워크, EFS 비용을 크게 절감하게 됨
+    - 또한 가용성도 확보할 수 있음 
+    - CloudFront가 기존 애플리케이션의 확장성을 높이고 비용을 절감하는데 용이
+    - 엣지에서 캐싱을 활용하는 정적 콘텐츠가 대부분인 경우에 한정
+
+
+
+
+
+
+
+## Section 21. AWS의 데이터베이스
+
+### 올바른 데이터베이스 선택
+
+- 올바른 데이터베이스 선택
+  - AWS에는 여러 관리형 데이터베이스가 있음
+  - 무엇을 선택할지는 문제가 어떤 아키텍처를 요구하는지에 따라 다름
+    - 쓰기가 많은지, 읽기가 많은지, 균형이 맞는 워크로드인지, 처리량은 얼마나 되는지, 그 처리량이 하루에 얼마나 달라지는지
+    - 데이터는 얼마나 저장되고 확장은 가능한지, 평균 객체 크기는 어떤지, 액세스 빈드와 액세스 방법은 무엇인지
+    - 데이터 내구성은 어떤지, 데이터의 진실 공급원은 무엇인지 
+    - 지연 시간 요구 사항이나 동시 사용자 요구 사항이 있는지
+    - 데이터 모델은 무엇이고 데이터는 어떻게 쿼리하는지, 조인인지 정형인지, 반정형인지
+    - 스키마가 강력한지, 유연성이 높은지, 데이터베이스 관련 보고가 필요한지, 검색 기능이 필요한지, RDBMS / NoSQL 중 뭐가 필요한지
+    - 라이센스 비용이 드는지, Aurora 같은 클라우드 네이티브 데이터베이스로 전환할 것인지
+- Database Types
+  - RDBMS (= SQL / OLTP): RDS, Aurora => 조인에 유용
+  - NoSQL (no joins, no SQL): DynamoDB (~JSON), ElastiCache (key, value pairs), Neptune (graphs), DocumentDB (for MongoDB), Keyspace (for Apache Cassandra)
+  - Object Store: S3 (for big objects) / Glacier (for backups / archives)
+  - Data Warehouse ( = SQL Analytics / BI): Redshift (OLAP), Athena, EMR
+  - Search: Open Search (JSON): 자유롭게 텍스트를 입력, 비정형 데이터 검색
+  - Graphs: Amazon Neptune - 데이터 세트 간의 관계를 표시
+  - Ledger (원장): Amazon Quantum Ledger Database 
+  - Time series (시계열): Amazon Timestream
+
+
+
+### DocumentDB
+
+- DocumentDB
+  - Aurora로 AWS에서 PostgreSQL과 MySQL의 대규모 클라우드 네이티브 버전을 구현하는 것과 비슷
+  - DocumentDB는 몽고DB용 Aurora (NoSQL)
+  - MongoDB는 JSON 데이터를 저장, 쿼리, 인덱스하는 데 사용됨
+  - Aurora와 같은 배포 개념이 있음
+  - 완전 관리형 데이터베이스이며, 가용성이 높음 (데이터는 3개의 가용 영역에 복제됨)
+  - 스토리지는 자동으로 10GB 단위로 최대 64TB까지 증가함
+  - 초당 수백만 건의 요청이 있는 워크로드로 확잘될 수 있도록 설계됨
+
+
+
+### Neptune
+
+- Amazon Neptune
+
+  - 완전 관리형 그래프 데이터베이스
+
+  - 가장 인기있는 그래프 데이터셋은 소셜 네트워크
+
+    - 유저는 친구가 있음
+    - 게시물에는 댓글이 있음
+    - 댓글에는 좋아요가 있음
+    - 사용자는 게시물을 공유하고 좋아요를 누름
+
+  - Neptune은 3AZ에 걸쳐 최대 15개의 읽기 전용 복제본으로 복제
+
+  - 소셜 네트워크처럼 고도로 연결된 데이터 셋을 사용하는 애플리케이션을 구축하고 실행하는 데 사용
+
+    => 그래프 데이터 셋에서 복잡하고 어려운 쿼리를 실행하기에 최적화되어 있음
+
+  - 데이터베이스에 최대 수십억 개의 관계를 저장할 수 있고, 그래프를 쿼리할 때 지연시간은 밀리초
+
+  - 여러 가용 영역에 걸친 애플리케이션에서도 매우 가용성이 높음
+
+  - 지식 그래프를 저장하는 데도 뛰어남 (위키피디아), 사기 탐지, 추천 엔진, 소셜 네트워킹에도 뛰어남
+
+
+
+### Keyspaces (for Apache Cassandra)
+
+- Amazon Keyspaces
+  - AWS의 관리형  Apache Cassandra를 보조
+  - Cassandra: NoSQL 오픈소스 NoSQL 분산 데이터베이스
+  - Keyspaces를 사용하면 클라우드에서 AWS가 Cassandra를 직접 관리해 줌
+  -  서버리스, 확장성과 가용성이 높으며 AWS 완전 관리형
+  - 애플리케이션 트래픽에 따라 테이블을 자동으로 확장/축소
+  - 테이블 데이터는 여러 AZ에 걸쳐 세 번 복제됨
+  - Cassandra 쿼리 언어 (CQL)을 사용
+  - 어떤 규모에서도 지연 시간이 10밀리초 미만으로 짧고 초당 수천 건의 요청을 처리
+  - 용량: 온디맨드 모드, 프로비저닝 모드 (크기가 자동으로 조절)
+  - 암호화, 백업 기능 지원 / 최대 35일까지 지정 시간 복구가 가능
+  - 사용 사례: IoT 장치 정보와 시계열 데이터 저장 등
+
+
+
+### QLDB
+
+- Amazon QLDB
+  - QLDBs는 Quantum Ledger Database의 약자
+  - 원장은 금융 트랜잭션을 기록하는 장부
+  - 완전 관리형 데이터베이스, 서버리스, 가용성 높음, 3개의 가용영역에 걸쳐 데이터를 복제
+  - 애플리케이션 데이터의 시간에 따른 모든 변경 내역을 검토하는데 사용
+  - 불변 시스템: 데이터에 무언가를 쓰면, 삭제하거나 수정할 수 없음
+  - 일반 원장 블록체인 프레임워크보다 2~3배 나은 성능을 얻을 수 있음
+  - SQL을 사용하여 데이터를 관리할 수 있음
+  - QLDB에는 중앙 권한 구성 요소가 있음 => 관리형 블록체인과의 차이점
+
+
+
+### Timestream
+
+- Amazon Timestream
+
+  - 시계열 데이터 베이스: 완전 관리형, 빠르고 확장성 있는 서버리스 서비스
+
+  - 데이터베이스의 용량을 자동으로 확장, 축소할 수 있음
+
+  - 매일 수조 건의 이벤트를 저장 및 분석할 수 있음
+
+  - 시계열 데이터베이스는 관계형 데이터베이스보다 1000배 빠르고 10배 저렴
+
+  - 쿼리를 예약하고 다중 척도 레코드도 얻을 수 있음
+
+  - SQL과 완벽히 호환됨
+
+  - 최신 데이터는 메모리에 저장되고 과거 데이터는 비용 효율적인 스토리지 계층에 저장됨
+  - 시계열 분석 기능이 있어 거의 실시간으로 데이터를 분석하고 패턴을 찾을 수 있음
+  - 전송 중 데이터와 저장 데이터의 암호화 지원
+  - 사용 사례: IoT 애플리케이션, 운영 애플리케이션, 실시간 분석 등
+
+
+
+## Section 22. 데이터 & 분석
+
+### Athena
+
+- Amazon Athena
+  - Amazon S3 버킷에 저장된 데이터 분석에 사용하는 서버리스 쿼리 서비스
+  - 데이터를 분석하려면 표준 SQL 언어로 파일을 쿼리해야 함 (Presto 엔진에 빌드)
+  - CSV, JSON, ORC< Avro, Parquet 등 다양한 형식 지원
+  -  스캔된 데이터의 TB당 고정 가격(5$)을 지불
+  - 일반적으로 Amazon QuickSight (보고서와 대시보드 생성)와 함께 사용
+  - QuickSight는 S3 버킷에 연결된  Athena 다음에 배치됨
+  - 사용 사례: 임시 쿼리 수행 / 비즈니스 인텔리전스 / 분석 / 보고 / AWS 서비스에서 발생하는 모든 로그를 쿼리하고 분석 => VPC 흐름로그, 로드 밸런서 로그, CloudTrail 추적 등
+- Amazon Athena - Performance Improvement
+  - 비용 절약을 위해 열 기반 데이터 유형을 사용 (스캔이 덜 일어남)
+    - Apache Parquet or ORC 가 추천됨
+    - 이 형식을 사용하면 성능이 향상
+    - Glue를 사용하면 Parquet와 ORC의 데이터를 변환할 수 있음
+  - 데이터를 압축해 더 적게 검색
+  - 특정 열을 항상 쿼리한다면 데이터 세트를 분할
+    - S3 버킷에 있는 전체 경로를 슬래시로 분할한다는 뜻
+  - 큰 파일 (128MB 이상)을 사용해서 오버헤드를 최소화
+- Amazon Athena - Federated Query
+  - Athena는 S3뿐만 아니라 어떤 곳의 데이터도 쿼리할 수 있음
+  - 다른 서비스에서 연합 쿼리를 실행하는 Lambda 함수인 데이터 원본 커넥터를 사용 (e.g CloudWatch Logs, DynamoDB, RDS, ...)
+  - 쿼리 결과는 사후 분석을 위해 Amazon S3 버킷에 저장 가능
+
+
+
+### Redshift
+
+- Redshift Overview
+
+  - PostgreSQL 기술 기반이지만 OLTP(온라인 트랜잭션 처리)에 사용되지는 않음
+  - OLAP(온라인 분석 처리) 유형 => 분석과 데이터 웨어하우징에 사용
+  - 다른 어떤 데이터 웨어하우징보다 성능이 10배 이상 좋고 데이터가 PB 규모로 확장됨
+  - 열 기반 스토리지를 사용하고 병렬 쿼리 엔진
+  - Redshift 클러스터에서 프로비저닝한 인스턴스에 대한 비용만 지불하면 됨
+  - 쿼리를 수행할 때 SQL 문을 사용할 수 있음
+  - Amazon Quicksight 같은 BI 도구나 Tableau 같은 도구도 Redshift와 통합 가능
+  - Vs Athena: 쿼리 / 조인 / 통합이 훨씬 더 빠름 => 인덱스가 있기 때문
+
+- Redshift Cluster
+
+  - 리더 노드: 쿼리를 계획하고 결과를 집계
+  - 컴퓨팅 노드: 실제로 쿼리를 실행하고 결과를 리더 노드에 보냄
+  - 노드 크기를 미리 프로비저닝해야 함
+  - 비용을 절감하려면 예약 인스턴스를 사용하면 됨
+
+- Redshift - Snapshot & DR
+
+  - 대부분의 클러스터에는 단일 AZ이나, 일부 클러스터 타입에 대해서는 다중 AZ 모드가 가능
+  - 스냅샷은 클러스터의 지정 시간 백업으로 Amazon S3 내부에 저장 => 단일 AZ에서 필요
+  - 증분함 (변경된 사항만 저장)
+  - 새로운 Redshift 클러스터에 스냅샷을 복원할 수 있음
+  - 자동화 모드: 8시간마다, 5GB마다 등으로 예약 가능, 보존 기간 설정 가능
+  - 수동 모드: 스냅샷을 직접 삭제하기 전까지 스냅샷이 유지됨
+  - 자동이든 수동이든 클러스터의 스냅샷을 다른 AWS 리전에 자동으로 복사하도록 Redshift를 구성하여 재해 복구 전략을 적용할 수 있음
+
+- Loading data into Redshift: Large inserts are MUCH Better
+
+  ![KakaoTalk_Photo_2023-12-18-22-04-07](/Users/iseongheon/Documents/MyGit/TIL/aws/assets/KakaoTalk_Photo_2023-12-18-22-04-07.jpeg)
+
+- Redshift Spectrum
+
+  - Amazon S3에 있는 데이터를 Redshift에 사용해 분석은 하지만 로드는 하지 않음
+  - 더 많은 처리 능력을 사용하기 위함
+  - 쿼리를 시작할 수 있는 Redshift 클러스터가 있어야 함
+  - 일단 쿼리를 시작하면 S3에 있는 데이터에 쿼리를 실행할 수천 개의 Redshift Spectrum 노드에 쿼리가 제출됨
+
+
+
+### 오픈서치 (예: ElasticSearch)
+
+- Amazon OpenSearch Service
+
+  - Amazon ElasticSearch의 후속작
+
+  - DynamoDB에서 데이터베이스의 기 본 키나 인덱스만을 이용해서 쿼리를 할 수 있음
+
+  - OpenSearch에서는 모든 필드를 검색할 수 있음 (부분 매칭이어도 가능)
+
+  - OpenSearch를 이용해서 애플리케이션에 검색 기능을 제공하는 방식을 널리 사용
+
+  - 다른 데이터베이스를 보완해서 사용할 수 있음
+
+  - 두 가지 모드
+
+    - 관리형 클러스터 모드 (managed cluster)
+    - 서버리스 클러스터 모드 (serverless cluster)
+
+  - 자체적으로 SQL을 지원하진 않지만 플러그인을 통해서 SQL 호환성을 활성화 가능
+
+  - Kinesis Data Firehose, AWS IoT, CloudWatch Logs 또는 커스텀 빌드 앱 등 다양한 곳에서 오는 데이터를 받을 수 있음
+
+  - 보안은 Cognito, IAM 등을 통해 제공됨
+
+  - OpenSearch 대시보드를 이용해 OpenSearch 데이터를 시각화 가능
+
+    
+
+### EMR
+
+- Amazon EMR
+  - Elastic MapReduce의 약어
+  - AWS에서 빅 데이터 작업을 위한 하둡 클러스터 생성에 사용됨 => 방대한 양의 데이터를 분석하고 처리할 수 있음
+  - 클러스터는 수백 개의 EC2 인스턴스로 구성될 수 있음
+  - Apache Spark, HBase, Presto, Apache Flink 와 함꼐 사용됨
+  - EMR이 해당 서비스들에 대한 프로비저닝과 구성을 대신 처리해 줌
+  - 오토 스케일링 및 스팟 인스턴스와 통합 가능 (가격 할인 혜택)
+  - 사용 사례: 데이터 처리, 기계 학습, 웹 인덱싱, 빅 데이터 작업
+- Amazon EMR - Node types & purchasing
+  - Master Node: 클러스터를 관리하고 다른 모든 노드의 상태를 조정- 장기 실행해야 함
+  - Core Node: 태스크를 실행하고 데이터를 저장 - 장기 실행해야 함
+  - Task Node (optional): 테스크만 실행 - 대게 스팟 인스턴스 사용
+  - 구매 옵션
+    - 온디멘드: 신뢰할 수 있고 예측 가능한 유형의 워크로드를 얻게 되며 절대 종료되지 않음
+    - 예약 인스턴스: 비용 절약 가능 (가능한 경우 EMR이 자동으로 예약 인스턴스를 사용) => 마스터 노드와 코어 노드에 적합
+    - 스팟 인스턴스: 신뢰도는 떨어지지만 저렴, 종료될 수 있음 => 태스크 노트에 적합
+  - EMR에서 배포할 때는 장기 실행 클러스터에서 예약 인스턴스를 사용하거나 임시 클러스터를 사용해 특정 작업을 수행하고 분석 완료 후에 삭제할 수 있음
+
+
+
+### QuickSight
+
+- Amazon QuickSight
+  - 서버리스 머신 러닝 기반 비즈니스 인텔리전스 서비스로 대화형 대시보드를 생성
+  - 빠르고 오토 스케일링이 가능하고 웹사이트에 임베드할 수 있으며 세션당 비용을 지불
+  - 사용 사례
+    - 비즈니스 분석
+    - 시각화 구현
+    - 시각화된 정보를 통한 임시 분석 수행
+    - 데이터를 활용한 비즈니스 인사이트 획득
+  - RDS, Aurora, Athena, Redshift, S3 등 다양한 데이터 소스에 연결 가능
+  - 인메모리 연산 엔진인 SPICE 엔진: Amazon QuickSight로 데이터를 직접 가져올 때 사용됨
+  - 엔터프라이즈 에디션: 액세스 권한이 없는 사용자에게 일부 열이 표시되지 않도록 열 수준 보안 (CLS)을 설정할 수 있음
+- QuickSight Intergrations
+  - AWS Service
+  - Data Sources (Saas) - salesforce, jira
+  - 외부  DB - teradata
+  - Data Sources (Imports) - XLSX, CSV, JSON, TSV, ELF & CLF
+- QuickSight - Dashboard & Analysis
+  - 사용자를 정의 (스탠다드 버전), 그룹 기능 (엔터프라이즈 버전)
+    - 사용자와 그룹은 QuickSight 서비스 전용 (IAM과 다름)
+  - 대시보드
+    - 읽기 전용 스냅샷이며 분석 결과를 공유할 수 있음
+    - 분석을 위해 설정한 필터 또는 매개변수 제어, 정렬 옵션 등이 저장되는 등 분석의 구성을 저장
+  - 특정 사용자 또는 그룹과 분석 결과나 대시보드를 공유할 수 있음
+  - 공유를 위해선 대시보드를 게시해야 함
+  - 액세스 권한이 있는 사용자는 기본 데이터를 볼 수도 있음
+
+
+
+### Glue
+
+- AWS Glue
+  - 추출과 변환 로드 서비스를 관리하며 ETL 서비스라고도 불림
+  - 분석을 위해 데이터를 준비하고 변환하는데 매우 유용
+  - 완전 서버리스 서비스
+- Glue - things to know at a high-level
+  - Glue Job Bookmarks: 새 ETL 작업을 실행할 때 이전 데이터의 재처리를 방지
+  - Glue Elastic Views
+    - SQL을 사용해 여러 데이터 스토어의 데이터를 결합하고 복제함
+    - 커스텀 코드를 지원하지 않으며 Glue가 원본 데이터의 변경 사항을 모니터링함, 서버리스
+    - 가상 테이블을 생성할 수 있음 (구체화 된 뷰)
+  - Glue DataBrew: 사전 빌드된 변환을 사용해 데이터를 정리하고 정규화 함
+  - Glue Studio: Glue에서 ETL 작업을 생성, 실행 및 모니터링하는 GUI
+  - Glue Streaming ETL (Apache Spark Structured Streaming 위에 빌드됨) : ETL 작업을 배치 작업이 아니라 스트리밍 작업으로 실행할 수 있음, Kinesis Data Streaming, Kafka, MSK에서 데이터를 읽을 수 있음
+
+
+
+### Lake Formation
+
+- 
+
+
+
+### Kinesis 데이터분석
+
+
+
+
+
+### MSK - Managed Streaming for Apache Kafka
+
+
+
+
+
+### 빅 데이터 수집 파이프라인
+
