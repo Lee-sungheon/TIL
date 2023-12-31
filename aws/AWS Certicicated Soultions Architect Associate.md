@@ -3923,21 +3923,84 @@
 
 ### Lake Formation
 
-- 
+- AWS Lake Formation
+  - Data lake: 데이터 분석을 위해 모든 데이터를 한곳으로 모아 주는 중앙 집중식 저장소
+  - Lake Formation: 데이터 레이크 생성을 수월하게 해 주는 완전 관리형 서비스
+  - 보통 수개월씩 걸리는 작업을 며칠 만에 완료할 수 있게 도와줌
+  - 데이터 레이크에서의 데이터 검색, 정제, 변환, 주입을 도움
+  - 데이터 수집, 정제, 카탈로깅, 복제 같은 복잡한 수작업을 자동화하고 기계 학습(ML) 변환 기능으로 중복제거를 수행
+  - 데이터 레이크에서는 정형 데이터와 비정형 데이터 소스를 결합할 수 있음
+  - 블루프린트를 제공: 데이터를 데이터데이터로 이전하는 것을 도와줌 => S3, RDS, RDB, NoSQL
+  - 애플리케이션에서 행, 열 수준의 세분화된 액세스 제어를 할 수 있음
+  - AWS Glue 위에 빌드되는 계층 => Glue와 직접 상호작용하진 않음
+  - **장점: 중앙화된 권한** => Lake Formation 에서만 권한 관리를 하면 됨
 
 
 
 ### Kinesis 데이터분석
 
-
+- Kinesis Data Analytics for SQL applications
+  - 데이터 소스: Kinesis Data Stream & Firehose (SQL을 사용)
+  - Amazon S3로 데이터를 강화할 수 있음
+  - 완전 관리형 서비스 => 서버를 프로비저닝하지 않음
+  - 오토 스케일링
+  - 전송된 데이터만큼 비용을 지불
+  - 데이터 출력 (Output)
+    - Kinesis Data Streams
+    - Kinesis Data Firehose
+  - 사용 사례
+    - 시계열 분석
+    - 실시간 대시보드
+    - 실시간 지표
+- Kinesis Data Analytics for Apache Flink
+  - Apache Flick를 사용하면 Java, Scala, SQL로 애플리케이션을 작성하고 스트리밍 데이터를 처리 및 분석 가능
+  - Flink는 코드로 작성해야 하는 특별한 애플리케이션
+  - AWS의 관리형 클러스터에서 Apache Flink 애플리케이션을 실행할 수 있음
+    - 컴퓨팅 리소스를 자동 프로비저닝 할 수 있고 병렬 연산과 오토 스케일링이 가능
+    - 체크포인트와 스냅샷으로 구현되는 애플리케이션 백업이 가능
+    - Apache Flink 프로그래밍 기능을 사용 가능
+    - Kinesis Data Firehose의 데이터는 읽지 못함 (Kinesis Data Streams나  Amazon MSK의 데이터는 읽을 수 있음)
 
 
 
 ### MSK - Managed Streaming for Apache Kafka
 
+- Amazon Managed Streaming for Apache Kafka (Amazon MSK)
 
+  - Kafka는 Amazon Kinesis의 대안
+  - MSK는 AWS의 완전 관리형 Kafka 클러스터 서비스
+    - 그때그때 클러스터를 생성, 업데이트, 삭제
+    - 클러스터 내 브로커 노드와 Zookeeper 브로커 노드를 생성 및 관리 
+    - 고가용성을 위해 VPC의 클러스터를 최대 세 개의 다중 AZ 전역에 배포
+    - 일반 Kafka 장애를 자동 복구하는 기능
+    - EBS 볼륨에 데이터를 저장할 수 있음
+  - MSK Serverless
+    - MSK에서 Apache Kafka를 실행하지만 서버 프로비저닝이나 용량 관리가 필요 없음
+    - MSK가 리소스를 자동으로 프로비저닝하고 컴퓨팅과 스토리지를 스케일링 함
 
+- Kinesis Data Streams vs Amazon MSK
 
+  - Kinesis Data Streams
+    - 1MB 메시지 크기 제한
+    - 샤드(Shards)로 데이터를 스트리밍
+    - 샤드 분할 및 샤드 병합으로 스케일업 및 스케일다운이 가능
+    - TLS 전송 중 암호화 기능
+    - 저장 데이터 암호화 기능 (KMS at-rest encryption)
+  - Amazon MSK
+    - 1MB가 기본값, 더 큰 메시지도 가능
+    - 파티션(Partitions)을 이용한 Kafka 주제를 사용
+    - 파티션 추가로 주제 확장만 할 수 있음 (제거는 불가)
+    - PLAINTEXT(평문) or TLS 전송 중 암호화 기능
+    - 저장 데이터 암호화 기능 (KMS at-rest encryption)
+
+- Amazon MSK Consumers
+
+  - Kinesis Data Analytics for Apache Flink
+  - AWS Glue
+  - Lambda
+  - EC2, ECS, EKS
+
+  
 
 ### 빅 데이터 수집 파이프라인
 
