@@ -3966,7 +3966,6 @@
 ### MSK - Managed Streaming for Apache Kafka
 
 - Amazon Managed Streaming for Apache Kafka (Amazon MSK)
-
   - Kafka는 Amazon Kinesis의 대안
   - MSK는 AWS의 완전 관리형 Kafka 클러스터 서비스
     - 그때그때 클러스터를 생성, 업데이트, 삭제
@@ -3977,9 +3976,7 @@
   - MSK Serverless
     - MSK에서 Apache Kafka를 실행하지만 서버 프로비저닝이나 용량 관리가 필요 없음
     - MSK가 리소스를 자동으로 프로비저닝하고 컴퓨팅과 스토리지를 스케일링 함
-
 - Kinesis Data Streams vs Amazon MSK
-
   - Kinesis Data Streams
     - 1MB 메시지 크기 제한
     - 샤드(Shards)로 데이터를 스트리밍
@@ -3992,15 +3989,154 @@
     - 파티션 추가로 주제 확장만 할 수 있음 (제거는 불가)
     - PLAINTEXT(평문) or TLS 전송 중 암호화 기능
     - 저장 데이터 암호화 기능 (KMS at-rest encryption)
-
 - Amazon MSK Consumers
-
   - Kinesis Data Analytics for Apache Flink
   - AWS Glue
   - Lambda
   - EC2, ECS, EKS
 
-  
 
-### 빅 데이터 수집 파이프라인
+
+## Section 23. 머신러닝
+
+### Rekognition 개요
+
+
+
+
+
+## Section 24. AWS 모니터링 및 감사: CloudWatch, CloudTreail 및 Config
+
+ ### CloudWatch 지표
+
+- Amazon CloudWatch Metrics
+  - CloudWatch는 AWS의 모든 서비스에 대한 지표를 제공
+  - 지표(Metric)는 모니터링할 변수 (CPUUtilization, NetworkIn...)
+  - 지표는 이름공간(namespaces)에 속함 => 서비스당 이름공간은 하나
+  - 측정 기준(Dimension)은 지표의 속성 (인스턴스 ID, 특정 환경, etc)
+  - 지표당 최대 측정 기준은 30개
+  - 지표는 타임스탬프가 꼭 있어야 함 (시간을 기반으로 하므로)
+  - 지표를 CloudWatch 대시보드에 추가해 모든 지표를 한 번에 볼 수 있음
+  - CloudWatch 사용자 지정 지표를 만들 수 있음
+- CloudWatch Metric Streams
+  - CloudWatch 지표를 원하는 대상으로 지속적으로 스트리밍하면 거의 실시간으로 전송되고 지연 시간도 짧아짐
+    - Amazon Kinesis Data Firehose가 대상이 될 수 있고 원하는 곳으로 전송 가능
+    - Datadog, Dynatrace, New Relic, Splunk, Sumo Login 같은 타사 서비스 제공자로 CloudWatch 지표를 직접 전송할 수도 있음
+  - 모든 이름공간에 속한 모든 지표를 스트리밍하거나 몇몇 이름공간의 지표만 필터링이 가능
+
+
+
+### CloudWatch 로그
+
+- CloudWatch Logs
+  - 로그 그룹: 이름을 정의, 보통 애플리케이션을 나타내는 이름으로 정함
+  - 로그 스트림: 애플리케이션 안의 로그 인스턴스나 특정한 로그 파일 또는 클러스터의 일부로서 갖고 있는 특정한 컨테이너를 나타냄
+  - 로그 만료 정책을 정의할 수 있음 (만료 x, 1일~10년)
+  - CloudWatch 로그 전송
+    - Amazon S3 (exports)
+    - Kinesis Data Streams
+    - Kinesis Data Firehose
+    - AWS Lambda
+    - OpenSearch
+  - Logs들은 기본값으로 암호화가 됨
+  - 원한다면 자신의 키를 사용해서 자체적으로 KMS 기반 암호화를 설정 가능
+- CloudWatch Logs - Sources
+  - SDK, CloudWatch Logs Agent, CloudWatch Unified Agent
+  - Elastic Beanstalk: 애플리케이션에서 로그를 수집
+  - ECS: 컨테이너에서 로그를 수집
+  - AWS Lambda: 함수 자체에서 로그를 수집
+  - VPC Flow Logs: VPC 메타데이터 네트워크 트래픽의 특정 로그를 수집
+  - API Gateway: API Gateway로 오는 모든 요청
+  - CloudTrail: 필터에 기반한 로그
+  - Route 53: 서비스에 대한 모든 DNS 쿼리
+- CloudWatch Logs Insights
+  - CloudWatch Logs 안에서 로그 데이터를 검색하고 분석할 수 있음
+  - 특별한 목적으로 제작된 쿼리 언어를 제공
+    - 쿼리를 제작하도록 해주는 모든 필드를 CloudWatch Logs가 자동으로 탐지
+    - 조건을 기준으로 필터링을 하거나, 집계 통계를 계산하고 이벤트를 정렬하거나 이벤트 개수를 제한하는 등의 작업이 가능
+    - 쿼리를 저장하고 그것들을 CloudWatch 대시보드에 추가할 수 있음
+  - 다른 계정에 있어도 한 번에 다수의 로그 그룹을 쿼리할 수 있음
+  - CloudWatch Logs Insights는 실시간 엔진이 아니라 쿼리 엔진임 (과거 데이터만 쿼리)
+- CloudWatch Logs - S3 Export
+  - 로그 데이터 내보내기는 완료까지 최대 12시간이 걸림
+  - 해당 API 호출을 createExportTask라 부름
+  - 배치 내보내기이기 때문에 실시간이나 근 실시간이 아님
+- CloudWatch Logs Subscriptions
+  - 실시간의 로그 이벤트를 얻어서 처리하고 분석할 수 있음
+  - 그 데이터를 Kinesis Data Streams, Kinesis Data Firehose 또는 Lambda 등의 다양한 곳에 전송 가능
+  - Subscription Filter를 써서 전송 대상으로 전달하려는 로그 이벤트의 종류를 지정할 수 있음
+    - 다양한 리전과 계정에서 온 로그들을 하나의 특정 계정에서 Kinesis Data Streams 등에 집계할 수 있음
+    - 집계된 데이터를 다시 Kinesis Data Firehose로 보내고 다시 근 실시간으로 Amazon S3로 보냄
+  - 전송 대상을 반드시 사용해야 함
+
+
+
+### CloudWatch 에이전트 및 CloudWatch Logs 에이전트
+
+- CloudWatch Logs for EC2
+  - 기본적으로, EC2 인스턴스에서 CloudWatch 로는 어떤 로그도 옮겨지지 않음
+  - EC2 인스턴스에 에이전트라는 작은 프로그램을 실행시켜 원하는 로그 파일을 푸시해야 함
+  - EC2 인스턴스에 로그를 보낼 수 있게 해주는 IAM 역할이 있어야 함
+  - 에이전트는 온프레미스 환경에서도 셋업될 수 있음
+- CloudWatch Logs Agent & Unified Agent
+  - 가상 서버를 위함 (EC2 인스턴스, 온프레미스 서버)
+  - CloudWatch Logs Agent
+    - 더 오래된 버전
+    - CloudWatch Logs로 로그만 보냄
+  - CloudWatch Unified Agent
+    - 프로세스나 RAM 같은 추가적인 시스템 단계 지표를 수집
+    - CloudWatch Logs로 로그를 보냄
+    - SSM Parameter Store을 이용해서 중앙 집중식 환경 구성을 할 수 있음
+  - CloudWatch Unified Agent - Metrics
+    - Linux 서버나 EC2 인스턴스에 설치하면 지표를 수집 가능
+    - CPU (active, guest, idle, system, user, steal)
+    - 디스크 지표 (free, used, total), Disk IO (writes, reads, bytes, iops)
+    - RAM (free, inactive, used, total, cached)
+    - 넷상태(Netstat) (TCP/UDP 연결 수, 넷 패킷, bytes)
+    - Processes (total, dead, bloqued, idle, running, sleep)
+    - Swap Space (free, used, used %)
+    - 기억할 점 : EC2에서 디스크, CPU, 스와프나 메모리, 네트워크 세부 지표를 에이전트를 이용하면 얻을 수 있음
+
+
+
+### CloudWatch 경보
+
+- CloudWatch Alarms
+  - 메트릭에서 나오는 알림을 트리거하는 데 사용됨
+  - 
+- 
+
+
+
+### EventBridge (구. CloudWatch Events)
+
+
+
+
+
+### CloudWatch Insights and Operational Visibility
+
+
+
+
+
+### CloudTrail
+
+
+
+
+
+### CloudTrail - EventBridge
+
+
+
+
+
+### AWS Config
+
+
+
+
+
+### CloudTrail vs CloudWatch vs Config
 
