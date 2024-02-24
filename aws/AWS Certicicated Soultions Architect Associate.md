@@ -4106,40 +4106,200 @@
   - 다양한 옵션 (샘플링, 퍼센티지, 최대, 최소 등)
   - 알람 상태
     - OK : 알람이 트리거 되지 않음
-    - INSUFFICIENT DATA: 
-- 
+    - INSUFFICIENT DATA: 알람이 상태를 결정하기 위한 충분한 데이터가 없음
+    - ALARM: 한도 값을 초과함
+  - 기간
+    - 알람이 얼마나 오랫동안 매트릭을 평가할지 나타냄
+    - 고해상도 커스팀 메트릭에도 적용: 10초, 30초, 60초의 배수
+- CloudWatch Alarm Targets
+  - Stop, Terminate, Reboot, Recover an EC2 Instance
+  - Trigger Auto Scaling Action
+  - SNS 서비스에 알림 전송 
+- CloudWatch - Composite Alarms
+  - CloudWatch Alarms 는 하나의 메트릭에 적용
+  - 복합 알람은 다수의 다른 알람들의 상태를 모니터링
+  - AND 와 OR 조건
+  - 복잡한 복합 알람을 만들 수 있어서 알람 노이즈를 줄이는데 아주 유용
+- EC2 Instance Recovery
+  - Status Check
+    - Instance status = EC2 VM 검사
+    - System status = 기본 하드웨어 검사
+  - Recovery (Alarm이 발생하면 복구)
+    - 같은 Prviate, Public, Elastic IP, mectadata, 배치 그룹
+- CloudWatch Alarm: good to know
+  - CloudWatch Logs 메트릭 필터를 기초로 알람을 생성할 수 있음
+  - 알람 알림을 테스트하고 싶으면 set-alarm-state 라는 CLI 호출을 사용할 수 있음
+    - 특정한 한도 값이 도달하지 않았지만 알람을 트리거하고 싶을 때 유용
 
 
 
 ### EventBridge (구. CloudWatch Events)
 
-
+- Amazon EventBridge
+  - Schedule: Cron jobs (스크립트 예약)
+  - Event Pattern: 특정 작업을 수행하는 서비스에 반응하는 이벤트 규칙
+  - Lambda functions을 트리거해서 SQS/SNS 메시지를 보낼 수 있음
+- Amazon EventBridge - Event Bus
+  - Default Event Bus: AWS 서비스들의 이벤트 버스
+  - Partner Event Bus: AWS SaaS Partners(외부 서비스)의 이벤트 버스
+  - Custom Event Bus: 자체 이벤트 버스를 만들 수 있음
+  - 리소스 기반 정책을 사용해서 다른 계정의 이벤트 버스에 액세스 할 수도 있음
+  - 이벤트 버스로 이벤트 아카이빙도 할 수 있음 (전부 또는 필터링된 서브셋, 보존 기간을 무기한이나 일정 기간으로 설정 가능)
+  - 아카이브된 이벤트를 재생할 수 있음
+- Amazon EventBridge - Schema Registry
+  - EventBridge는 버스의 이벤트를 분석하고 스키마를 추론하는 능력이 있음
+  - 스키마 레지스트리의 스키마를 사용하면 애플리케이션으 코드를 생성할 수 있고 이벤트 버스의 데이터가 어떻게 정형화되는지 미리 알 수 있음
+  - 스키마는 버저닝이 가능
+- Amazon EventBridge - Recources-based Policy
+  - 특정 이벤트 버스의 권한을 관리할 수 있음
+  - 예시: 특정 이벤트 버스가 다른 리전이나 다른 계정의 이벤트를 허용하거나 거부하도록 설정
+  - 사용 사례: AWS Organizations의 중앙에 이벤트 버스를 두고 모든 이벤트를 모으는데 사용
 
 
 
 ### CloudWatch Insights and Operational Visibility
 
+- CloudWatch Container Insights
+  - 컨테이너로부터 지표와 로그를 수집, 집계, 요약하는 서비스
+  - 사용 가능 컨테이너
+    - Amazon ECS
+    - 
+    - Amazon EKS 
+    - EC2를 사용하는 쿠버네티스 플랫폼
+    - Fargate (EC2와 EKS로 배포된)
+  - Amazon EKS나 쿠버네티스 EC2에서 실행되는 쿠버네티스에서 사용할 경우  컨테이너화된 버전의 CloudWatch 에이전트를 사용해야 컨테이너를 찾을 수 있음
+- CloudWatch Lambda Insights
+  - AWS Lambda에서 실행되는 서비스 애플리케이션을 위한 모니터링과 트러블 슈팅 솔루션
+  - CPU 시간, 메모리, 디스크, 네트워크, 콜드 스타트나 Lambda 작업자 종료와 같은 정보를 포함한 시스템 수준의 지표를 수집, 집계, 요약함
+  - Lambda 함수를 위해 Lambda 계층으로 제공
+- Contributor Insights
+  - 기고자(Contributor) 데이터를 표시하는 시계열 데이터를 생성하고 로그를 분석하는 서비스
+    - 상위 N개의 기고자나 총 고유 기고자 수 및 사용량을 볼 수 있음
+  - 네트워크 상위 대화자를 찾고 시스템 성능에 영향을 미치는 대상을 파악할 수 있음
+  - AWS가 생성한 모든 로그에서 작동 (VPC, DNS 로그 등)
+  - 예시
+    - 불량 호스트를 식별
+    - 네트워크 로그나 VPC 로그를 확인해서 사용량이 가장 많은 네트워크 사용자를 찾을 수 있음
+    - DNS 로그에서 오류를 가장 많이 생성하는 URL을 찾을 수 있음
+  - 규칙은 직접 생성하거나 AWS가 생성한 간단한 규칙을 활용할 수 있음 => 백그라운드에서는 CloudWatch Logs가 활용
+  - 내장된 규칙이 있어 다른 AWS 서비스에서 가져온 지표도 분석할 수 있음
+- CloudWatch Application Insights
+  - 모니터링하는 애플리케이션의 잠재적인 문제와 진행 중인 문제를 분리할 수 있도록 자동화된 대시보드를 제공
+  - Java나 .NET, Micorosoft IIS 웹 서버, 데이터베이스 등 중에 선택한 기술로만 애플리케이션을 실행할 수 있음
+  - EBS, RDC, ELB, ASG, Lambda, SQS, DynamoDB, S3 버킷, ECS, EKS, SNS, API Gateway 와 같은 AWS 리소스에 연결
+  - SageMaker 머신 러닝 서비스가 사용됨
+  - 애플리케이션 상태 가시성을 더 높일 수 있음 => 트러블 슈팅이나 애플리케이션을 보수하는 시간이 줄어듬
+  - 발견된 문제와 알림은 모두 Amazon EventBridge와 SSM OpsCenter로 전달됨
 
 
 
+### CloudTrail 개요
 
-### CloudTrail
+- AWS CloudTrail
+  - AWS 계정의 거버넌스, 컴플라이언스, 감사를 실현하는 방법
+  - CloudTrail은 기본값으로 활성화되어 있음
+  - AWS 계정 안에서 일어난 모든 이벤트와 API 호출 이력을 콘솔, SDK, CLI 또는 기타 AWS 서비스를 통해 얻을 수 있음
+  - 로그들을 CloudTrail에서 CloudWatch Logs나 Amazon S3에 넣을 수 있음
+  - 트레일을 생성해서 모든 리전이나 하나의 리전에 적용이 가능
+  - 만약 누군가가 AWS의 자원을 삭제하면, CloudTrail을 우선으로 확인해야 함
+- CloudTrail Events
+  - Management Events
+    - AWS 계정 안에서 리소스에 대해 수행된 작업을 나타냄
+    - 예시
+      - 보안 설정
+      - 라우팅 데이터 규칙 설정
+      - 로깅 설정
+    - 기본값으로 트레일은 모든 관리 이벤트를 로깅하도록 설정되어 있음
+    - 리소스를 변경하지 않는 읽기 이벤트와 리소스를 수정하는 쓰기 이벤트로 나뉨
+  - Data Events
+    - 기본값으로 데이터 이벤트는 로깅되지 않음 (고용량 작업이기 때문)
+    - Amazon S3 객체 수준 활동 (GetObject, DeleteObject, PutObject, ...)
+      - 읽기 이벤트와 쓰기 이벤트를 분리할 수 있음
+    - AWS Lambda 함수 실행 활동
+  - CloudTrail Insights Events
+    - 사용하려면 활성화를 하고 비용일 지불해야 함
+    - 계정에서 일어나는 이벤트를 분석하고 비정상적인 활동에 대한 탐지를 시도
+      - 부정확한 리소스 프로비저닝
+      - 서비스 한도 도달
+      - AWS IAM 액션의 폭증
+      - 주기적 유지보수 활동 누락
+    - 정상적인 관리 활동을 분석해서 기준선을 만듬
+    - 올바른 형태의 이벤트(비정상 패턴이 아닌지)인지 계속적으로 분석
+- CloudTrail Events Retention
+  - 기본값으로 이벤트는 CloudTrail에 90일 동안 보관
+  - 기본 기간 이후에 이벤트를 보관하려면 로그를 A3에 전송하고 Athena를 사용해서 분석해야 함
 
 
 
+### CloudTrail - EventBridge 통합
+
+- Amazon EventBridge 통합 예시
+  - User => DynamoDB => CloudTrail(API Call)=> Event Bridge => SNS
+  - Uesr => IAM => CloudTrail => EventBridge => SNS
+  - User => EC2 => CloudTrail => EventBridge => SNS
 
 
-### CloudTrail - EventBridge
 
+### AWS Config 개요
 
-
-
-
-### AWS Config
-
-
+- AWS Config
+  - AWS 내 리소스에 대한 감사와 규정 준수 여부를 기록할 수 있게 해주는 서비스
+  - 구성과 구성의 시간에 따른 변화를 기록할 수 있음
+  - Config로 해결할 수 있는 질문
+    - 보안 그룹에 제한되지 않은 SSH 접근이 있나?
+    - 버킷에 공용 액세스가 있나?
+    - 시간이 지나며 변화한 ALB 구성이 있나?
+  - 규정을 준수하든 안하든 변화가 생길 때마다 SNS 알림을 받을 수 있음
+  - AWS Config는 리전별 서비스
+  - 데이터를 중앙화하기 위해 리전 간 데이터를 통합할 수 있음
+  - 모든 리소스의 구성을 S3에 저장해 나중에 분석 가능 (Athena 사용)
+- Config Rules
+  - AWS 관리형 Config 규칙 사용 가능 (75종)
+  - 규칙을 커스텀도 가능 (AWS Lambda를 통해 규칙을 정의해야만 함)
+    - Ex: 각 EBS 디스크가 gp2 유형인지 평가
+    - Ex: 개발 계정의 EC2 인스턴스가 t2.micro 유형인지 평가
+  - 몇몇 규칙들은 구성이 변화할 때마다 평가되거나 트리거
+  - Config 규칙은 규정 준수를 위한 것 => 어떤 동작을 미리 예방하지는 못함 (차단 X)
+  - Config는 결제해야 하며 굉장히 비싸질 수 있음
+- AWS Config Resource
+  - 리소스 의 규정 준수 여부를 시간 별로 볼 수 있음
+  - 리소스 구성도 시간별로 볼 수 있음
+  - CloudTrail과 연결해 리소스에 대한 API 호출을 볼 수 있음
+- Config Rules - Remediations
+  - SSM 자동화 문서를 이용해서 규정을 준수하지 않는 리소스를 수정할 수 있음
+  - AWS 관리형 문서를 사용하든 본인만의 자동화 문서를 만들어 사용하든 규정을 준수하지 않는 리소스를 수정할 수 있음
+    - 자동화 문서를 만들고 싶다면 람다 함수를 실행하는 문서를 생성해서 원하는 작업을 수행 가능
+  - 수정 작업은 재시도 될 수 있음 => 리소스를 자동 수정했음에도 여전히 규정을 미준수한다면 5번까지 재시도될 수 있음
+- Config Rules - Notifications
+  - EventBridge를 사용해 리소스가 규정을 미준수 했을 때마다 알림을 보낼 수 있음 
+  - 모든 구성 변경과 모든 리소스의 규정 준수 여부 알림을 Config에서 SNS로 보낼 수도 있음 (SNS 필터링도 사용 가능)
 
 
 
 ### CloudTrail vs CloudWatch vs Config
 
+- CloudWatch
+  - 지표, CPU, 네트워크 등의 성능 모니터링과 대시보드를 만드는 데 사용됨
+  - 이벤트 & 알림
+  - 로그 집계 및 분석 도구
+- CloudTrail
+  - 계정 내에서 만든 API에 대한 모든 호출을 기록
+  - 특정 리소스에 대한 추적도 정의 가능
+  - 글로벌 서비스
+- Config
+  - 구성 변경을 기록
+  - 규정 준수 규칙에 따라 리소스를 평가
+  - 변경과 규정 준수에 대한 타임라인을 UI로 보여줌
+- For an Elastic Load Balancer
+  - CloudWatch
+    - 들어오는 연결 수를 모니터링
+    - 오류 코드 수를 시간 흐름에 따라 비율로 시각화 
+    - 로드 밸런서의 성능을 볼 수 있는 대시보드
+  - Config
+    - 로드 밸런서에 대한 보안 그룹 규칙을 추적
+    - 누군가 SSL 인증서 등을 수정하지 않는지 감시
+    - 로드 밸런서의 구성 변경을 추적하는 데 사용
+    - SSL 인증서가 로드 밸런서에 항상 할당되어 있어야 한다는 규칙을 만들어 암호화되지 않은 트래픽이 로드 밸런서에 접근하지 못하게 할 수 있음
+  - CloudTrail
+    - 누가 API를 호출하여 로드 밸런서를 변경했는지 추적
+    - 누군가 보안 그룹 규칙을 바꾸거나 SSL 인증서를 바꾸거나 삭제한다면 CloudTrail이 누가 그랬는지 알려줄 수 있음
