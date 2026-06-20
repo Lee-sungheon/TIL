@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Next.js 16 서버 캐시와 TanStack Query의 동기화</title>
+<style>
+  /* =========================================================
+     THEME TOKENS  (라이트 / 다크 공통 변수)
+     ========================================================= */
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #5b6470;
+    --border: #e1e4e8;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --safe-bg: #e7f6ec; --safe-bd: #2da44e; --safe-tx: #1a7f37;
+    --danger-bg: #fdeceb; --danger-bd: #cf222e; --danger-tx: #b3261e;
+    --info-bg: #e8f1fd; --info-bd: #2c7be5; --info-tx: #1a5fb4;
+    --note-bg: #fff8e6; --note-bd: #d4a72c; --note-tx: #9a6700;
+    --chip-bg: #eef0f3; --chip-tx: #444c56;
+    --code-bg: #0d1117; --code-tx: #e6edf3;
+    --inline-bg: #eaecef; --inline-tx: #b3261e;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  body.dark {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --border: #2a313a;
+    --accent: #7c8cff;
+    --accent-soft: #1d2333;
+    --safe-bg: #12261a; --safe-bd: #2da44e; --safe-tx: #6fdc8c;
+    --danger-bg: #2b1416; --danger-bd: #f85149; --danger-tx: #ff938b;
+    --info-bg: #11233b; --info-bd: #2c7be5; --info-tx: #8cc2ff;
+    --note-bg: #2a2410; --note-bd: #d4a72c; --note-tx: #e3c879;
+    --chip-bg: #21262d; --chip-tx: #adbac7;
+    --inline-bg: #21262d; --inline-tx: #ff938b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    transition: background .2s, color .2s;
+  }
+
+  /* =========================================================
+     TOP BAR
+     ========================================================= */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+  .brand span { color: var(--accent); }
+  .search-wrap { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
+  #search {
+    width: 100%; padding: 9px 14px 9px 36px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); font-size: 14px;
+    outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: "🔍"; position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); font-size: 13px; opacity: .6;
+  }
+  .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  #themeToggle {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 16px;
+  }
+
+  /* =========================================================
+     LAYOUT
+     ========================================================= */
+  .layout {
+    display: flex; gap: 32px;
+    max-width: 1180px; margin: 0 auto; padding: 26px 20px 80px;
+  }
+  .sidebar {
+    width: 235px; flex: none;
+    position: sticky; top: 78px; align-self: flex-start;
+    max-height: calc(100vh - 100px); overflow-y: auto;
+  }
+  .content { flex: 1; min-width: 0; }
+
+  /* 페이지 히어로 (전체 제목) */
+  .page-hero { margin-bottom: 26px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .page-hero h1 { margin: 0 0 6px; font-size: 27px; line-height: 1.32; letter-spacing: -0.03em; }
+  .page-hero .sub { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  /* ---- Sidebar: TOC ---- */
+  .side-head { font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
+  .toc-link {
+    display: block; padding: 6px 10px; margin-bottom: 2px;
+    border-radius: 7px; border-left: 2px solid transparent;
+    color: var(--muted); text-decoration: none; font-size: 13.5px;
+  }
+  .toc-link:hover { background: var(--accent-soft); color: var(--text); }
+  .toc-link.active { background: var(--accent-soft); color: var(--accent);
+    border-left-color: var(--accent); font-weight: 600; }
+
+  /* ---- Sidebar: tag filter ---- */
+  .tagfilter { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chip {
+    font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer;
+    background: var(--chip-bg); color: var(--chip-tx); border: 1px solid transparent;
+    user-select: none;
+  }
+  .tag-chip:hover { border-color: var(--accent); }
+  .tag-chip.active { background: var(--accent); color: #fff; }
+
+  /* =========================================================
+     ENTRY (지식 1개 = 카드 1개)  ← 추가의 기본 단위
+     ========================================================= */
+  .entry {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 28px;
+    margin-bottom: 26px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: 78px;
+  }
+  .entry-head h2 { margin: 0 0 10px; font-size: 23px; letter-spacing: -0.02em; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .meta .date { font-size: 12.5px; color: var(--muted); }
+  .meta .chip {
+    font-size: 11.5px; padding: 3px 9px; border-radius: 20px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  }
+
+  /* ---- 질문 박스 ---- */
+  .qbox {
+    background: var(--accent-soft); border-radius: 10px;
+    padding: 12px 16px; margin: 14px 0; font-size: 14.5px;
+  }
+  .qbox strong { color: var(--accent); }
+
+  /* ---- 핵심 요약 (TL;DR) ---- */
+  .tldr {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    color: #fff; border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+    font-weight: 600; font-size: 15px;
+  }
+  .tldr .ico { font-size: 18px; line-height: 1.4; }
+
+  /* =========================================================
+     본문 재사용 컴포넌트 PALETTE
+     ========================================================= */
+  .entry h3 { font-size: 16px; margin: 22px 0 8px; }
+  .entry p { margin: 10px 0; }
+  .entry ul, .entry ol { margin: 10px 0; padding-left: 20px; }
+  .entry li { margin: 4px 0; }
+
+  /* 코드 */
+  pre {
+    background: var(--code-bg); color: var(--code-tx);
+    padding: 15px 18px; border-radius: 10px; overflow-x: auto;
+    font-size: 13.5px; line-height: 1.6; margin: 12px 0;
+  }
+  code { font-family: "SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace; }
+  :not(pre) > code {
+    background: var(--inline-bg); color: var(--inline-tx);
+    padding: 1.5px 6px; border-radius: 5px; font-size: 0.88em;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .c-com { color: #8b949e; } .c-ok { color: #56d364; } .c-bad { color: #f85149; }
+  .c-key { color: #79c0ff; } .c-str { color: #a5d6ff; }
+
+  /* 안전/위험/정보 박스 */
+  .box { border-radius: 10px; padding: 14px 16px; border: 1px solid; font-size: 14px; }
+  .box h4 { margin: 0 0 8px; font-size: 14px; }
+  .box ul { margin: 0; padding-left: 18px; }
+  .box.safe   { background: var(--safe-bg);   border-color: var(--safe-bd);   }
+  .box.safe h4   { color: var(--safe-tx); }
+  .box.danger { background: var(--danger-bg); border-color: var(--danger-bd); }
+  .box.danger h4 { color: var(--danger-tx); }
+  .box.info   { background: var(--info-bg);   border-color: var(--info-bd);   }
+  .box.info h4   { color: var(--info-tx); }
+
+  /* 2단 그리드 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+
+  /* 콜아웃 노트 */
+  .note {
+    border-left: 4px solid var(--note-bd); background: var(--note-bg);
+    color: var(--text); padding: 11px 16px; border-radius: 0 8px 8px 0;
+    margin: 14px 0; font-size: 14px;
+  }
+  .note.warn { border-color: var(--danger-bd); background: var(--danger-bg); }
+  .note strong { color: var(--note-tx); }
+  .note.warn strong { color: var(--danger-tx); }
+
+  /* 비유 */
+  .analogy {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--accent-soft); border-radius: 10px;
+    padding: 13px 16px; margin: 14px 0; font-size: 14px;
+  }
+  .analogy .ico { font-size: 20px; }
+
+  /* 표 */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; }
+  thead th { background: var(--bg); font-weight: 600; }
+  .center { text-align: center; }
+  .yes { color: var(--safe-tx); font-weight: 700; }
+  .no  { color: var(--danger-tx); font-weight: 700; }
+
+  /* 강조 배너 (큰 결론) */
+  .principle {
+    background: var(--code-bg); color: #e6edf3;
+    border-radius: 12px; padding: 18px 22px; margin: 16px 0;
+  }
+  .principle .k { color: #79c0ff; }
+
+  /* =========================================================
+     EMPTY STATE & TO-TOP
+     ========================================================= */
+  #empty { display: none; text-align: center; color: var(--muted); padding: 60px 0; }
+  #toTop {
+    position: fixed; right: 24px; bottom: 24px;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    font-size: 18px; cursor: pointer; opacity: 0; pointer-events: none;
+    transition: opacity .2s; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  #toTop.show { opacity: 1; pointer-events: auto; }
+
+  /* =========================================================
+     RESPONSIVE
+     ========================================================= */
+  @media (max-width: 820px) {
+    .layout { flex-direction: column; }
+    .sidebar { position: static; width: 100%; max-height: none; }
+    .tagfilter { margin-top: 14px; }
+    .brand { display: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============== TOP BAR ============== -->
+  <header class="topbar">
+    <div class="brand">📚 Next.js 16 <span>↔</span> TanStack Query</div>
+    <div class="search-wrap">
+      <input id="search" type="text" placeholder="제목·내용·태그 검색…" autocomplete="off">
+    </div>
+    <span class="count" id="count"></span>
+    <button id="themeToggle" title="테마 전환">🌙</button>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============== SIDEBAR (자동 생성) ============== -->
+    <aside class="sidebar">
+      <div class="side-head">목차</div>
+      <nav id="toc"></nav>
+      <div class="side-head" style="margin-top:22px;">태그</div>
+      <div class="tagfilter" id="tagfilter"></div>
+    </aside>
+
+    <!-- ============== CONTENT ============== -->
+    <main class="content" id="content">
+
+      <div class="page-hero">
+        <h1>Next.js 16 서버 캐시와 TanStack Query의 동기화</h1>
+        <p class="sub">질문하며 쌓아가는 학습 · 인사이트 노트</p>
+      </div>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #1 — SSR과 전역 상태 격리                   ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="ssr-state-isolation"
+               data-title="SSR과 전역 상태 격리"
+               data-tags="React, SSR, Next.js, React Query, Jotai, 상태관리"
+               data-date="2026-06-20">
+
+        <header class="entry-head">
+          <h2>SSR과 전역 상태 격리</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">React</span><span class="chip">SSR</span>
+            <span class="chip">React Query</span><span class="chip">Jotai</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> <code>QueryClient</code>를 <code>useState</code>로 감싸는 이유는?
+          <code>'use client'</code>인데 어떻게 다른 유저와 섞이지? 모듈 밖 선언은 다 위험한가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span>서버는 하나의 프로세스로 여러 요청을 동시에 처리한다. 그래서 모듈 레벨(함수 밖) 변수는 요청 간 공유된다 — <b>가변 상태</b>라면 이게 사용자 간 데이터 누출이 된다.</span>
+        </div>
+
+        <h3>1. 모듈 레벨 선언은 서버에서 공유된다 (항상 위험한 건 아님)</h3>
+        <p>판별 기준은 딱 하나: <strong>"요청·사용자마다 달라져야 하는 가변 상태인가?"</strong></p>
+        <div class="grid2">
+          <div class="box safe">
+            <h4>✅ 공유돼도 안전</h4>
+            <ul>
+              <li>상수 <code>const MAX = 3</code></li>
+              <li>순수 함수 <code>formatDate()</code></li>
+              <li>컴포넌트 정의 <code>function Button()</code></li>
+              <li>Jotai <code>atom(0)</code> — 정의(키)일 뿐</li>
+            </ul>
+          </div>
+          <div class="box danger">
+            <h4>❌ 공유되면 위험</h4>
+            <ul>
+              <li><code>new QueryClient()</code> — 캐시 보유</li>
+              <li><code>let currentUser</code> — 요청별 변동</li>
+              <li><code>const cache = new Map()</code></li>
+              <li>요청 데이터를 담는 모든 가변 전역</li>
+            </ul>
+          </div>
+        </div>
+        <div class="analogy">
+          <span class="ico">🏭</span>
+          <div>공장(서버)에 <strong>설명서·공구</strong>(상수·함수)는 같이 써도 되지만,
+          <strong>주문서·장바구니</strong>(가변 상태)는 손님마다 따로 있어야 한다.</div>
+        </div>
+
+        <h3>2. <code>'use client'</code> ≠ "서버에서 안 돈다"</h3>
+        <p><code>'use client'</code>는 <strong>"클라이언트 컴포넌트 경계"</strong> 표시일 뿐.
+           클라이언트 컴포넌트도 첫 요청 때는 <strong>서버에서 한 번 렌더링(SSR)</strong>된 뒤
+           브라우저에서 hydration된다. 그래서 모듈 레벨 가변 상태는 이 <strong>서버 SSR 단계에서</strong> 섞인다.</p>
+        <div class="note">
+          <strong>참고</strong> 브라우저는 한 사용자 = 한 탭 = 독립 환경이라 애초에 섞일 일이 없다. 문제는 항상 서버 측.
+        </div>
+
+        <h3>3. React Query 패턴</h3>
+        <p><code>QueryClient</code>는 <strong>정의 + 캐시(상태)가 한 덩어리</strong> → 인스턴스째 격리해야 한다.</p>
+<pre><code><span class="c-com">// 매 렌더 새로 생성 방지 + 요청별 격리 동시 해결</span>
+<span class="c-key">const</span> [queryClient] = useState(() =&gt; <span class="c-key">new</span> QueryClient({...}));</code></pre>
+        <table>
+          <thead><tr><th>방식</th><th class="center">리렌더 재생성 방지</th><th class="center">요청 간 격리</th></tr></thead>
+          <tbody>
+            <tr><td>함수 안 직접 선언</td><td class="center no">✗</td><td class="center">—</td></tr>
+            <tr><td>모듈 레벨</td><td class="center yes">✓</td><td class="center no">✗</td></tr>
+            <tr><td><strong><code>useState</code></strong></td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+          </tbody>
+        </table>
+
+        <h3>4. Jotai 패턴</h3>
+        <p>핵심은 <strong>정의(atom)와 값(store)을 분리</strong>하는 것.</p>
+        <ul>
+          <li><strong>atom = 값이 아니라 키(정의)</strong> → 모듈 전역에 둬도 안전</li>
+          <li><strong>값은 store에 저장</strong>, 격리는 <code>&lt;Provider&gt;</code>로 (요청마다 새 store)</li>
+          <li><strong><code>useHydrateAtoms</code></strong>로 서버 초기값 주입 → hydration mismatch 방지</li>
+        </ul>
+<pre><code><span class="c-bad">'use client'</span>;
+&lt;Provider&gt;{children}&lt;/Provider&gt;            <span class="c-com">// store 격리</span>
+useHydrateAtoms([[dataAtom, initialData]]); <span class="c-com">// 서버 값 주입</span></code></pre>
+        <div class="note warn">
+          <strong>⚠️ 주의</strong> Provider 없이 쓰면 전역 default store 사용 → React Query와 같은 누출 위험.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 최종 판단 기준</strong><br>
+          <span class="k">모두에게 똑같고 안 바뀌면</span> → 밖에 둬도 OK.
+          <span class="k">사용자마다 달라야 하면</span> → <code>useState</code>나 Provider로 격리.<br>
+          · React Query: 인스턴스째 격리(정의 = 상태) · Jotai: 정의는 전역, store만 격리(정의 ↔ 상태 분리)
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #2 — isServer → environmentManager          ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="isserver-environment-manager"
+               data-title="isServer → environmentManager (환경 판정의 진화)"
+               data-tags="React Query, SSR, Next.js, 런타임 감지">
+
+        <header class="entry-head">
+          <h2><code>isServer</code> → <code>environmentManager</code> : 환경 판정의 진화</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">React Query</span><span class="chip">SSR</span>
+            <span class="chip">Next.js</span><span class="chip">런타임 감지</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 강의(11강)의 <code>import { isServer } from '@tanstack/react-query'</code>가
+          deprecated되고 <code>environmentManager.isServer()</code>로 바뀌었다. 왜? 의도가 뭔가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span><code>isServer</code>는 <b>모듈 로드 시 1회 박제되는 상수</b>였다. 그 단순 판정(<code>typeof window === 'undefined'</code>)이 <b>크롬·VSCode 확장의 service worker와 edge 런타임에서 틀려</b> refetch가 죽는 실제 버그가 있었고, 이를 <b>호출 시점에 평가 + 전역 override 가능한 함수</b>로 바꾼 게 <code>environmentManager</code>다.</span>
+        </div>
+
+        <h3>1. 무엇이 바뀌었나 — 상수 → 함수(+manager)</h3>
+        <table>
+          <thead><tr><th></th><th>기존 <code>isServer</code></th><th><code>environmentManager.isServer()</code></th></tr></thead>
+          <tbody>
+            <tr><td>형태</td><td>상수 (boolean)</td><td>메서드 (함수 호출)</td></tr>
+            <tr><td>평가 시점</td><td>import 시 <strong>1회 박제</strong></td><td><strong>호출할 때마다</strong></td></tr>
+            <tr><td>override</td><td class="no">✗ 불가</td><td class="yes">✓ <code>setIsServer(fn)</code></td></tr>
+            <tr><td>현재 상태</td><td class="no">deprecated</td><td class="yes">권장</td></tr>
+          </tbody>
+        </table>
+        <p>판정 <strong>로직 자체는 동일</strong>(<code>typeof window === 'undefined' || 'Deno' in globalThis</code>)하다. 달라진 건 <strong>"상수로 굳히느냐, 함수로 매번 묻느냐"</strong>뿐.</p>
+
+        <h3>2. 강의 코드에서 이게 하는 일 = SSR 상태 격리</h3>
+<pre><code><span class="c-key">import</span> { environmentManager } <span class="c-key">from</span> <span class="c-str">'@tanstack/react-query'</span>;
+
+<span class="c-key">function</span> getQueryClient() {
+  <span class="c-key">if</span> (environmentManager.isServer()) {   <span class="c-com">// 호출 시점에 평가</span>
+    <span class="c-key">return</span> makeQueryClient();            <span class="c-com">// 서버: 매 요청 새 인스턴스(격리)</span>
+  }
+  <span class="c-key">if</span> (!browserQueryClient) browserQueryClient = makeQueryClient();
+  <span class="c-key">return</span> browserQueryClient;              <span class="c-com">// 브라우저: 싱글턴 재사용</span>
+}</code></pre>
+        <p>이 분기의 정체는 <a href="#ssr-state-isolation" style="color:var(--accent);font-weight:600">ENTRY #1</a>의 <strong>SSR 상태 격리</strong> 그 자체다 — <strong>서버면 요청마다 새 QueryClient(캐시 누출 방지), 브라우저면 싱글턴 재사용</strong>. 즉 <strong>환경 판정이 격리 전략을 가른다.</strong></p>
+
+        <h3>3. 왜 바꿨나 — 진짜 동기는 "실제 버그"</h3>
+        <div class="box danger">
+          <h4>❌ 상수가 오판하던 환경 (issue #10139 · #5575)</h4>
+          <ul>
+            <li><strong>크롬·VSCode 확장의 background service worker</strong>: <code>window</code>가 없다. 하지만 여긴 서버가 아니라 <strong>클라이언트</strong>다 → 상수가 <code>isServer = true</code>로 <strong>오판</strong> → focus/online refetch 등 클라 전용 로직이 전부 꺼짐 → <strong>"refetch가 안 돼요" 버그</strong></li>
+            <li><strong>Edge 런타임</strong>(Cloudflare 등): 전통적 server/browser 이분법에 안 맞아 동일하게 오작동</li>
+          </ul>
+        </div>
+        <p>상수였기 때문에 생긴 두 가지 근본 한계 → manager로 해소:</p>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>상수의 한계</h4>
+            <ul>
+              <li><strong>고칠 수 없다</strong> — import 시점에 boolean으로 굳어 끼어들 틈이 없음</li>
+              <li><strong>타이밍 고정</strong> — 런타임 변화·테스트 교체 불가</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>manager의 이점</h4>
+            <ul>
+              <li><strong>override 가능</strong> — 커스텀 판정 주입</li>
+              <li><strong>call-time 평가</strong> — 동적 환경·테스트에 유연</li>
+              <li><strong>중앙화</strong> — 흩어진 체크를 단일 싱글턴으로</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>4. override 방법</h3>
+<pre><code><span class="c-com">// "이 런타임은 클라이언트로 취급하라"를 전역 주입</span>
+environmentManager.setIsServer(
+  () =&gt; <span class="c-key">typeof</span> window === <span class="c-str">'undefined'</span> &amp;&amp; !(<span class="c-str">'chrome'</span> <span class="c-key">in</span> globalThis)
+);</code></pre>
+        <div class="note">
+          <strong>마이그레이션</strong> 강의 코드는 <strong>당장 안 고쳐도 동작</strong>한다(기본 판정 로직 동일, deprecation 경고만 뜸). 새로 짠다면 <code>environmentManager.isServer()</code>를 쓰면 된다.
+        </div>
+
+        <div class="principle">
+          <strong>📌 핵심</strong><br>
+          · <span class="k">표면</span>: 상수 <code>isServer</code> → 함수 <code>environmentManager.isServer()</code> (기본 동작 동일)<br>
+          · <span class="k">의도</span>: 모듈-로드-시 박제되는 상수로는 <b>확장 worker·edge 런타임의 오판을 고칠 수 없어서</b>, 호출 시점 평가 + <code>setIsServer</code> override를 연 것<br>
+          · <span class="k">연결</span>: 이 판정이 곧 <a href="#ssr-state-isolation" style="color:#79c0ff;font-weight:600">SSR 상태 격리</a>의 분기점 — 환경을 잘못 읽으면 격리도 깨진다
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #3 — getQueryClient: cache vs isServer 결합 ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="getqueryclient-cache-isserver"
+               data-title="getQueryClient의 정석 — cache vs isServer, 그리고 결합"
+               data-tags="React Query, SSR, Next.js, 런타임 감지">
+
+        <header class="entry-head">
+          <h2><code>getQueryClient</code>의 정석 — <code>cache</code> vs <code>isServer</code>, 그리고 결합</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">React Query</span><span class="chip">SSR</span>
+            <span class="chip">Next.js</span><span class="chip">런타임 감지</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 강의에서 <code>cache(() =&gt; new QueryClient())</code>(서버)와
+          <code>isServer</code> 분기(클라 Provider)가 혼재한다. <strong>상황별로 쓰는 건가, 통일하는 건가?</strong>
+          실전 베스트 셋업은?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span>공식 권장은 <b><code>isServer</code>(→<code>environmentManager.isServer()</code>) 분기 하나로 통일</b>이다(<code>cache</code>는 대안). 가장 견고한 형태는 <b>서버 분기를 <code>cache</code>로 감싼 결합형</b> — <b>서버는 요청 스코프 싱글턴, 브라우저는 모듈 싱글턴, 진입점은 <code>isServer</code>로 통일.</b></span>
+        </div>
+
+        <h3>1. 강의는 두 맥락에서 두 패턴을 섞어 쓴다</h3>
+        <table>
+          <thead><tr><th>강</th><th>패턴</th><th>맥락</th></tr></thead>
+          <tbody>
+            <tr><td>11강 <code>providers.tsx</code></td><td><code>isServer</code> 분기 + 모듈 싱글턴</td><td>클라이언트 Provider</td></tr>
+            <tr><td>12·14강 <code>page.tsx</code></td><td><code>cache(() =&gt; new QueryClient())</code></td><td>서버 컴포넌트 prefetch</td></tr>
+          </tbody>
+        </table>
+        <p>둘 다 목표는 같다 — <strong>"서버는 요청 간 격리, 브라우저는 하나 재사용"</strong>. 각각은 동작하지만 <strong>통일은 안 돼 있다.</strong></p>
+
+        <h3>2. 공식 권장 = "하나로 통일", 그 하나는 <code>isServer</code> 분기</h3>
+        <p>TanStack Query 공식 SSR 가이드는 <strong><code>isServer</code> 분기 패턴 하나</strong>를 <code>app/get-query-client.ts</code>에 두고 <strong>서버 컴포넌트와 클라 Provider가 같은 함수를 import</strong>하게 한다. <code>cache()</code>는 <i>"alternative approach"</i>로만 언급된다.</p>
+        <div class="note">
+          <strong>왜 <code>cache</code>는 메인이 못 되나</strong> <code>cache()</code>는 <strong>React Server Component 전용</strong> 기능이라 <code>'use client'</code> Provider와 공유 불가 → "서버용 / 클라용" 둘로 쪼개진다. 반면 <code>isServer</code> 분기는 한 함수가 서버/브라우저를 다 처리 → <strong>단일 함수로 통일</strong>된다.
+        </div>
+
+        <h3>3. ⭐ 베스트 = 둘을 결합 (<code>cache</code> + <code>isServer</code>)</h3>
+        <p>공식 메인(<code>isServer</code>)의 유일한 미세 약점은 <strong>서버 분기가 <code>return makeQueryClient()</code>라 호출마다 새 인스턴스</strong>인 것. 이걸 <code>cache</code>로 감싸면 약점이 사라진다.</p>
+<pre><code><span class="c-key">import</span> { QueryClient, QueryCache, environmentManager } <span class="c-key">from</span> <span class="c-str">'@tanstack/react-query'</span>;
+<span class="c-key">import</span> { cache } <span class="c-key">from</span> <span class="c-str">'react'</span>;
+
+<span class="c-key">function</span> makeQueryClient() {
+  <span class="c-key">return</span> <span class="c-key">new</span> QueryClient({ <span class="c-com">/* defaultOptions, queryCache 등 */</span> });
+}
+
+<span class="c-key">const</span> getServerQueryClient = cache(makeQueryClient);   <span class="c-com">// ① 서버: 요청 스코프 싱글턴</span>
+<span class="c-key">let</span> browserQueryClient;                                 <span class="c-com">// ③ 브라우저: 모듈 싱글턴</span>
+
+<span class="c-key">export function</span> getQueryClient() {
+  <span class="c-key">if</span> (environmentManager.isServer()) {
+    <span class="c-key">return</span> getServerQueryClient();                      <span class="c-com">// ② 진입점 통일</span>
+  }
+  <span class="c-key">if</span> (!browserQueryClient) browserQueryClient = makeQueryClient();
+  <span class="c-key">return</span> browserQueryClient;
+}</code></pre>
+        <ul>
+          <li><strong>① <code>cache(makeQueryClient)</code></strong> — 서버에서 <strong>요청 단위로 메모이즈</strong>. 같은 요청 내 여러 서버 컴포넌트가 호출해도 <strong>동일 인스턴스</strong>(prefetch가 한 캐시에 모임), 다른 요청끼린 격리.</li>
+          <li><strong>② <code>environmentManager.isServer()</code></strong> — 한 함수가 서버/브라우저를 다 처리 → <strong>서버·클라 공유</strong>.</li>
+          <li><strong>③ 브라우저 모듈 싱글턴</strong> — Suspense로 초기 렌더가 끊겨도 client 재생성 방지.</li>
+        </ul>
+        <table>
+          <thead><tr><th>항목</th><th class="center"><code>isServer</code>만<br>(공식 메인)</th><th class="center"><code>cache</code>만<br>(12강)</th><th class="center">⭐ 결합형</th></tr></thead>
+          <tbody>
+            <tr><td>서버·클라 한 함수 통일</td><td class="center yes">✓</td><td class="center no">✗ 서버전용</td><td class="center yes">✓</td></tr>
+            <tr><td>서버 <strong>요청 내</strong> 동일 인스턴스</td><td class="center no">✗ 매번 새로</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+            <tr><td>브라우저 싱글턴(Suspense 안전)</td><td class="center yes">✓</td><td class="center no">✗</td><td class="center yes">✓</td></tr>
+            <tr><td>요청 간 격리</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+          </tbody>
+        </table>
+        <p>→ 결합형은 <strong>모든 칸이 ✓</strong>. 공식 패턴보다 한 단계 더 견고하다.</p>
+
+        <div class="principle">
+          <strong>📌 결론</strong><br>
+          · <span class="k">통일이 정답</span>: 상황별이 아니라 <b>하나의 <code>getQueryClient</code></b>를 서버·클라가 공유 (공식 = <code>isServer</code> 분기)<br>
+          · <span class="k">왜 <code>isServer</code>가 축</span>: <code>cache</code>는 RSC 전용이라 단독으론 클라와 공유 불가 — 통일의 열쇠는 <code>isServer</code><br>
+          · <span class="k">베스트</span>: 서버 분기를 <code>cache</code>로 감싼 <b>결합형</b> = 서버 요청스코프 싱글턴 + 브라우저 모듈 싱글턴 + 진입점 통일<br>
+          · <span class="k">연결</span>: <a href="#isserver-environment-manager" style="color:#79c0ff;font-weight:600">ENTRY #2</a>의 <code>environmentManager</code>가 바로 이 분기의 판정자
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #4 — Suspense의 오해 & initialDataUpdatedAt ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="suspense-vs-hydration"
+               data-title="Suspense ≠ hydration 방어막 &amp; initialDataUpdatedAt"
+               data-tags="Suspense, hydration, SSR, Next.js, React Query"
+               data-date="2026-06-20">
+
+        <header class="entry-head">
+          <h2>Suspense ≠ hydration 방어막 &amp; <code>initialDataUpdatedAt</code></h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">Suspense</span><span class="chip">hydration</span>
+            <span class="chip">Next.js</span><span class="chip">React Query</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 강의는 <i>"Suspense가 클라 컴포넌트의 <code>Date.now()</code> hydration 에러를 막는 방어막"</i>이라는데 맞나?
+          Suspense를 감싸면 <code>getCachedData</code>(서버 캐시)에 영향을 받나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span>실측 결론(§6): <b>Suspense는 없애면 안 된다</b> — 빌드가 실패한다. 단 이유는 강의 설명과 다름. hydration mismatch가 아니라, <b>TanStack Query가 <code>staleTime</code> 계산에 <code>Date.now()</code>를 쓰는데 Next.js 16 <code>"use cache"</code> 모드가 Suspense 없는 현재시각 접근을 금지</b>하기 때문. 순수 hydration만 보면 시간을 화면에 출력할 때만 mismatch가 난다.</span>
+        </div>
+
+        <h3>1. <code>getCachedData</code>는 Suspense <u>바깥</u>에서 끝난다</h3>
+<pre><code><span class="c-key">const</span> { posts, serverTime } = <span class="c-key">await</span> getCachedData(); <span class="c-com">// ← JSX 만들기 전에 완료 (Suspense 밖)</span>
+<span class="c-key">return</span> (
+  &lt;Suspense fallback={...}&gt;          <span class="c-com">// ← await가 끝난 "뒤"에 생성되는 JSX</span>
+    &lt;PostListInitial ... /&gt;
+  &lt;/Suspense&gt;
+);</code></pre>
+        <p><code>await</code>는 JSX를 만들기 전 함수 본문 맨 위에서 실행된다. 데이터를 다 받은 <strong>뒤에</strong> Suspense가 포함된 JSX가 생긴다 → <strong>캐시 로딩과 시점이 겹치지 않음</strong> → 무관.</p>
+
+        <h3>2. <code>PostListInitial</code>은 애초에 suspend하지 않는다</h3>
+        <p>Suspense는 <strong>자식이 suspend할 때만</strong> fallback을 띄운다. 그런데:</p>
+        <ul>
+          <li>일반 <code>useQuery</code> 사용 (<code>useSuspenseQuery</code> 아님) → 절대 suspend 안 함</li>
+          <li><code>initialData</code>까지 있어 첫 렌더부터 데이터 완비 → 기다릴 일이 없음</li>
+        </ul>
+        <p>→ <strong>fallback은 영원히 안 뜬다</strong>(react-query 관점에서 Suspense는 할 일이 없음). 단, 이것만 보고 <s>"그러니 Suspense 불필요"</s>로 결론내면 <strong>틀린다</strong> — 별개의 이유로 필수다. 아래 <strong>§6 실측</strong> 참고.</p>
+
+        <h3>3. 그래서 hydration mismatch가 "없다"</h3>
+        <p>강의 설명이 맞으려면 클라 컴포넌트가 렌더 중 <code>new Date()</code>를 직접 출력해야 한다. 하지만 실제 코드의 <code>Date.now()</code>는 <strong>서버 함수 안</strong>에 있고, 한 번 계산되어 직렬화된 props(<code>updatedAt</code>)로 내려온다.</p>
+        <table>
+          <thead><tr><th></th><th>시간 계산 위치</th><th class="center">서버/클라 값</th><th class="center">mismatch</th></tr></thead>
+          <tbody>
+            <tr><td>강의가 가정한 코드</td><td>클라 컴포넌트 <strong>렌더 중</strong></td><td class="center">다름 (10초 vs 11초)</td><td class="center yes">✅ 발생</td></tr>
+            <tr><td><strong>실제 이 코드</strong></td><td>서버 함수 안 (1회) → props</td><td class="center">동일 (같은 숫자)</td><td class="center no">❌ 불가능</td></tr>
+          </tbody>
+        </table>
+        <p>게다가 <code>updatedAt</code>은 화면에 출력조차 안 됨(<code>useQuery</code> 설정값으로만 쓰임) → <strong>mismatch 날 텍스트 자체가 없다.</strong></p>
+
+        <h3>4. Suspense는 "예방"이 아니라 "격리"</h3>
+        <div class="note warn">
+          <strong>⚠️ 메커니즘 교정</strong> mismatch는 Suspense가 있어도 <strong>발생</strong>한다(서버가 값을 박고 클라가 다른 값으로 hydrate). Suspense는 그때 <strong>경계 안쪽만 버리고 클라에서 다시 그려 복구</strong>할 뿐 — 폭발 반경을 가두는 <strong>에러 격리</strong>지 예방이 아니다. 진짜 예방책은 <code>useEffect</code>(마운트 후 계산)·<code>suppressHydrationWarning</code>·클라 전용 렌더.
+        </div>
+
+        <h3>5. <code>initialDataUpdatedAt</code>의 진짜 역할</h3>
+        <p><i>"안 주면 즉시 refetch한다"</i>는 <strong><code>staleTime</code>이 기본값(0)일 때</strong> 얘기다. 이 코드는 <code>staleTime: 5분</code>이라 안 줘도 마운트 직후 refetch는 <strong>안 한다.</strong></p>
+        <p>진짜 가치는 <strong><code>"use cache"</code>로 묵은 캐시의 실제 나이를 반영</strong>하는 것 — staleTime 카운트의 <strong>기준 시각을 서버 제조 시각으로 이동</strong>.</p>
+<pre><code><span class="c-com">"use cache"로 getCachedData 결과가 4분 전에 캐시됨 → serverTime = "4분 전" 값</span>
+
+<span class="c-ok">✅ 줌</span>  : 기준 4분 전 + staleTime 5분 → <span class="c-ok">1분 뒤 stale</span> (정확)
+<span class="c-bad">❌ 안줌</span>: 기준 "지금" + staleTime 5분 → 5분 뒤 stale
+        → 이미 4분 묵은 데이터를 <span class="c-bad">총 9분간 fresh로 오판</span></code></pre>
+
+        <h3>6. 🧪 실측 검증 (Next.js 16.2.9 · React 19.2 · React Query 5.10)</h3>
+        <p>강의 프로젝트를 실제로 빌드·실행해 여러 케이스를 측정했다 (puppeteer로 hydration 콘솔 수집 + <code>next build</code>).</p>
+        <table>
+          <thead><tr><th>케이스</th><th class="center">Suspense</th><th class="center">클라서 시간출력</th><th class="center">hydration mismatch</th><th class="center">prod build</th></tr></thead>
+          <tbody>
+            <tr><td><strong>A</strong> 원본</td><td class="center">O</td><td class="center">X</td><td class="center yes">없음</td><td class="center yes">✅ 성공(static)</td></tr>
+            <tr><td><strong>B</strong> Suspense 제거</td><td class="center">X</td><td class="center">X</td><td class="center yes">없음</td><td class="center no">❌ 실패</td></tr>
+            <tr><td><strong>C</strong> 제거+시간출력</td><td class="center">X</td><td class="center">O</td><td class="center no">발생</td><td class="center no">❌ 실패</td></tr>
+          </tbody>
+        </table>
+        <div class="box danger">
+          <h4>❌ B·C 빌드 실패 메시지 (진짜 원인)</h4>
+          <p style="margin:6px 0 0"><code>Route "/posts-b" used Date.now() inside a Client Component without a Suspense boundary above it.</code></p>
+          <p style="margin:6px 0 0">스택 → <code>PostListInitial</code>의 <code>useQuery</code> → react-query <code>timeUntilStale()</code>: <code>updatedAt + staleTime - Date.now()</code></p>
+        </div>
+        <p><strong>핵심 반전:</strong> 화면에 시간을 안 찍는 <strong>B에도 에러가 난다.</strong> 원인은 내 코드가 아니라 <strong>TanStack Query가 <code>staleTime</code> 신선도 계산을 위해 렌더 중 <code>Date.now()</code>를 호출</strong>하는 것. 그리고 Next.js 16 <code>cacheComponents</code>(<code>"use cache"</code>) 모드는 <strong>Suspense 경계 없이 현재시각을 읽으면 prerender 단계에서 막는다</strong>(<code>next-prerender-current-time-client</code>). → Suspense가 <strong>이 동적 시각 접근을 감싸는 경계로서 필수.</strong></p>
+
+        <h4 style="margin:18px 0 6px; font-size:14px;">🔬 인과 규명 — 변수를 하나씩 제거</h4>
+        <table>
+          <thead><tr><th>실험</th><th>원본에서 변경</th><th class="center">결과</th><th>의미</th></tr></thead>
+          <tbody>
+            <tr><td><strong>D</strong></td><td><code>staleTime</code>만 제거</td><td class="center no">❌ 여전히 에러</td><td>staleTime <strong>값은 무관</strong> — useQuery면 무조건 호출</td></tr>
+            <tr><td><strong>E</strong></td><td><code>useQuery</code> 제거(props 직접 렌더)</td><td class="center yes">✅ 에러 사라짐</td><td><strong>react-query가 호출원</strong>임을 확정</td></tr>
+            <tr><td><strong>G</strong></td><td><code>cacheComponents</code> OFF</td><td class="center yes">✅ 에러 사라짐</td><td><strong>"use cache" 모드가 강제</strong>의 원천</td></tr>
+          </tbody>
+        </table>
+        <p>→ 셋의 <strong>교집합일 때만</strong> 실패한다: <code>"use cache" 모드</code> × <code>react-query의 Date.now()</code> × <code>Suspense 없음</code>. 하나만 빠져도 통과(A·E·G가 증거).</p>
+
+        <div class="note">
+          <strong>단서</strong> 이 강제는 <code>"use cache"</code>/<code>cacheComponents</code>를 켰을 때만이다. 이 모드가 아니면 react-query의 <code>Date.now()</code>는 무해하고 Suspense도 불필요했다. 즉 Suspense를 부른 건 hydration이 아니라 <strong>"서버 캐시 모드 + 클라이언트의 동적 시각 접근"의 조합</strong> — 바로 이 강의의 주제다.
+        </div>
+
+        <div class="principle">
+          <strong>📌 강의 주장 vs 실측</strong><br>
+          · <span class="k">"Suspense가 필요하다"</span> → ✅ <b>결론은 맞음</b> (없애면 빌드 실패)<br>
+          · <span class="k">"이유 = 클라 Date.now() hydration mismatch 방어"</span> → ❌ 부정확. 시간을 화면에 출력할 때만 mismatch(C). B는 mismatch 없이도 실패<br>
+          · <span class="k">진짜 이유</span> → react-query가 <code>staleTime</code>에 <code>Date.now()</code> 사용 + <code>"use cache"</code> 모드의 Suspense-less 현재시각 금지<br>
+          · <span class="k">"initialDataUpdatedAt 중요"</span> → ✅ 맞음 (묵은 캐시의 실제 나이 반영)
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #5 — dehydrate의 원리 & staleTime 위치      ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="dehydrate-staletime"
+               data-title="dehydrate의 원리 &amp; staleTime은 어디에 두나"
+               data-tags="React Query, hydration, SSR, prefetch">
+
+        <header class="entry-head">
+          <h2><code>dehydrate(queryClient)</code>의 원리 &amp; <code>staleTime</code>은 어디에 두나</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">React Query</span><span class="chip">hydration</span>
+            <span class="chip">SSR</span><span class="chip">prefetch</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> <code>dehydrate(queryClient)</code>는 무슨 원리로 동작하나?
+          그리고 강의의 <i>"서버 <code>getQueryClient</code>의 <code>staleTime</code>이 브라우저 재요청을 막는다"</i>가 맞나? <code>staleTime</code>이 지나면 데이터는 버려지나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span><code>dehydrate</code>는 캐시에서 <b>데이터 + 받은 시각(<code>dataUpdatedAt</code>)만</b> 뽑아 JSON으로 만든다 — <b><code>staleTime</code> 같은 설정은 안 뽑는다.</b> 그래서 ① 클라 refetch를 막는 <code>staleTime</code>은 반드시 <b>클라이언트</b> QueryClient에 둬야 하고(서버 것은 안 건너감), ② <code>staleTime</code>이 지나도 데이터는 <b>버려지지 않는다</b> — 버리는 건 <code>gcTime</code>.</span>
+        </div>
+
+        <h3>1. <code>dehydrate</code>의 원리 — "캐시의 데이터만 진공포장"</h3>
+        <p><strong>왜 필요한가:</strong> 서버 컴포넌트 → 클라 컴포넌트로 넘기려면 값이 <strong>직렬화(JSON) 가능</strong>해야 한다. 그런데 <code>QueryClient</code> 인스턴스(클래스·메서드·내부 캐시 구조)는 직렬화 불가 → 그대로 못 넘긴다. 그래서 캐시에서 <strong>데이터 부분만 순수 객체로 추출</strong>하는 게 <code>dehydrate</code>다.</p>
+        <p><strong>무엇을 추출하나 (소스 기준):</strong> <code>queryCache.getAll()</code>을 순회하며 <strong>성공한(<code>success</code>) 쿼리만</strong> 골라 아래 형태로 만든다.</p>
+<pre><code>dehydrate(queryClient) ──▶ {
+  queries: [{
+    queryKey, queryHash,
+    state: { data, dataUpdatedAt },   <span class="c-com">// ← 데이터 + "받은 시각"만</span>
+  }],
+  mutations: [ ... ],
+}
+<span class="c-bad">// ❌ staleTime · gcTime · queryFn 등 "설정"은 직렬화되지 않는다</span></code></pre>
+        <p>클라이언트는 이 객체를 <code>hydrate()</code>로 받아 <code>queryCache.build()</code>로 자기 캐시에 데이터를 심는다. 이때 적용되는 <code>staleTime</code> 등 설정은 <strong>클라이언트 자신의 <code>defaultOptions</code></strong>이지, dehydrate된 값이 아니다.</p>
+        <div class="analogy">
+          <span class="ico">🥫</span>
+          <div>서버는 음식에 <strong>제조일자(<code>dataUpdatedAt</code>)만 찍어</strong> 진공포장해 보낸다. <strong>유통기한(<code>staleTime</code>)을 며칠로 볼지는 받는 쪽 냉장고(클라이언트)</strong>가 자기 규칙으로 정한다.</div>
+        </div>
+
+        <h3>2. 그래서 — 클라 refetch를 막는 <code>staleTime</code>은 "클라이언트"에 둬야 한다</h3>
+        <p>강의는 <strong>서버</strong> <code>getQueryClient</code>에만 <code>staleTime: 60초</code>를 주고 <i>"이게 브라우저 재주문을 막는다"</i>고 설명한다. 하지만 위 원리상 <strong>서버의 <code>staleTime</code>은 dehydrate에 안 실려 클라로 건너가지 않는다.</strong> 클라는 hydrate된 <code>dataUpdatedAt</code>을 <strong>자기 자신의 <code>staleTime</code></strong>과 비교해 stale 여부를 판단한다.</p>
+        <table>
+          <thead><tr><th><code>staleTime</code>을 둔 위치</th><th>실제 영향 범위</th><th class="center">클라 마운트 refetch 차단?</th></tr></thead>
+          <tbody>
+            <tr><td>서버 <code>getQueryClient</code> (강의)</td><td>서버 prefetch 단계의 신선도만</td><td class="center no">✗ (dehydrate에 안 실림)</td></tr>
+            <tr><td><strong>클라이언트 <code>QueryClient</code></strong></td><td>hydrate된 데이터의 신선도 판정</td><td class="center yes">✓</td></tr>
+          </tbody>
+        </table>
+        <div class="note warn">
+          <strong>⚠️ 함정</strong> 강의의 클라 <code>PostList</code>의 <code>useQuery</code>엔 <code>staleTime</code>이 <strong>없다.</strong> 이 시리즈는 11강 <code>Providers</code>의 <code>makeQueryClient</code>가 <code>staleTime: 60초</code>라 <strong>우연히</strong> 동작할 뿐 — "서버 매니저 staleTime이 브라우저 재요청을 막는다"는 <strong>인과는 틀렸다.</strong> 클라 <code>staleTime</code>이 0이면 prefetch해도 마운트 즉시 background refetch가 난다.
+        </div>
+
+        <h3>3. <code>staleTime</code>이 지나도 데이터는 "버려지지 않는다"</h3>
+        <p>강의는 <i>"유통기한 0초 → 완성되자마자 상했다고 판정"</i>이라 비유하는데, <strong>stale = 폐기가 아니다.</strong> stale이 돼도 데이터는 캐시에 남아 <strong>즉시 화면에 계속 제공</strong>되고, 다음 트리거(마운트·포커스·재연결) 때 뒤에서 새로 받아온다(stale-while-revalidate). 실제로 메모리에서 <strong>삭제</strong>하는 건 <code>gcTime</code>이다.</p>
+        <table>
+          <thead><tr><th></th><th><code>staleTime</code></th><th><code>gcTime</code></th></tr></thead>
+          <tbody>
+            <tr><td>의미</td><td>"신선함" 기한</td><td>"폐기" 기한</td></tr>
+            <tr><td>지나면</td><td>stale 표시 — <strong>데이터 유지·계속 표시</strong>, 재요청 후보</td><td><strong>메모리에서 제거</strong></td></tr>
+            <tr><td>기본값</td><td class="center">0</td><td class="center">5분</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>교정</strong> "상했다 = 버린다"는 <code>staleTime</code>을 <code>gcTime</code>과 혼동시킨다. 정확히는 <strong>"신선표시만 떼고 그대로 쓰되, 다음 기회에 새로 받아온다"</strong>가 <code>staleTime</code> 경과의 의미다.
+        </div>
+
+        <div class="principle">
+          <strong>📌 핵심</strong><br>
+          · <span class="k">dehydrate 원리</span>: 캐시에서 <b>데이터 + <code>dataUpdatedAt</code>만</b> 진공포장(설정은 제외) → 직렬화해 클라로 전달<br>
+          · <span class="k">귀결①</span>: 신선도 판정(<code>staleTime</code>)은 <b>받는 쪽(클라이언트)</b> 책임 — 서버에 줘봐야 클라 refetch는 못 막는다<br>
+          · <span class="k">귀결②</span>: <code>staleTime</code> 경과 = "다시 받을 후보" 표시일 뿐, <b>폐기가 아니다</b>(폐기는 <code>gcTime</code>)<br>
+          · <span class="k">연결</span>: <a href="#suspense-vs-hydration" style="color:#79c0ff;font-weight:600">ENTRY #4</a>의 <code>initialDataUpdatedAt</code>도 같은 축 — "데이터가 <b>언제 만들어졌나</b>"라는 기준 시각을 정확히 넘기는 문제
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #6 — initialData vs dehydrate               ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="initialdata-vs-dehydrate"
+               data-title="initialData vs dehydrate — 두 SSR 데이터 전달 방식"
+               data-tags="React Query, hydration, SSR, prefetch">
+
+        <header class="entry-head">
+          <h2><code>initialData</code> vs <code>dehydrate</code> — 두 SSR 데이터 전달 방식</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">React Query</span><span class="chip">hydration</span>
+            <span class="chip">SSR</span><span class="chip">prefetch</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 서버 컴포넌트에서 데이터를 미리 패칭해 <code>initialData</code>로 내려주는 것과,
+          <code>prefetchQuery</code> 후 <code>dehydrate</code>하는 것의 차이는?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span><code>initialData</code>는 데이터를 <b>props로 컴포넌트에 직접 쥐여주는 것</b>, <code>dehydrate</code>는 <b>서버 캐시 스냅샷을 통째로 넘겨 경계 아래가 알아서 꺼내 쓰게 하는 것</b>. 후자가 <b>신선도·확장성·정확성</b>에서 우위라 공식 권장이다.</span>
+        </div>
+
+        <h3>1. 본질 — "직접 주입" vs "캐시째 직렬화"</h3>
+<pre><code><span class="c-com">// A) initialData — props로 컴포넌트에 직접 주입</span>
+<span class="c-key">const</span> posts = <span class="c-key">await</span> getData();
+&lt;PostListInitial initialData={posts} updatedAt={serverTime} /&gt;   <span class="c-com">// 컴포넌트를 알아야</span>
+<span class="c-com">//   클라: useQuery({ queryKey:['posts'], initialData: posts, initialDataUpdatedAt: updatedAt })</span>
+
+<span class="c-com">// B) dehydrate — 캐시를 직렬화해 경계 아래 어디서나</span>
+<span class="c-key">const</span> qc = getQueryClient();
+<span class="c-key">await</span> qc.prefetchQuery({ queryKey:[<span class="c-str">'posts'</span>], queryFn });
+&lt;HydrationBoundary state={dehydrate(qc)}&gt;
+  &lt;PostList /&gt;        <span class="c-com">// 그냥 useQuery({ queryKey:['posts'] }) — initialData 불필요</span>
+&lt;/HydrationBoundary&gt;</code></pre>
+        <p>A는 데이터와 컴포넌트가 <strong>강결합</strong>(그 컴포넌트·queryKey를 알아야 함), B는 <strong>분리</strong>(경계 아래 같은 queryKey면 어디서든 접근).</p>
+
+        <h3>2. 공식이 명시한 <code>initialData</code>의 caveat</h3>
+        <table>
+          <thead><tr><th>관점</th><th>A) <code>initialData</code></th><th>B) <code>dehydrate</code></th></tr></thead>
+          <tbody>
+            <tr><td>깊은 컴포넌트</td><td class="no">prop drilling 필요</td><td class="yes">queryKey만 같으면 바로</td></tr>
+            <tr><td>여러 위치/쿼리</td><td class="no">각각 주입, 깨지기 쉬움</td><td class="yes">한 번에, 견고</td></tr>
+            <tr><td><strong>신선도 기준 시각</strong></td><td class="no">"페이지 로드 시점" → <code>initialDataUpdatedAt</code> 수동</td><td class="yes">서버 실제 fetch 시각 <strong>자동 보존</strong></td></tr>
+            <tr><td><strong>이미 캐시에 데이터</strong></td><td class="no">절대 안 덮어씀(더 신선해도)</td><td class="yes">갱신 가능</td></tr>
+            <tr><td>status·error 전달</td><td class="no">성공 데이터만</td><td class="yes">status·error도 전달</td></tr>
+            <tr><td>셋업</td><td class="center">가벼움(Provider만)</td><td class="center">dehydrate/HydrationBoundary 필요</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3. 우리 노트와 직결되는 두 함정</h3>
+        <div class="note warn">
+          <strong>① 신선도 기준 시각</strong> <code>initialData</code>는 <code>dataUpdatedAt</code>을 "지금(hydration 시점)"으로 잡는다. <code>"use cache"</code>로 4분 묵은 데이터를 줘도 클라는 "방금 받음"으로 착각 → 그래서 <strong>10강이 <code>updatedAt={serverTime}</code>(=<code>initialDataUpdatedAt</code>)을 수동으로 넘긴 것</strong>. <a href="#dehydrate-staletime" style="color:#79c0ff;font-weight:600">ENTRY #5</a>에서 봤듯 <code>dehydrate</code>는 이 시각을 <strong>자동 직렬화</strong>해 수동 작업이 없다.
+        </div>
+        <div class="note warn">
+          <strong>② stale 덮어쓰기 안 함</strong> <code>initialData</code>는 해당 queryKey 캐시가 <strong>비어있을 때만</strong> 초기값으로 들어가고, 이미 데이터가 있으면 <strong>더 신선해도 무시</strong>한다. <code>dehydrate</code>엔 이 제약이 없다.
+        </div>
+
+        <h3>4. 언제 무엇을</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>📦 dehydrate (공식 권장 · 메인)</h4>
+            <ul>
+              <li>여러 쿼리 · 중첩 · 깊은 트리</li>
+              <li>정확한 신선도(<code>dataUpdatedAt</code>)가 중요</li>
+              <li>status/error까지 전달</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>⚡ initialData (빠른 케이스)</h4>
+            <ul>
+              <li>단일 쿼리 + 얕은 트리</li>
+              <li>셋업 최소화가 우선</li>
+              <li>신선도 정밀도가 덜 중요</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note">
+          <strong>강의 매핑</strong> 10강 = <code>initialData</code> 방식(<code>PostListInitial</code>) · 12강 = <code>dehydrate</code> 방식(<code>PostList</code>). 강의가 두 패턴을 발전 순서로 보여준 것.
+        </div>
+
+        <div class="principle">
+          <strong>📌 핵심</strong><br>
+          · <span class="k">본질</span>: <code>initialData</code> = 컴포넌트에 <b>직접 쥐여주기</b> / <code>dehydrate</code> = <b>캐시 스냅샷 통째</b> 넘기고 경계 아래가 꺼내 씀<br>
+          · <span class="k">공식 권장</span>: <code>dehydrate</code>(Hydration) — 신선도·확장성·정확성 우위, <code>initialData</code>는 단일·얕은 트리의 빠른 해결책<br>
+          · <span class="k">연결</span>: <a href="#suspense-vs-hydration" style="color:#79c0ff;font-weight:600">ENTRY #4</a>(<code>initialDataUpdatedAt</code>) ↔ <a href="#dehydrate-staletime" style="color:#79c0ff;font-weight:600">ENTRY #5</a>(<code>dehydrate</code>)를 잇는 다리
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #7 — 무한 쿼리: maxPages vs 가상화           ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="infinite-maxpages-virtualization"
+               data-title="무한 쿼리의 함정 — maxPages vs 가상화"
+               data-tags="React Query, 무한스크롤, 가상화, 성능">
+
+        <header class="entry-head">
+          <h2>무한 쿼리의 함정 — <code>maxPages</code> vs 가상화(virtualization)</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">React Query</span><span class="chip">무한스크롤</span>
+            <span class="chip">가상화</span><span class="chip">성능</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 14강 무한 스크롤(<code>useInfiniteQuery</code>) 코드에 잘못된 정보는?
+          그리고 <code>maxPages</code>는 정확히 뭘 하고, <strong>가상화(virtualization)</strong>와는 뭐가 다른가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span>강의가 강조한 <code>maxPages</code>는 ① <b>실제 코드엔 주석</b>으로 꺼져 있고 ② 켜도 <code>getPreviousPageParam</code>이 없어 설명대로 동작 안 한다. 그리고 핵심: <b><code>maxPages</code>는 "캐시 데이터(JS 힙)"를, 가상화는 "DOM 노드"를 줄인다</b> — 14강이 노린 "수천 이미지 DOM 폭발"은 사실 <b>가상화의 영역</b>이다.</span>
+        </div>
+
+        <h3>1. 강의 검증 — 붙여넣은 설명 ≠ 실제 배포 소스</h3>
+        <table>
+          <thead><tr><th>항목</th><th>강의 설명</th><th>실제 소스</th></tr></thead>
+          <tbody>
+            <tr><td><code>maxPages: 4</code></td><td>활성(길게 강조)</td><td class="no"><code>// maxPages: 4</code> 주석(비활성)</td></tr>
+            <tr><td><code>initialPageParam</code></td><td>서버 1 / 클라 1</td><td class="no">서버 1 / 클라 <strong>2</strong> 불일치</td></tr>
+            <tr><td><code>page.tsx</code> Suspense</td><td>없음</td><td class="yes">있음(<code>GalleryPrefetch</code> 분리)</td></tr>
+            <tr><td><code>getPreviousPageParam</code></td><td>없음</td><td class="no">없음</td></tr>
+          </tbody>
+        </table>
+        <div class="box danger">
+          <h4>❌ 핵심 오류 3가지</h4>
+          <ul>
+            <li><strong>A. maxPages</strong>: 실제 코드엔 <strong>주석(비활성)</strong> → 테스트 4·5번("위로 올리면 채워진다", "지우면 메모리 누수") <strong>재현 불가</strong>. 켜도 <code>getPreviousPageParam</code>·<code>fetchPreviousPage</code>가 없어 <strong>제거된 페이지 복구 불가</strong>. 제거된 페이지는 <code>data.pages</code>→DOM에서 <strong>완전 삭제</strong>(빈 뼈대로 남는 건 가상화/lazy-load 동작). <strong>"양방향"이라지만 코드는 단방향.</strong></li>
+            <li><strong>B. <code>initialPageParam</code></strong>: 서버 prefetch는 <code>1</code>, 클라는 <code>2</code> → 같은 queryKey인데 시작점 불일치. 캐시 미스·refetch 시 <strong>page 1 누락</strong> 가능.</li>
+            <li><strong>C. maxPages ↔ 스크롤 보정 충돌</strong>: maxPages를 켜면 <code>pages.length</code>가 4에서 고정 → "페이지 증가 감지" <code>useEffect</code>가 5페이지째부터 <code>4&gt;4=false</code> → <code>scrollBy</code> 멈춤.</li>
+          </ul>
+        </div>
+        <div class="note">
+          <strong>✅ 정확한 부분</strong> <code>staleTime</code>을 <strong>클라 <code>useInfiniteQuery</code>에 직접</strong> 설정(<a href="#dehydrate-staletime" style="color:#79c0ff;font-weight:600">ENTRY #5</a> 기준 올바름, 12강보다 개선) · async prefetch를 <code>&lt;Suspense&gt;</code>로 감쌈 · <code>flatMap</code> 평탄화 · <code>getNextPageParam</code> v5 시그니처.
+        </div>
+
+        <h3>2. <code>maxPages</code> 심화 — "Limited Infinite Query"</h3>
+        <p>한쪽 방향으로 새 페이지를 가져오면 <strong>반대쪽 끝 페이지가 캐시에서 제거</strong>되어, <code>data.pages</code> 배열이 항상 최대 N개로 유지된다.</p>
+<pre><code>maxPages: 4
+pages: [P1, P2, P3, P4]
+fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P4, <span class="c-ok">P5</span>] → [P2, P3, P4, P5]
+                       <span class="c-com">// 위로 돌아가려면 getPreviousPageParam + fetchPreviousPage 필요</span></code></pre>
+        <p>공식이 밝힌 <strong>두 가지 동기</strong>:</p>
+        <div class="grid2">
+          <div class="box info">
+            <h4>① 메모리</h4>
+            <p style="margin:4px 0 0">페이지가 수십~수백 개 쌓이는 걸 방지(JS 힙 데이터).</p>
+          </div>
+          <div class="box info">
+            <h4>② refetch 비용</h4>
+            <p style="margin:4px 0 0">무한쿼리는 stale 시 <strong>모든 페이지를 순차 재fetch</strong> → maxPages면 보관분만 refetch.</p>
+          </div>
+        </div>
+        <div class="note warn">
+          <strong>⚠️ getNext + getPrevious 둘 다 필수</strong> maxPages가 한쪽 끝을 버리므로, 반대로 스크롤하면 그 페이지를 <strong>다시 가져와야</strong> 한다. 그래서 <strong>양방향 파라미터가 모두</strong> 있어야 정상 동작한다(강의 코드엔 <code>getNextPageParam</code>만 있음 → 그래서 maxPages를 주석 처리한 듯).
+        </div>
+
+        <h3>3. <code>maxPages</code> vs 가상화 — "줄이는 대상"이 다르다</h3>
+        <p>둘 다 "메모리 최적화"로 묶이지만 <strong>작동 층위가 완전히 다르다.</strong></p>
+        <table>
+          <thead><tr><th></th><th><code>maxPages</code> (TanStack Query)</th><th>가상화 (react-virtual 등)</th></tr></thead>
+          <tbody>
+            <tr><td><strong>줄이는 대상</strong></td><td>캐시 <strong>데이터</strong> (JS 힙의 page 배열)</td><td><strong>DOM 노드</strong> (화면 요소)</td></tr>
+            <tr><td>작동 레벨</td><td>쿼리/데이터 레벨</td><td>렌더링 레벨</td></tr>
+            <tr><td>위로 스크롤 시</td><td class="no">데이터 삭제됨 → <strong>refetch(네트워크)</strong></td><td class="yes">데이터 유지 → <strong>재요청 없음</strong></td></tr>
+            <tr><td>DOM 노드 수</td><td>직접 제어 X (데이터 줄어 간접↓)</td><td class="yes">직접 제어 O (핵심)</td></tr>
+            <tr><td>해결하는 문제</td><td>데이터 누적 + refetch 비용</td><td>거대 DOM 렌더 성능</td></tr>
+            <tr><td>100만 행</td><td class="no">부적합(데이터 손실 감수)</td><td class="yes">적합(DOM 항상 일정)</td></tr>
+          </tbody>
+        </table>
+        <div class="analogy">
+          <span class="ico">🍽️</span>
+          <div><strong>maxPages</strong> = 주방 냉장고(데이터)에 <strong>재료를 4묶음만</strong> 보관(넘으면 버리고, 다시 필요하면 장보기=네트워크). <strong>가상화</strong> = 식탁(DOM)에 <strong>지금 먹을 접시만</strong> 올리고 나머지는 창고에 그대로(언제든 즉시 꺼냄=재요청 없음).</div>
+        </div>
+
+        <h3>4. 그래서 14강의 도구 선택은?</h3>
+        <p>강의는 <i>"수천 장의 이미지 접시가 쌓여 메모리 폭발"</i>을 <code>maxPages</code>로 막는다고 했다. 하지만 그건 <strong>DOM 노드 문제 → 가상화의 영역</strong>이다. <code>maxPages</code>는 데이터를 지워 <strong>대가로 네트워크 재요청</strong>을 치르는 도구라, DOM 성능의 정답이 아니다(게다가 주석이라 작동도 안 함).</p>
+        <table>
+          <thead><tr><th>증상</th><th>맞는 도구</th></tr></thead>
+          <tbody>
+            <tr><td>page 배열이 수십~수백 개 + refetch 느림</td><td><code>maxPages</code> (+ 양방향 파라미터)</td></tr>
+            <tr><td>화면에 DOM 수천 개라 렌더 버벅임</td><td>가상화(windowing)</td></tr>
+            <tr><td>둘 다(초대규모)</td><td><strong>가상화 + useInfiniteQuery 병행</strong></td></tr>
+          </tbody>
+        </table>
+
+        <div class="principle">
+          <strong>📌 핵심</strong><br>
+          · <span class="k">maxPages</span> = <b>데이터 레벨</b> — 캐시 page 수↓ · refetch 비용↓, 양방향 위해 <code>getNext</code>+<code>getPrevious</code> 필수<br>
+          · <span class="k">가상화</span> = <b>렌더 레벨</b> — DOM 노드↓, 스크롤백 시 재요청 없음(데이터는 보유)<br>
+          · <span class="k">14강</span>: "DOM 폭발"은 가상화가 정답인데 <code>maxPages</code>로(그마저 주석) 풀려 함 → <b>도구 오선택 + 미작동</b><br>
+          · <span class="k">연결</span>: <a href="#dehydrate-staletime" style="color:#79c0ff;font-weight:600">ENTRY #5</a>·<a href="#initialdata-vs-dehydrate" style="color:#79c0ff;font-weight:600">ENTRY #6</a>의 prefetch/dehydrate를 <code>prefetchInfiniteQuery</code>로 확장한 사례
+        </div>
+      </article>
+
+      <!-- 👉 새 지식은 위 형식의 <article>를 여기에 계속 추가하면 됩니다.
+           파일 맨 아래 TEMPLATE 주석을 복사해서 채우세요. -->
+
+      <div id="empty">🔍 검색 결과가 없습니다.</div>
+    </main>
+  </div>
+
+  <button id="toTop" title="맨 위로">↑</button>
+
+<!-- =====================================================================
+     📌 새 지식 추가 템플릿  (이 블록을 복사 → <article> 부분만 본문에 붙여넣기)
+     - data-title / data-tags / data-date 3개만 채우면 목차·검색·태그 자동 반영
+     - 본문은 아래 PALETTE 컴포넌트를 자유 조합
+
+     <article class="entry" id="고유-id"
+              data-title="제목"
+              data-tags="태그1, 태그2"
+              data-date="YYYY-MM-DD">
+       <header class="entry-head">
+         <h2>제목</h2>
+         <div class="meta">
+           <span class="date">📅 YYYY-MM-DD</span>
+           <span class="chip">태그1</span><span class="chip">태그2</span>
+         </div>
+       </header>
+
+       <div class="qbox"><strong>Q.</strong> 어떤 질문에서 출발했나</div>
+       <div class="tldr"><span class="ico">💡</span><span>한 줄 핵심 결론</span></div>
+
+       <h3>소제목</h3>
+       <p>설명 문단. 인라인 코드는 <code>...</code>.</p>
+
+       PALETTE ──────────────────────────────────────────────
+       • 코드블록:   <pre><code>...</code></pre>
+                     색: c-com(주석) c-key(키워드) c-str(문자열) c-ok c-bad
+       • 안전/위험:  <div class="box safe|danger|info"><h4>제목</h4><ul>…</ul></div>
+       • 2단 비교:   <div class="grid2"> box 2개 </div>
+       • 콜아웃:     <div class="note">…</div>  /  <div class="note warn">…</div>
+       • 비유:       <div class="analogy"><span class="ico">🏭</span><div>…</div></div>
+       • 표:         <table><thead>…</thead><tbody>…</tbody></table>
+                     셀 강조: class="yes" / class="no" / class="center"
+       • 큰 결론:    <div class="principle">… <span class="k">강조</span> …</div>
+       ───────────────────────────────────────────────────────
+     </article>
+===================================================================== -->
+
+<script>
+  const articles = [...document.querySelectorAll('article.entry')];
+  const toc       = document.getElementById('toc');
+  const tagfilter = document.getElementById('tagfilter');
+  const searchEl  = document.getElementById('search');
+  const countEl   = document.getElementById('count');
+  const emptyEl   = document.getElementById('empty');
+  let   activeTag = null;
+
+  const tagsOf = el => el.dataset.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+  /* ---- 목차 자동 생성 ---- */
+  articles.forEach(a => {
+    const link = document.createElement('a');
+    link.href = '#' + a.id;
+    link.className = 'toc-link';
+    link.dataset.target = a.id;
+    link.textContent = a.dataset.title;
+    toc.appendChild(link);
+  });
+
+  /* ---- 태그 칩 자동 생성 ---- */
+  const allTags = [...new Set(articles.flatMap(tagsOf))].sort();
+  allTags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.textContent = tag;
+    chip.onclick = () => {
+      activeTag = (activeTag === tag) ? null : tag;
+      [...tagfilter.children].forEach(c =>
+        c.classList.toggle('active', c.textContent === activeTag));
+      applyFilter();
+    };
+    tagfilter.appendChild(chip);
+  });
+
+  /* ---- 검색 + 태그 통합 필터 ---- */
+  function applyFilter() {
+    const q = searchEl.value.trim().toLowerCase();
+    let visible = 0;
+    articles.forEach(a => {
+      const haystack = (a.dataset.title + ' ' + a.dataset.tags + ' ' + a.textContent).toLowerCase();
+      const okQ   = !q || haystack.includes(q);
+      const okTag = !activeTag || tagsOf(a).includes(activeTag);
+      const show  = okQ && okTag;
+      a.style.display = show ? '' : 'none';
+      const link = toc.querySelector(`[data-target="${a.id}"]`);
+      if (link) link.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    emptyEl.style.display = visible ? 'none' : 'block';
+    countEl.textContent = visible === articles.length
+      ? `${articles.length}개 노트`
+      : `${visible} / ${articles.length}`;
+  }
+  searchEl.addEventListener('input', applyFilter);
+
+  /* ---- 스크롤 스파이 (현재 섹션 목차 하이라이트) ---- */
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+      const link = toc.querySelector(`[data-target="${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    });
+  }, { rootMargin: '-15% 0px -75% 0px' });
+  articles.forEach(a => spy.observe(a));
+
+  /* ---- 테마 토글 (선택값 기억) ---- */
+  const themeBtn = document.getElementById('themeToggle');
+  function setTheme(dark) {
+    document.body.classList.toggle('dark', dark);
+    themeBtn.textContent = dark ? '☀️' : '🌙';
+    try { localStorage.setItem('devnotes-theme', dark ? 'dark' : 'light'); } catch (_) {}
+  }
+  themeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
+  try { setTheme(localStorage.getItem('devnotes-theme') === 'dark'); } catch (_) {}
+
+  /* ---- 맨 위로 버튼 ---- */
+  const toTop = document.getElementById('toTop');
+  window.addEventListener('scroll', () => toTop.classList.toggle('show', window.scrollY > 400));
+  toTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  applyFilter();
+</script>
+</body>
+</html>
