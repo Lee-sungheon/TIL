@@ -952,6 +952,109 @@ fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P
         </div>
       </article>
 
+      <!-- ╔══════════════════════════════════════════════════╗
+           ║  ENTRY #8 — 렌더링 경계는 leaf로                    ║
+           ╚══════════════════════════════════════════════════╝ -->
+      <article class="entry" id="rendering-boundary-leaf"
+               data-title="렌더링 경계는 leaf로 — 최상위 Suspense·ssr:false·useSearchParams"
+               data-tags="Next.js, App Router, Suspense, 스트리밍">
+
+        <header class="entry-head">
+          <h2>렌더링 경계는 leaf로 — 최상위 <code>Suspense</code>·<code>ssr:false</code>·<code>useSearchParams</code></h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-20</span>
+            <span class="chip">Next.js</span><span class="chip">App Router</span>
+            <span class="chip">Suspense</span><span class="chip">스트리밍</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> App Router에서 <strong>최상위 <code>Suspense</code></strong>와
+          <strong><code>dynamic(…, { ssr: false })</code></strong>를 피해야 하는 이유는?
+          <code>useSearchParams</code>를 감싸야 하는 것도 같은 맥락인가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">💡</span>
+          <span>App Router의 모든 비용(<b>로딩 대기·클라이언트 렌더링·동적 렌더링</b>)은 <b>경계(boundary) 단위로 격리</b>된다. 경계를 트리 꼭대기에 두면 그 비용이 <b>페이지 전체로 번진다</b>. 셋 다 같은 원리의 변주 — <b>경계는 최대한 잎(leaf)으로 내려라.</b></span>
+        </div>
+
+        <h3>1. 원리 — 경계 = "비용 격리 단위"</h3>
+        <p>Suspense·클라이언트 경계·동적 함수는 각자 <strong>비용</strong>(대기·CSR·per-request 렌더)을 만든다. 그 비용은 <strong>경계 위쪽으로 번지므로</strong>, 경계를 높이 둘수록 더 많은 부분이 비용을 떠안는다. → 정적·즉시 렌더 가능한 부분은 <strong>항상 경계 바깥</strong>에.</p>
+
+        <h3>2. 최상위 <code>Suspense</code> — 잃는 것: 스트리밍 입자도</h3>
+        <p>App Router 스트리밍에서 <strong>Suspense 경계 = "먼저 보낼 수 있는 단위"</strong>. 페이지를 통째로 감싸면 <strong>가장 느린 데이터 하나</strong>가 끝날 때까지 전체가 fallback에 묶여, 즉시 보낼 수 있던 헤더·정적 콘텐츠까지 대기 → "전체 스피너 → 한 번에 펑"의 옛 CSR UX로 회귀.</p>
+<pre><code><span class="c-com">// ❌ 입자도 0 — 부분 스트리밍 이점 상실</span>
+&lt;Suspense fallback={&lt;FullPageSpinner /&gt;}&gt;
+  &lt;전체페이지 /&gt;
+&lt;/Suspense&gt;
+
+<span class="c-com">// ✅ 느린 부분만 잘게</span>
+&lt;Header /&gt;                                              <span class="c-com">// 즉시</span>
+&lt;Suspense fallback={&lt;ListSkeleton /&gt;}&gt;&lt;SlowList /&gt;&lt;/Suspense&gt;
+&lt;Suspense fallback={&lt;ReviewSkeleton /&gt;}&gt;&lt;SlowReviews /&gt;&lt;/Suspense&gt;</code></pre>
+        <div class="note">
+          <strong>참고</strong> 서버 렌더 자체는 된다 — 단지 <strong>입자도를 버려서</strong> 점진적 렌더링 이점을 못 살릴 뿐.
+        </div>
+
+        <h3>3. <code>dynamic(…, { ssr: false })</code> — 잃는 것: 서버 렌더링 자체</h3>
+        <p>최상위 Suspense보다 <strong>강한</strong> 비용 — 서브트리를 <strong>서버에서 아예 안 만든다.</strong></p>
+        <table>
+          <thead><tr><th></th><th>최상위 <code>Suspense</code></th><th><code>ssr: false</code></th></tr></thead>
+          <tbody>
+            <tr><td>서버 렌더</td><td class="yes">됨(늦게라도 스트리밍)</td><td class="no">안 됨</td></tr>
+            <tr><td>초기 HTML</td><td>fallback 마크업 존재</td><td class="no">콘텐츠 없음(SEO·LCP 미포함)</td></tr>
+            <tr><td>채워지는 시점</td><td>서버 작업 완료 후</td><td class="no">JS 로드 → hydration → fetch(CSR 워터폴)</td></tr>
+          </tbody>
+        </table>
+        <div class="box danger">
+          <h4>❌ Server Component 안에서 <code>ssr: false</code>는 금지(에러)</h4>
+          <p style="margin:6px 0 0"><code>ssr: false is not allowed with next/dynamic in Server Components</code> — "함부로 SSR 끄지 마라"는 프레임워크 신호.</p>
+        </div>
+        <div class="box safe">
+          <h4>✅ 정말 클라 전용일 때만, 클라이언트 래퍼의 잎에서</h4>
+<pre style="margin:8px 0 0"><code><span class="c-bad">'use client'</span>;
+<span class="c-key">import</span> dynamic <span class="c-key">from</span> <span class="c-str">'next/dynamic'</span>;
+<span class="c-com">// 지도·차트·에디터 등 window/document 의존 컴포넌트만</span>
+<span class="c-key">const</span> Map = dynamic(() =&gt; import(<span class="c-str">'./Map'</span>), { ssr: <span class="c-key">false</span> });</code></pre>
+        </div>
+        <div class="note warn">
+          <strong>⚠️ <code>ssr: false</code> ≠ 코드 스플리팅</strong> 번들만 쪼개고 싶으면 <code>ssr: false</code> <strong>없이</strong> <code>dynamic()</code>만 써도 SSR은 유지된다. SSR을 끄는 건 별개의 결정.
+        </div>
+
+        <h3>4. <code>useSearchParams</code> — 잃는 것: 정적 셸 (CSR bailout)</h3>
+        <p>쿼리스트링은 <strong>요청 타임 데이터</strong> → 프리렌더와 충돌. 핵심은 <strong>강등 방향</strong>이다 (자주 혼동):</p>
+        <table>
+          <thead><tr><th>무엇을 쓰나</th><th>강등 방향</th></tr></thead>
+          <tbody>
+            <tr><td>서버 컴포넌트 <code>searchParams</code> <strong>prop</strong></td><td>동적 렌더링(서버, per-request)</td></tr>
+            <tr><td>클라이언트 훅 <code>useSearchParams</code></td><td class="no"><strong>CSR bailout</strong>(클라 렌더로 deopt)</td></tr>
+          </tbody>
+        </table>
+        <p><code>useSearchParams</code>는 <strong>클라이언트 훅</strong>이라 서버 동적 렌더가 아니라 <strong>가장 가까운 Suspense 경계까지 클라이언트 렌더로 전환</strong>된다. 경계가 없으면 <strong>전체 페이지가 CSR로 bailout</strong>(빌드 시 <code>Missing Suspense boundary with useSearchParams</code> 에러로 강제). Suspense로 감싸면 <strong>그 경계만 CSR, 나머지 정적 셸은 유지</strong>된다.</p>
+        <div class="note">
+          <strong>Next.js 16 맥락</strong> <code>cacheComponents</code> 모드에선 <a href="#suspense-vs-hydration" style="color:#79c0ff;font-weight:600">ENTRY #4</a>에서 본 것처럼 동적 접근(현재시각·검색파라미터 등)에 Suspense 경계를 더 엄격히 요구한다 — 같은 "경계로 가둬라" 원리.
+        </div>
+
+        <h3>5. 공통 결론 — 경계는 "잎(leaf)"으로</h3>
+        <table>
+          <thead><tr><th>안티패턴</th><th>결과</th><th>올바른 방향</th></tr></thead>
+          <tbody>
+            <tr><td>최상위 <code>Suspense</code></td><td class="no">입자도 0, 전체 스피너</td><td class="yes">느린 부분마다 잘게</td></tr>
+            <tr><td>최상위 <code>ssr: false</code></td><td class="no">서버렌더 포기 + CSR 워터폴</td><td class="yes">클라 전용 잎에서만</td></tr>
+            <tr><td>Suspense 없는 <code>useSearchParams</code></td><td class="no">전체 페이지 CSR bailout</td><td class="yes">소비 컴포넌트만 감싸기</td></tr>
+          </tbody>
+        </table>
+
+        <div class="principle">
+          <strong>📌 기억할 것</strong><br>
+          · <span class="k">비용은 경계 위로 번진다</span> — 경계를 높이 둘수록 더 많은 부분이 떠안음<br>
+          · <span class="k">경계는 최대한 아래(leaf)로</span> — 정적·즉시 렌더 가능한 부분은 항상 경계 바깥<br>
+          · <span class="k">서버에서 할 수 있는 건 서버에서</span> — 쿼리는 <code>searchParams</code> prop, 데이터는 서버 컴포넌트 fetch로. 클라로 미루는 순간 워터폴 시작<br>
+          · <span class="k">연결</span>: <a href="#suspense-vs-hydration" style="color:#79c0ff;font-weight:600">ENTRY #4</a>가 "Suspense는 격리 도구"라면, 여기선 "그 경계를 <b>어디 둘지</b>(입자도)"
+        </div>
+      </article>
+
       <!-- 👉 새 지식은 위 형식의 <article>를 여기에 계속 추가하면 됩니다.
            파일 맨 아래 TEMPLATE 주석을 복사해서 채우세요. -->
 
