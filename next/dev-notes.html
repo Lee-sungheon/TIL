@@ -869,14 +869,13 @@ environmentManager.setIsServer(
 
         <div class="tldr">
           <span class="ico">💡</span>
-          <span>강의가 강조한 <code>maxPages</code>는 ① <b>실제 코드엔 주석</b>으로 꺼져 있고 ② 켜도 <code>getPreviousPageParam</code>이 없어 설명대로 동작 안 한다. 그리고 핵심: <b><code>maxPages</code>는 "캐시 데이터(JS 힙)"를, 가상화는 "DOM 노드"를 줄인다</b> — 14강이 노린 "수천 이미지 DOM 폭발"은 사실 <b>가상화의 영역</b>이다.</span>
+          <span>강의가 강조한 <code>maxPages</code>는 <code>getPreviousPageParam</code>이 없어 설명대로(양방향) 동작하지 않는다. 그리고 핵심: <b><code>maxPages</code>는 "캐시 데이터(JS 힙)"를, 가상화는 "DOM 노드"를 줄인다</b> — 14강이 노린 "수천 이미지 DOM 폭발"은 사실 <b>가상화의 영역</b>이다.</span>
         </div>
 
         <h3>1. 강의 검증 — 붙여넣은 설명 ≠ 실제 배포 소스</h3>
         <table>
           <thead><tr><th>항목</th><th>강의 설명</th><th>실제 소스</th></tr></thead>
           <tbody>
-            <tr><td><code>maxPages: 4</code></td><td>활성(길게 강조)</td><td class="no"><code>// maxPages: 4</code> 주석(비활성)</td></tr>
             <tr><td><code>initialPageParam</code></td><td>서버 1 / 클라 1</td><td class="no">서버 1 / 클라 <strong>2</strong> 불일치</td></tr>
             <tr><td><code>page.tsx</code> Suspense</td><td>없음</td><td class="yes">있음(<code>GalleryPrefetch</code> 분리)</td></tr>
             <tr><td><code>getPreviousPageParam</code></td><td>없음</td><td class="no">없음</td></tr>
@@ -885,7 +884,7 @@ environmentManager.setIsServer(
         <div class="box danger">
           <h4>❌ 핵심 오류 3가지</h4>
           <ul>
-            <li><strong>A. maxPages</strong>: 실제 코드엔 <strong>주석(비활성)</strong> → 테스트 4·5번("위로 올리면 채워진다", "지우면 메모리 누수") <strong>재현 불가</strong>. 켜도 <code>getPreviousPageParam</code>·<code>fetchPreviousPage</code>가 없어 <strong>제거된 페이지 복구 불가</strong>. 제거된 페이지는 <code>data.pages</code>→DOM에서 <strong>완전 삭제</strong>(빈 뼈대로 남는 건 가상화/lazy-load 동작). <strong>"양방향"이라지만 코드는 단방향.</strong></li>
+            <li><strong>A. maxPages</strong>: <code>getPreviousPageParam</code>·<code>fetchPreviousPage</code>가 없어 <strong>제거된 페이지 복구 불가</strong> → 테스트 4번("위로 올리면 채워진다")은 재현 불가. 제거된 페이지는 <code>data.pages</code>→DOM에서 <strong>완전 삭제</strong>(빈 뼈대로 남는 건 가상화/lazy-load 동작). <strong>"양방향"이라지만 코드는 단방향.</strong></li>
             <li><strong>B. <code>initialPageParam</code></strong>: 서버 prefetch는 <code>1</code>, 클라는 <code>2</code> → 같은 queryKey인데 시작점 불일치. 캐시 미스·refetch 시 <strong>page 1 누락</strong> 가능.</li>
             <li><strong>C. maxPages ↔ 스크롤 보정 충돌</strong>: maxPages를 켜면 <code>pages.length</code>가 4에서 고정 → "페이지 증가 감지" <code>useEffect</code>가 5페이지째부터 <code>4&gt;4=false</code> → <code>scrollBy</code> 멈춤.</li>
           </ul>
@@ -912,7 +911,7 @@ fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P
           </div>
         </div>
         <div class="note warn">
-          <strong>⚠️ getNext + getPrevious 둘 다 필수</strong> maxPages가 한쪽 끝을 버리므로, 반대로 스크롤하면 그 페이지를 <strong>다시 가져와야</strong> 한다. 그래서 <strong>양방향 파라미터가 모두</strong> 있어야 정상 동작한다(강의 코드엔 <code>getNextPageParam</code>만 있음 → 그래서 maxPages를 주석 처리한 듯).
+          <strong>⚠️ getNext + getPrevious 둘 다 필수</strong> maxPages가 한쪽 끝을 버리므로, 반대로 스크롤하면 그 페이지를 <strong>다시 가져와야</strong> 한다. 그래서 <strong>양방향 파라미터가 모두</strong> 있어야 정상 동작한다(강의 코드엔 <code>getNextPageParam</code>만 있어 양방향이 안 됨).
         </div>
 
         <h3>3. <code>maxPages</code> vs 가상화 — "줄이는 대상"이 다르다</h3>
@@ -934,7 +933,7 @@ fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P
         </div>
 
         <h3>4. 그래서 14강의 도구 선택은?</h3>
-        <p>강의는 <i>"수천 장의 이미지 접시가 쌓여 메모리 폭발"</i>을 <code>maxPages</code>로 막는다고 했다. 하지만 그건 <strong>DOM 노드 문제 → 가상화의 영역</strong>이다. <code>maxPages</code>는 데이터를 지워 <strong>대가로 네트워크 재요청</strong>을 치르는 도구라, DOM 성능의 정답이 아니다(게다가 주석이라 작동도 안 함).</p>
+        <p>강의는 <i>"수천 장의 이미지 접시가 쌓여 메모리 폭발"</i>을 <code>maxPages</code>로 막는다고 했다. 하지만 그건 <strong>DOM 노드 문제 → 가상화의 영역</strong>이다. <code>maxPages</code>는 데이터를 지워 <strong>대가로 네트워크 재요청</strong>을 치르는 도구라, DOM 성능의 정답이 아니다.</p>
         <table>
           <thead><tr><th>증상</th><th>맞는 도구</th></tr></thead>
           <tbody>
@@ -948,7 +947,7 @@ fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P
           <strong>📌 핵심</strong><br>
           · <span class="k">maxPages</span> = <b>데이터 레벨</b> — 캐시 page 수↓ · refetch 비용↓, 양방향 위해 <code>getNext</code>+<code>getPrevious</code> 필수<br>
           · <span class="k">가상화</span> = <b>렌더 레벨</b> — DOM 노드↓, 스크롤백 시 재요청 없음(데이터는 보유)<br>
-          · <span class="k">14강</span>: "DOM 폭발"은 가상화가 정답인데 <code>maxPages</code>로(그마저 주석) 풀려 함 → <b>도구 오선택 + 미작동</b><br>
+          · <span class="k">14강</span>: "DOM 폭발"은 가상화가 정답인데 <code>maxPages</code>로 풀려 함 → <b>도구 오선택</b><br>
           · <span class="k">연결</span>: <a href="#dehydrate-staletime" style="color:#79c0ff;font-weight:600">ENTRY #5</a>·<a href="#initialdata-vs-dehydrate" style="color:#79c0ff;font-weight:600">ENTRY #6</a>의 prefetch/dehydrate를 <code>prefetchInfiniteQuery</code>로 확장한 사례
         </div>
       </article>
