@@ -1036,7 +1036,36 @@ fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P
           <strong>Next.js 16 맥락</strong> <code>cacheComponents</code> 모드에선 <a href="#suspense-vs-hydration" style="color:#79c0ff;font-weight:600">ENTRY #4</a>에서 본 것처럼 동적 접근(현재시각·검색파라미터 등)에 Suspense 경계를 더 엄격히 요구한다 — 같은 "경계로 가둬라" 원리.
         </div>
 
-        <h3>5. 공통 결론 — 경계는 "잎(leaf)"으로</h3>
+        <h3>5. 정밀화 — 최상위 <code>Suspense</code>를 무조건 없앨 필요는 없다</h3>
+        <p>비용을 만드는 건 <strong>실제로 suspend하는 것</strong>(비동기 서버 컴포넌트)이다. <code>useSearchParams</code>의 bailout은 그 자체로 저비용이라, <strong>"가드용 최상위"와 "스트리밍용 개별" 경계는 공존</strong>한다 — 최상위를 없애는 게 목적이 아니다.</p>
+        <table>
+          <thead><tr><th>Suspense 종류</th><th>목적</th><th>비용</th></tr></thead>
+          <tbody>
+            <tr><td>가드용 최상위</td><td><code>useSearchParams</code> CSR bailout 가드</td><td class="yes">작음(<code>fallback=null</code>, 정적서 잠깐)</td></tr>
+            <tr><td>스트리밍용 개별(잎)</td><td>비동기 서버 컴포넌트 스트리밍</td><td>App Router의 진짜 이점</td></tr>
+          </tbody>
+        </table>
+        <p><strong>핵심: bailout은 "정적 프리렌더"에서만 일어난다.</strong></p>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>🧊 정적 페이지</h4>
+            <p style="margin:6px 0 0"><code>useSearchParams</code> → 가장 가까운 Suspense까지 CSR. 경계 없으면 빌드 에러 → <strong>가드 필요</strong>.</p>
+          </div>
+          <div class="box safe">
+            <h4>🔥 동적 페이지 (<code>cookies()</code>·<code>force-dynamic</code>)</h4>
+            <p style="margin:6px 0 0">request-time 서버 렌더 → <code>useSearchParams</code>도 서버 값 보유 → <strong>bailout 없음</strong>. 최상위 Suspense가 스트리밍을 막지 않음.</p>
+          </div>
+        </div>
+        <div class="note warn">
+          <strong>⚠️ 함정 둘</strong><br>
+          <strong>① <code>useSearchParams</code> 자체는 동적 트리거가 아니다</strong> — 페이지를 동적으로 만들려면 <code>cookies()</code>·<code>headers()</code>·<code>force-dynamic</code> 같은 별도 동적 함수가 있어야 한다. "동적이라 bailout 없음"은 <strong>그 페이지가 이미 다른 이유로 동적일 때만</strong> 성립.<br>
+          <strong>② dev에선 안 터진다</strong> — 개발 모드는 항상 on-demand(동적)라 <code>useSearchParams</code>가 suspend 안 함 → Suspense 없이 멀쩡해 보이다가 <strong>prod 빌드(정적 생성)에서만 터진다.</strong>
+        </div>
+        <div class="note">
+          <strong>✅ 실전 전략</strong> "최상위 Suspense 제거"에 집착하지 말 것. 진짜 할 일은 <strong>suspend하는 비동기 컴포넌트를 찾아 개별 Suspense로 감싸기</strong> — 최상위 가드(<code>fallback=null</code>)는 그대로 둔 채 공존시키면 된다.
+        </div>
+
+        <h3>6. 공통 결론 — 경계는 "잎(leaf)"으로</h3>
         <table>
           <thead><tr><th>안티패턴</th><th>결과</th><th>올바른 방향</th></tr></thead>
           <tbody>
@@ -1050,6 +1079,7 @@ fetchNextPage()  ─▶  pages: [<span class="c-bad">P1 제거</span>, P2, P3, P
           <strong>📌 기억할 것</strong><br>
           · <span class="k">비용은 경계 위로 번진다</span> — 경계를 높이 둘수록 더 많은 부분이 떠안음<br>
           · <span class="k">경계는 최대한 아래(leaf)로</span> — 정적·즉시 렌더 가능한 부분은 항상 경계 바깥<br>
+          · <span class="k">단, 가드용 최상위는 예외</span> — 없앨 대상은 "무거운 fallback의 <b>유일</b> 경계". 경량 가드(<code>fallback=null</code>)는 개별 스트리밍 경계와 공존<br>
           · <span class="k">서버에서 할 수 있는 건 서버에서</span> — 쿼리는 <code>searchParams</code> prop, 데이터는 서버 컴포넌트 fetch로. 클라로 미루는 순간 워터폴 시작<br>
           · <span class="k">연결</span>: <a href="#suspense-vs-hydration" style="color:#79c0ff;font-weight:600">ENTRY #4</a>가 "Suspense는 격리 도구"라면, 여기선 "그 경계를 <b>어디 둘지</b>(입자도)"
         </div>
