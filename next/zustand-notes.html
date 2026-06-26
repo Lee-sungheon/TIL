@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[섹션 4] 가볍고 강력한 전역 상태 관리 (Zustand)</title>
+<style>
+  /* =========================================================
+     THEME TOKENS  (라이트 / 다크 공통 변수)
+     ========================================================= */
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #5b6470;
+    --border: #e1e4e8;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --safe-bg: #e7f6ec; --safe-bd: #2da44e; --safe-tx: #1a7f37;
+    --danger-bg: #fdeceb; --danger-bd: #cf222e; --danger-tx: #b3261e;
+    --info-bg: #e8f1fd; --info-bd: #2c7be5; --info-tx: #1a5fb4;
+    --note-bg: #fff8e6; --note-bd: #d4a72c; --note-tx: #9a6700;
+    --chip-bg: #eef0f3; --chip-tx: #444c56;
+    --code-bg: #0d1117; --code-tx: #e6edf3;
+    --inline-bg: #eaecef; --inline-tx: #b3261e;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  body.dark {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --border: #2a313a;
+    --accent: #7c8cff;
+    --accent-soft: #1d2333;
+    --safe-bg: #12261a; --safe-bd: #2da44e; --safe-tx: #6fdc8c;
+    --danger-bg: #2b1416; --danger-bd: #f85149; --danger-tx: #ff938b;
+    --info-bg: #11233b; --info-bd: #2c7be5; --info-tx: #8cc2ff;
+    --note-bg: #2a2410; --note-bd: #d4a72c; --note-tx: #e3c879;
+    --chip-bg: #21262d; --chip-tx: #adbac7;
+    --inline-bg: #21262d; --inline-tx: #ff938b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    transition: background .2s, color .2s;
+  }
+
+  /* =========================================================
+     TOP BAR
+     ========================================================= */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+  .brand span { color: var(--accent); }
+  .search-wrap { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
+  #search {
+    width: 100%; padding: 9px 14px 9px 36px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); font-size: 14px;
+    outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: "🔍"; position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); font-size: 13px; opacity: .6;
+  }
+  .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  #themeToggle {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 16px;
+  }
+
+  /* =========================================================
+     LAYOUT
+     ========================================================= */
+  .layout {
+    display: flex; gap: 32px;
+    max-width: 1180px; margin: 0 auto; padding: 26px 20px 80px;
+  }
+  .sidebar {
+    width: 235px; flex: none;
+    position: sticky; top: 78px; align-self: flex-start;
+    max-height: calc(100vh - 100px); overflow-y: auto;
+  }
+  .content { flex: 1; min-width: 0; }
+
+  /* 페이지 히어로 (전체 제목) */
+  .page-hero { margin-bottom: 26px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .page-hero h1 { margin: 0 0 6px; font-size: 27px; line-height: 1.32; letter-spacing: -0.03em; }
+  .page-hero .sub { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  /* 섹터 구분 헤더 (강의 요약 / 인사이트) */
+  .sector-head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 38px 0 18px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .sector-head:first-of-type { margin-top: 8px; }
+  .sector-head .num {
+    flex: none; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent); color: #fff; font-weight: 800; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sector-head h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+  .sector-head .desc { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+
+  /* ---- Sidebar: TOC ---- */
+  .side-head { font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
+  .toc-group-head {
+    font-size: 12px; font-weight: 800; color: var(--accent);
+    margin: 14px 0 4px; padding-left: 4px; letter-spacing: -.01em;
+  }
+  .toc-group-head:first-child { margin-top: 0; }
+  .toc-link {
+    display: block; padding: 6px 10px; margin-bottom: 2px;
+    border-radius: 7px; border-left: 2px solid transparent;
+    color: var(--muted); text-decoration: none; font-size: 13.5px;
+  }
+  .toc-link:hover { background: var(--accent-soft); color: var(--text); }
+  .toc-link.active { background: var(--accent-soft); color: var(--accent);
+    border-left-color: var(--accent); font-weight: 600; }
+
+  /* ---- Sidebar: tag filter ---- */
+  .tagfilter { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chip {
+    font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer;
+    background: var(--chip-bg); color: var(--chip-tx); border: 1px solid transparent;
+    user-select: none;
+  }
+  .tag-chip:hover { border-color: var(--accent); }
+  .tag-chip.active { background: var(--accent); color: #fff; }
+
+  /* =========================================================
+     ENTRY (지식 1개 = 카드 1개)  ← 추가의 기본 단위
+     ========================================================= */
+  .entry {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 28px;
+    margin-bottom: 26px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: 78px;
+  }
+  /* 인사이트 섹터 카드: 왼쪽 액센트 라인으로 시각 구분 */
+  .entry.insight { border-left: 4px solid var(--accent); }
+  /* 프로젝트 섹터 카드: 초록 라인으로 '실측' 구분 */
+  .entry.project { border-left: 4px solid var(--safe-bd); }
+  .entry-head h2 { margin: 0 0 10px; font-size: 23px; letter-spacing: -0.02em; }
+  .entry-head h3.entry-title { margin: 0 0 10px; font-size: 20px; letter-spacing: -0.02em; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .meta .date { font-size: 12.5px; color: var(--muted); }
+  .meta .chip {
+    font-size: 11.5px; padding: 3px 9px; border-radius: 20px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  }
+
+  /* ---- 질문 박스 ---- */
+  .qbox {
+    background: var(--accent-soft); border-radius: 10px;
+    padding: 12px 16px; margin: 14px 0; font-size: 14.5px;
+  }
+  .qbox strong { color: var(--accent); }
+
+  /* ---- 핵심 요약 (TL;DR) ---- */
+  .tldr {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    color: #fff; border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+    font-weight: 600; font-size: 15px;
+  }
+  .tldr .ico { font-size: 18px; line-height: 1.4; }
+
+  /* ---- 채우기 안내 placeholder ---- */
+  .todo {
+    border: 1.5px dashed var(--border); border-radius: 10px;
+    padding: 12px 16px; margin: 12px 0; font-size: 13.5px; color: var(--muted);
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px,
+                rgba(127,127,127,.03) 10px, rgba(127,127,127,.03) 20px);
+  }
+  .todo::before { content: "✍️ 강의 들으며 채우기 — "; font-weight: 700; color: var(--accent); }
+
+  /* =========================================================
+     본문 재사용 컴포넌트 PALETTE
+     ========================================================= */
+  .entry h3 { font-size: 16px; margin: 22px 0 8px; }
+  .entry p { margin: 10px 0; }
+  .entry ul, .entry ol { margin: 10px 0; padding-left: 20px; }
+  .entry li { margin: 4px 0; }
+
+  /* 코드 */
+  pre {
+    background: var(--code-bg); color: var(--code-tx);
+    padding: 15px 18px; border-radius: 10px; overflow-x: auto;
+    font-size: 13.5px; line-height: 1.6; margin: 12px 0;
+    max-width: 100%;
+  }
+  code { font-family: "SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace; }
+  :not(pre) > code {
+    background: var(--inline-bg); color: var(--inline-tx);
+    padding: 1.5px 6px; border-radius: 5px; font-size: 0.88em;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .c-com { color: #8b949e; } .c-ok { color: #56d364; } .c-bad { color: #f85149; }
+  .c-key { color: #79c0ff; } .c-str { color: #a5d6ff; }
+
+  /* 안전/위험/정보 박스 */
+  .box { border-radius: 10px; padding: 14px 16px; border: 1px solid; font-size: 14px; }
+  .box h4 { margin: 0 0 8px; font-size: 14px; }
+  .box ul { margin: 0; padding-left: 18px; }
+  .box.safe   { background: var(--safe-bg);   border-color: var(--safe-bd);   }
+  .box.safe h4   { color: var(--safe-tx); }
+  .box.danger { background: var(--danger-bg); border-color: var(--danger-bd); }
+  .box.danger h4 { color: var(--danger-tx); }
+  .box.info   { background: var(--info-bg);   border-color: var(--info-bd);   }
+  .box.info h4   { color: var(--info-tx); }
+
+  /* 2단 그리드 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  /* grid/박스 칼럼이 내부 pre(긴 코드)에 밀려 넘치지 않도록 축소 허용 */
+  .grid2 > * { min-width: 0; }
+  .box { min-width: 0; }
+  .box pre { width: 100%; }
+
+  /* 콜아웃 노트 */
+  .note {
+    border-left: 4px solid var(--note-bd); background: var(--note-bg);
+    color: var(--text); padding: 11px 16px; border-radius: 0 8px 8px 0;
+    margin: 14px 0; font-size: 14px;
+  }
+  .note.warn { border-color: var(--danger-bd); background: var(--danger-bg); }
+  .note strong { color: var(--note-tx); }
+  .note.warn strong { color: var(--danger-tx); }
+
+  /* 비유 */
+  .analogy {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--accent-soft); border-radius: 10px;
+    padding: 13px 16px; margin: 14px 0; font-size: 14px;
+  }
+  .analogy .ico { font-size: 20px; }
+
+  /* 표 */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left;
+    word-break: break-word; overflow-wrap: anywhere; }
+  thead th { background: var(--bg); font-weight: 600; }
+  /* 칼럼 많은 표는 가로 스크롤로 감싸 넘침 방지 */
+  .table-scroll { overflow-x: auto; max-width: 100%; margin: 14px 0; }
+  .table-scroll table { margin: 0; }
+  .center { text-align: center; }
+  .yes { color: var(--safe-tx); font-weight: 700; }
+  .no  { color: var(--danger-tx); font-weight: 700; }
+
+  /* 강조 배너 (큰 결론) */
+  .principle {
+    background: var(--code-bg); color: #e6edf3;
+    border-radius: 12px; padding: 18px 22px; margin: 16px 0;
+  }
+  .principle .k { color: #79c0ff; }
+
+  /* =========================================================
+     EMPTY STATE & TO-TOP
+     ========================================================= */
+  #empty { display: none; text-align: center; color: var(--muted); padding: 60px 0; }
+  #toTop {
+    position: fixed; right: 24px; bottom: 24px;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    font-size: 18px; cursor: pointer; opacity: 0; pointer-events: none;
+    transition: opacity .2s; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  #toTop.show { opacity: 1; pointer-events: auto; }
+
+  /* =========================================================
+     RESPONSIVE
+     ========================================================= */
+  @media (max-width: 820px) {
+    .layout { flex-direction: column; }
+    .sidebar { position: static; width: 100%; max-height: none; }
+    .tagfilter { margin-top: 14px; }
+    .brand { display: none; }
+    .sector-head .desc { display: none; }
+  }
+  /* 좁은 화면: 2단 비교를 1단으로 쌓아 코드블록 넘침 방지 */
+  @media (max-width: 680px) {
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============== TOP BAR ============== -->
+  <header class="topbar">
+    <div class="brand">🐻 Zustand <span>·</span> 전역 상태 관리</div>
+    <div class="search-wrap">
+      <input id="search" type="text" placeholder="제목·내용·태그 검색…" autocomplete="off">
+    </div>
+    <span class="count" id="count"></span>
+    <button id="themeToggle" title="테마 전환">🌙</button>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============== SIDEBAR (자동 생성) ============== -->
+    <aside class="sidebar">
+      <div class="side-head">목차</div>
+      <nav id="toc"></nav>
+      <div class="side-head" style="margin-top:22px;">태그</div>
+      <div class="tagfilter" id="tagfilter"></div>
+    </aside>
+
+    <!-- ============== CONTENT ============== -->
+    <main class="content" id="content">
+
+      <div class="page-hero">
+        <h1>[섹션 4] 가볍고 강력한 전역 상태 관리 (Zustand)</h1>
+        <p class="sub">강의 요약 + 질문하며 쌓는 인사이트 노트</p>
+      </div>
+
+      <!-- ╔══════════════════════════════════════════════════════════╗
+           ║  SECTOR 1 — 강의 요약                                      ║
+           ╚══════════════════════════════════════════════════════════╝ -->
+      <div class="sector-head" id="sector-summary">
+        <span class="num">1</span>
+        <h2>강의 요약</h2>
+        <span class="desc">강의에서 다룬 핵심 개념 정리</span>
+      </div>
+
+
+      <!-- ══════════ 15강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-15"
+               data-section="summary"
+               data-title="15강. 왜 Zustand인가? — 확성기 효과와 관료주의를 넘어서"
+               data-tags="Zustand, Context API, Redux, 클라이언트 상태, 확성기 효과, selector, SSR, 상태 누수"
+               data-date="2026-06-21">
+        <header class="entry-head">
+          <h2>15강. 왜 Zustand인가?</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[철학] Context API의 확성기 효과와 Redux의 관료주의를 넘어서</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4</span>
+            <span class="chip">Context API</span><span class="chip">Redux</span>
+            <span class="chip">클라이언트 상태</span><span class="chip">selector</span><span class="chip">SSR</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🐻</span>
+          <span>서버 상태는 TanStack Query가, <b>가벼운 클라이언트 상태(다크모드·토글·장바구니)는 Zustand</b>가 맡는다. Context의 <b>확성기 효과</b>(불필요 리렌더)와 Redux의 <b>관료주의</b>(action·dispatch·reducer)를 모두 걷어내고, selector로 필요한 값만 구독해 <b>해당 컴포넌트의 어깨만 톡톡</b> 친다. Next.js에선 Provider 껍데기 없이 RSC 철학까지 지킨다.</span>
+        </div>
+
+        <!-- 1. 맥락 -->
+        <h3>1. 맥락 — 서버 상태에서 <strong>클라이언트 상태</strong>로</h3>
+        <p>지금까지 TanStack Query로 다룬 건 외부 서버에서 재료를 공수하는 <strong>서버 상태</strong>. 이번부터는 브라우저 안에서 즉각 반응해야 하는 <strong>클라이언트 상태</strong>를 다룬다.</p>
+        <div class="analogy">
+          <span class="ico">🍽️</span>
+          <div>TanStack Query = 외부에서 재료를 들여오는 <strong>주방 시스템</strong>(서버 상태) ·
+          Zustand = 매장 조명·장바구니처럼 <strong>매장 안에서 즉각 일어나는 일</strong>을 관리하는 지배인(클라이언트 상태).</div>
+        </div>
+        <ul>
+          <li>예: 다크모드 on/off · 모바일 사이드바 토글 · 장바구니 담은 상품 목록</li>
+          <li>서버까지 안 가도 되는, <strong>브라우저 내부에서 빠르고 가볍게 반응</strong>할 데이터</li>
+        </ul>
+        <div class="note">
+          <strong>비율</strong> 앱 데이터의 약 <strong>80%는 서버 상태</strong>(TanStack Query), <strong>20%가 UI 상태</strong>(Zustand). 이 분리가 이후 모든 선택의 근거.
+        </div>
+
+        <!-- 2. Context -->
+        <h3>2. Context API의 문제 — <code>'use client'</code> 껍데기 &amp; <strong>확성기 효과</strong></h3>
+        <p><strong>장점:</strong> 외부 라이브러리 설치가 필요 없다. <strong>그러나</strong> 두 가지 비용이 크다.</p>
+        <ul>
+          <li><strong>① 루트에 <code>'use client'</code> 강제</strong> — Context를 쓰려면 최상단 레이아웃을 <code>useState</code> 가진 Provider로 감싸야 하고, 그러면 루트에 <code>'use client'</code>가 붙는다. RSC 이점을 극대화해야 하는 Next.js 13+에서 구조적으로 우아하지 못하고 관리 포인트를 늘린다.</li>
+          <li><strong>② 확성기 효과</strong> — 값 하나만 바뀌어도 구독한 모든 컴포넌트가 리렌더된다.</li>
+        </ul>
+        <div class="analogy">
+          <span class="ico">📢</span>
+          <div><code>isDark</code> 변경 → Context가 매장 전체에 <strong>"조명 꺼졌습니다!" 확성기</strong>로 외침
+          → 조명과 무관한 <strong>냉장고·화분·냅킨까지 모두 멈추고 다시 그림</strong>. 매장이 커질수록 성능 낭비.</div>
+        </div>
+
+        <!-- 3. Redux -->
+        <h3>3. Redux의 <strong>관료주의</strong> — action · dispatch · reducer</h3>
+        <p>견고하지만, 스위치 하나 켜는 데도 거대한 절차가 필요하다.</p>
+        <div class="analogy">
+          <span class="ico">📋</span>
+          <div>전등 하나 켜는데 <strong>서류(Action) → 결재(Dispatch) → 장부(Reducer) 기록.</strong> 안전하지만 작은 일에도 절차가 과해 개발자를 지치게 한다.</div>
+        </div>
+        <ul>
+          <li>과거엔 서버 데이터+UI 상태를 <strong>Redux 하나로</strong> 관리 → 무거움을 감수할 이유가 있었음</li>
+          <li>지금은 서버 상태(80%)를 TanStack Query가 전담 → 남은 20% UI 상태에 Redux는 <strong>"압정 하나에 굴착기"</strong></li>
+        </ul>
+        <div class="note">
+          <strong>Redux Toolkit은?</strong> 보일러플레이트는 줄었지만 <strong>store 설정 + Provider로 앱 감싸기</strong>라는 관료주의의 본질은 그대로.
+        </div>
+
+        <!-- 4. Zustand 해법 -->
+        <h3>4. Zustand의 해법 — <strong>어깨 톡톡</strong> &amp; Provider 불필요</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>📢 Context — 확성기</h4>
+            <ul>
+              <li>루트에 <code>'use client'</code> Provider 강제</li>
+              <li>값 1개 변경 → 구독 전체 리렌더</li>
+              <li>무관한 컴포넌트까지 다시 그림</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>👉 Zustand — 어깨 톡톡</h4>
+            <ul>
+              <li>앱 전체 Provider 껍데기 불필요</li>
+              <li>selector로 <code>isDark</code>만 구독 → 그 버튼만 갱신</li>
+              <li>나머지는 서버 컴포넌트로 남음</li>
+            </ul>
+          </div>
+        </div>
+        <p>Zustand(독일어 "상태")는 구독이 필요한 <strong>작은 컴포넌트 최상단에만 <code>'use client'</code></strong>를 붙이면 된다.</p>
+        <div class="principle">
+          나머지 거대한 페이지·레이아웃은 모두 <span class="k">SEO 최적화</span>되고 <span class="k">렌더링 빠른 순수 서버 컴포넌트</span>로 남는다.
+          <br>→ 철학: <span class="k">복잡한 설정·무거운 절차를 걷어내</span> 개발자가 문제 해결에만 집중하게 한다.
+        </div>
+
+        <!-- 5. 문법 -->
+        <h3>5. 기본 문법 — <code>create</code> · <code>set</code> · selector · 자동 병합</h3>
+<pre><code><span class="c-key">import</span> { create } <span class="c-key">from</span> <span class="c-str">'zustand'</span>;
+
+<span class="c-key">interface</span> CounterState {
+  count: <span class="c-key">number</span>;
+  increment: () =&gt; <span class="c-key">void</span>;
+}
+
+<span class="c-key">export const</span> useCounterStore = create&lt;CounterState&gt;((set) =&gt; ({
+  count: <span class="c-key">0</span>,                                <span class="c-com">// 초기 상태</span>
+  increment: () =&gt; set((state) =&gt; ({ count: state.count + <span class="c-key">1</span> })),
+}));</code></pre>
+        <ul>
+          <li><code>create</code> — 저장소를 만드는 기계(데이터 상자의 출발점)</li>
+          <li><code>interface CounterState</code> — 상자에 무엇이 들어갈지 적는 <strong>설계도</strong></li>
+          <li><code>set</code> — 값을 바꾸는 <strong>유일한 전용 리모컨</strong>. 이걸 통해야 React가 리렌더를 눈치챈다</li>
+        </ul>
+        <div class="note">
+          <strong>자동 병합</strong> <code>useState</code>와 달리 <code>...state</code> 복사 없이 <strong>바꿀 값만 던지면</strong> Zustand가 나머지와 합쳐준다.
+        </div>
+<pre><code><span class="c-key">const</span> count = useCounterStore((state) =&gt; state.count);
+<span class="c-com">//                              ^^^^^^^^^^^^^^^^^^^^ selector — 필요한 값만 집어옴</span></code></pre>
+        <p>창고에서 <strong>필요한 <code>count</code>만</strong> 집어오므로, 다른 값이 바뀌어도 이 컴포넌트는 조용히 자기 일만 한다 → <strong>확성기 효과 차단</strong>.</p>
+
+        <!-- 6. SSR & 상태 누수 -->
+        <h3>6. 서버-클라이언트 결합 &amp; <strong>상태 누수</strong> — <code>createStore</code> + Provider</h3>
+        <div class="note warn">
+          <strong>⚠️ 상태 누수(state bleeding)</strong> Next.js 서버는 24시간 켜진 <strong>공용 주방</strong>. 전역 변수로 상태를 두면 여러 사용자가 한 프로세스를 공유해 <strong>A 손님의 데이터가 B 손님 요리에 섞인다.</strong> → 손님마다 <strong>개인용 소금통</strong>이 필요.
+        </div>
+<pre><code><span class="c-com">// store/counterStore.ts</span>
+<span class="c-key">import</span> { createStore } <span class="c-key">from</span> <span class="c-str">'zustand/vanilla'</span>;
+
+<span class="c-key">export const</span> createCounterStore = (initCount: <span class="c-key">number</span>) =&gt; {
+  <span class="c-key">return</span> createStore&lt;CounterState&gt;((set) =&gt; ({
+    count: initCount,
+    increment: () =&gt; set((s) =&gt; ({ count: s.count + <span class="c-key">1</span> })),
+  }));
+};</code></pre>
+        <ul>
+          <li><code>createStore</code>(<code>zustand/vanilla</code>) — React와 분리된 <strong>순수 데이터 상자</strong>. 서버는 화면을 그리는 곳이 아니므로 더 가볍고 독립적인 이 도구를 쓴다.</li>
+          <li><code>createCounterStore(initCount)</code> — 상자가 아니라 <strong>"상자를 만드는 공장"</strong>. 접속할 때마다 실행해 <strong>그 손님만의 깨끗한 상자</strong>를 만든다(체크인마다 새 비누).</li>
+        </ul>
+        <h4 style="margin:14px 0 6px;font-size:14px;">데이터 여정 (서버 → 화면)</h4>
+        <ol>
+          <li>서버 컴포넌트가 DB에서 사용자 정보를 가져옴</li>
+          <li>그 정보를 <strong>공장 함수에 넣어 전용 store 인스턴스</strong> 생성</li>
+          <li>인스턴스(명함)를 <strong>Provider 우산</strong>에 담아 앱에 뿌림</li>
+          <li>클라이언트는 재요청 없이 <strong>서버가 채운 초기 상태를 그대로 물려받아</strong> 빠르게 렌더</li>
+        </ol>
+        <div class="note">
+          <strong>Provider 성능 걱정은?</strong> Provider엔 변하는 값이 아니라 <strong>고정된 store 인스턴스만</strong> 담는다(<code>value={storeRef.current}</code>). 전화번호(명함)는 값이 바뀌어도 안 변하므로 <strong>하위를 줄줄이 리렌더시키지 않는다.</strong> 각 컴포넌트는 자기 selector로만 구독.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · 서버 상태=TanStack Query, <span class="k">클라이언트 상태=Zustand</span>
+          · Context=확성기(전체 리렌더), Redux=관료주의(절차 과다)
+          · Zustand=<span class="k">selector로 필요한 값만 구독</span>(어깨 톡톡) + Provider 껍데기 불필요
+          · 서버에선 <span class="k">요청마다 store 인스턴스를 새로 찍어</span> 상태 누수 방지(Provider엔 인스턴스만)
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (16강)</strong> ① 서버에서 가져온 초기 장바구니 데이터를 store에 미리 채우기 ② localStorage 저장 시 발생하는 <strong>Hydration Mismatch</strong>를 서버 렌더링 지원 없이 우아하게 해결하기.
+        </div>
+      </article>
+
+      <!-- ══════════ 16강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-16"
+               data-section="summary"
+               data-title="16강. 서버 오염 방지 — 싱글톤의 위험성과 App Router 전용 Provider 패턴"
+               data-tags="Zustand, SSR, 상태 누수, 싱글톤, Provider, createStore, 하이드레이션"
+               data-date="2026-06-21">
+        <header class="entry-head">
+          <h2>16강. 렌더링 지연 없는 Store 구성</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[서버 오염 방지] 싱글톤의 위험성과 App Router 전용 Provider 패턴</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4</span>
+            <span class="chip">상태 누수</span><span class="chip">싱글톤</span>
+            <span class="chip">Provider 패턴</span><span class="chip">SSR</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🐻</span>
+          <span>"Zustand는 Provider 불필요"는 <b>SPA 한정</b>. App Router(서버+SSR)에선 전역 싱글톤 store가 <b>모든 사용자에게 공유되어 상태 누수(보안 사고)</b>를 낸다. 해법은 <b>요청마다 store 인스턴스를 새로 찍어 Provider로 전달</b>. 단 Provider엔 변하는 값이 아니라 <b>store 인스턴스(명함)만</b> 담아 폭포수 렌더링을 피한다.</span>
+        </div>
+
+        <!-- 0. 모순 해소 -->
+        <h3>0. 15강과의 "모순" 짚기</h3>
+        <p>15강: "Zustand는 앱 감싸는 껍데기가 필요 없다" → 16강: "Provider 패턴을 배운다". 모순처럼 보이지만 <strong>환경이 다르다.</strong></p>
+        <div class="note">
+          <strong>핵심</strong> SPA에선 Provider 불필요가 맞고, <strong>Next.js 서버 환경</strong>에선 누수 방지를 위해 Provider를 다시 쓴다. 단 Context와 달리 <strong>"담는 내용"이 다르다</strong>(아래 4번 — Provider엔 변하는 값이 아니라 store 인스턴스만).
+        </div>
+
+        <!-- 1. 기초 문법 -->
+        <h3>1. 기초 문법 복습 — <code>create</code> · <code>set</code> · 함수형 업데이트</h3>
+<pre><code><span class="c-key">import</span> { create } <span class="c-key">from</span> <span class="c-str">'zustand'</span>;
+
+<span class="c-key">interface</span> CounterState {
+  count: <span class="c-key">number</span>;
+  increment: () =&gt; <span class="c-key">void</span>;
+  decrement: () =&gt; <span class="c-key">void</span>;
+}
+
+<span class="c-key">export const</span> useCounterStore = create&lt;CounterState&gt;((set) =&gt; ({
+  count: <span class="c-key">0</span>,
+  increment: () =&gt; set((state) =&gt; ({ count: state.count + <span class="c-key">1</span> })),
+  decrement: () =&gt; set((state) =&gt; ({ count: state.count - <span class="c-key">1</span> })),
+}));</code></pre>
+        <ul>
+          <li><strong>상태 + 액션이 한 집에</strong> — 데이터(<code>count</code>)와 그걸 바꾸는 행동(<code>increment</code>)을 한 객체에 묶는다.</li>
+          <li><strong><code>set</code>이 유일한 변경 도구</strong> — 직접 값을 꽂으면 React가 변경을 모르고 화면을 안 그린다. 반드시 <code>set</code>을 통해야 리렌더 신호가 간다.</li>
+          <li><strong>함수형 업데이트</strong> <code>set((state) =&gt; ...)</code> — 매개변수 <code>state</code>는 <strong>항상 최신값</strong>. 버튼을 다다닥 눌러도 이전 값을 안전히 가져와 +1. (useState 함수형 업데이트와 동일 원리)</li>
+          <li><strong>자동 병합</strong> — <code>count</code>만 던져도 <code>name</code>·<code>age</code> 등 나머지는 그대로 유지. <code>...state</code> 복사 불필요.</li>
+        </ul>
+
+        <!-- 2. 렌더링 차이 -->
+        <h3>2. 폭포수(useState/Context) vs 어깨 톡톡(Zustand)</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>🌊 폭포수 렌더링</h4>
+            <ul>
+              <li>최상위 <code>useState</code> → props/context로 전달</li>
+              <li>상태 하나 변경 → 부모+모든 자식 줄줄이 리렌더</li>
+              <li>"위에서 물 부으면 아래가 다 젖음"</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>👉 어깨 톡톡 렌더링</h4>
+            <ul>
+              <li>selector로 필요한 값만 콕 구독</li>
+              <li>구독한 <code>count</code>가 그대로면 다른 게 수백 번 바뀌어도 미동 없음</li>
+              <li>교실에서 필요한 학생 어깨만 톡톡</li>
+            </ul>
+          </div>
+        </div>
+        <p><strong>SPA라면</strong> <code>create</code> + hook 하나로 상태 관리가 끝난다. 문제는 다음.</p>
+
+        <!-- 3. 상태 누수 -->
+        <h3>3. 왜 전역 싱글톤 store가 서버에서 위험한가 — <strong>상태 누수</strong></h3>
+        <div class="note warn">
+          <strong>⚠️ 상태 오염 시나리오</strong> Next.js 서버는 24시간 켜진 <strong>공용 주방(단일 프로세스)</strong>.
+          전역 store를 하나만 두면 → <strong>A 손님이 카운터를 1로 올림 → 공용 메모리가 1로 변경 → B 손님 화면에도 1이 노출.</strong>
+          남의 장바구니·개인정보가 보이는 <strong>대형 보안 사고</strong>.
+        </div>
+        <p>브라우저는 사용자 PC마다 store가 독립 생성돼 문제없다. <strong>위험한 건 서버 쪽</strong> — 여러 요청이 한 메모리를 공유하기 때문.</p>
+
+        <!-- 4. 해법: Provider 패턴 -->
+        <h3>4. 해법 — 요청마다 store 인스턴스 + Provider (명함만 전달)</h3>
+        <p>손님이 접속할 때마다 <strong>그 손님 전용 store를 새로 찍어</strong> 쥐여준다. 이때 Provider는 <strong>"전용 직원의 명함(전화번호)"만</strong> 배급한다.</p>
+        <div class="analogy">
+          <span class="ico">📇</span>
+          <div>확성기로 "카운터 1로 바뀜!" 외치는 게 아니라(=Context),
+          <strong>"A손님 담당 직원 번호는 010-1234-5678"이라고 명함만 한 번 돌리고 끝.</strong>
+          명함은 상태가 변해도 안 바뀌므로 <strong>하위가 줄줄이 리렌더되지 않는다.</strong> 자식은 명함을 보고 직원에게 직접 연락해 selector로 필요한 값만 받는다.</div>
+        </div>
+<pre><code><span class="c-com">// 1) 사용자별 독립 store 공장 (zustand/vanilla)</span>
+<span class="c-key">export const</span> createCounterStore = (initCount: <span class="c-key">number</span>) =&gt; {
+  <span class="c-key">return</span> createStore&lt;CounterState&gt;((set) =&gt; ({
+    count: initCount,                                  <span class="c-com">// 서버가 채운 초기값</span>
+    increment: () =&gt; set((s) =&gt; ({ count: s.count + <span class="c-key">1</span> })),
+  }));
+};
+
+<span class="c-com">// 2) Provider 우산 — value엔 '명함(인스턴스)'만</span>
+<span class="c-key">export function</span> CounterProvider({ children, initCount }) {
+  <span class="c-key">const</span> storeRef = useRef();
+  <span class="c-key">if</span> (!storeRef.current) {
+    storeRef.current = createCounterStore(initCount); <span class="c-com">// 1회만 생성</span>
+  }
+  <span class="c-key">return</span> (
+    &lt;CounterContext.Provider value={storeRef.current}&gt;
+      {children}
+    &lt;/CounterContext.Provider&gt;
+  );
+}
+
+<span class="c-com">// 3) 자식: 명함으로 직원에게 연락해 필요한 값만 구독</span>
+<span class="c-key">const</span> count = useCounter((state) =&gt; state.count);</code></pre>
+        <ul>
+          <li><code>createCounterStore(initCount)</code> — 상자가 아니라 <strong>"상자 공장"</strong>. 접속마다 깨끗한 상자를 찍고 <code>initCount</code>(서버 조사 초기 데이터)를 미리 채운다.</li>
+          <li><code>useRef</code> + <code>if (!storeRef.current)</code> — 리렌더돼도 <strong>새 상자를 또 만들지 않게</strong> 처음 그 상자를 붙잡는 끈.</li>
+          <li><code>value={storeRef.current}</code> — 변하는 숫자가 아니라 <strong>전화번호(명함)만</strong> 담음 → 폭포수 차단.</li>
+        </ul>
+
+        <!-- 5. 데이터 흐름 -->
+        <h3>5. 완성된 흐름 (서버 → 화면, 지연 0)</h3>
+        <ol>
+          <li>서버가 접속마다 <strong>사용자 전용 store 인스턴스</strong>를 새로 생성 → 상태 섞임 원천 차단</li>
+          <li>서버 컴포넌트가 <strong>DB를 먼저 조회</strong>해 초기 데이터(예: 장바구니) 확보</li>
+          <li>그 데이터를 store(전담 직원)에 쥐여주고 <strong>명함을 Provider로 배포</strong></li>
+          <li>클라이언트는 재요청 없이 <strong>서버가 채운 초기 상태를 그대로 물려받아</strong> 빠르고 부드럽게 렌더</li>
+        </ol>
+        <div class="principle">
+          <strong>✅ 아키텍처의 꽃</strong> Next.js의 <span class="k">서버 데이터 패칭</span> + Zustand의 <span class="k">섬세한 클라 상태 관리</span>를
+          <span class="k">지연 시간 없이</span> 결합. Provider를 쓰되 <span class="k">명함(인스턴스)만 넘겨</span> Context의 폭포수는 피한다.
+        </div>
+
+        <!-- 6. 검증 -->
+        <h3>6. 동작 검증 체크리스트 (강의 노트)</h3>
+        <ul>
+          <li><strong>초기 데이터 전달</strong> — 접속 즉시 로딩 없이 서버 초기값(예: 10)이 바로 보이는가</li>
+          <li><strong>오염 차단</strong> — 창 2개 중 한쪽에서 숫자를 올려도, 다른 쪽 새로고침 시 초기값 그대로인가</li>
+          <li><strong>렌더 성능</strong> — React DevTools 하이라이트로 숫자만 반짝이고 로고·메뉴바는 가만히 있는가</li>
+          <li><strong>하이드레이션 일치</strong> — 새로고침 시 0 → 10으로 튀는 깜빡임이 없는가</li>
+        </ul>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (17강)</strong> 일반 <code>create</code> 대신 <strong><code>createStore</code>(<code>zustand/vanilla</code>) + React 19 최신 Context 문법</strong>으로 이 "명함표"를 직접 구현.
+        </div>
+      </article>
+
+      <!-- ══════════ 17강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-17"
+               data-section="summary"
+               data-title="17강. 안전한 스토어 공장 — createStore 바닐라 + React 19 use 훅"
+               data-tags="Zustand, createStore, vanilla, Provider, useState 지연초기화, React 19, use 훅, SSR">
+        <header class="entry-head">
+          <h2>17강. 안전한 스토어 공장 세우기</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[실전 구현] createStore 바닐라 모드와 React 19 use 훅의 만남</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4</span>
+            <span class="chip">createStore</span><span class="chip">vanilla</span>
+            <span class="chip">use 훅</span><span class="chip">React 19</span><span class="chip">SSR</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🏭</span>
+          <span>16강 이론(요청별 store + 명함만 전달)을 <b>코드 3단계</b>로 구현. ① <code>createStore</code>(<b>zustand/vanilla</b>)로 React와 분리된 store <b>공장</b> → ② <code>'use client'</code> Provider에서 <b><code>useState</code> 지연 초기화</b>로 1회만 생성(React 19 동시성 안전, useRef보다 권장) → ③ React 19 <b><code>use</code> 훅</b>으로 Context를 꺼내는 전용 훅. 마지막에 <b>persist의 hydration 불일치</b> 문제 예고.</span>
+        </div>
+
+        <h3>왜 <code>create</code>가 아니라 <code>createStore</code>(vanilla)인가</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>🧷 create (기본) — 서버에서 위험</h4>
+            <ul>
+              <li>만들어지는 순간 <strong>React와 결합된 전역 변수</strong></li>
+              <li>서버 메모리에 <strong>단 하나로 고정</strong> → 요청 간 공유</li>
+              <li>A 손님 장바구니를 B 손님이 봄(누수)</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>📓 createStore (vanilla) — 공장 가능</h4>
+            <ul>
+              <li>React 사이클과 <strong>독립된 순수 JS store 객체</strong></li>
+              <li>훅에 고정 안 됨 → <strong>요청마다 새로 찍기</strong> 유리</li>
+              <li>접속자별 깨끗한 인스턴스(명함) 생성</li>
+            </ul>
+          </div>
+        </div>
+        <div class="analogy">
+          <span class="ico">📓</span>
+          <div><code>create</code> = <strong>벽에 고정된 게시판</strong>(공용) · <code>createStore</code> = <strong>가방에 쏙 들어가는 개인 수첩</strong>. 손님마다 새 수첩을 꺼내주기 좋다.</div>
+        </div>
+
+        <h3>1단계 — store 공장 (createStore factory)</h3>
+<pre><code><span class="c-com">// src/store/cartStore.ts</span>
+<span class="c-key">import</span> { createStore } <span class="c-key">from</span> <span class="c-str">'zustand/vanilla'</span>;
+
+<span class="c-key">export interface</span> CartState { items: <span class="c-key">number</span>; add: () =&gt; <span class="c-key">void</span>; }
+
+<span class="c-key">export const</span> createCartStore = (initState: <span class="c-key">number</span> = <span class="c-key">0</span>) =&gt; {
+  <span class="c-key">return</span> createStore&lt;CartState&gt;()((set) =&gt; ({
+    items: initState,                                  <span class="c-com">// 서버 초기값 주입구</span>
+    add: () =&gt; set((s) =&gt; ({ items: s.items + <span class="c-key">1</span> })),
+  }));
+};</code></pre>
+        <ul>
+          <li><strong>공장 함수</strong> — 상자가 아니라 "상자 만드는 공장". 호출마다 <strong>새 메모리에 독립 store</strong> 생성.</li>
+          <li><code>initState</code> — 서버가 미리 조사한 초기 데이터를 채우는 입구(기본 0).</li>
+          <li><code>createStore&lt;T&gt;()(...)</code>의 <strong>빈 괄호 <code>()</code></strong> — TS 추론을 위한 curried 시그니처(타입만 주고 구현은 다음 괄호).</li>
+        </ul>
+
+        <h3>2단계 — Provider (명함 배급소)</h3>
+<pre><code><span class="c-bad">'use client'</span>;
+<span class="c-key">import</span> { createContext, useState } <span class="c-key">from</span> <span class="c-str">'react'</span>;
+<span class="c-key">import</span> { createCartStore } <span class="c-key">from</span> <span class="c-str">'../store/cartStore'</span>;
+
+<span class="c-key">export const</span> CartContext = createContext&lt;ReturnType&lt;<span class="c-key">typeof</span> createCartStore&gt; | <span class="c-key">null</span>&gt;(<span class="c-key">null</span>);
+
+<span class="c-key">export function</span> CartProvider({ children, initialItems = <span class="c-key">0</span> }) {
+  <span class="c-key">const</span> [store] = useState(() =&gt; createCartStore(initialItems)); <span class="c-com">// 지연 초기화: 1회만</span>
+  <span class="c-key">return</span> &lt;CartContext value={store}&gt;{children}&lt;/CartContext&gt;;       <span class="c-com">// React 19: .Provider 생략</span>
+}</code></pre>
+        <div class="note">
+          <strong><code>'use client'</code>의 진짜 의미</strong> "이 컴포넌트부터 클라에서만 렌더"가 <u>아니라</u> "<strong>브라우저 전용 API가 있으니 클라 JS 번들에 포함</strong>"하라는 뜻. <strong><code>children</code>을 prop으로 받는 패턴</strong>이라, Provider가 클라여도 <strong>children은 여전히 서버에서 HTML로 렌더</strong>되어 내려온다. (우산은 클라, 내용물은 서버)
+        </div>
+        <div class="note warn">
+          <strong>⭐ 핵심 꿀팁 — <code>useState</code> 지연 초기화</strong> 과거엔 <code>useRef</code>로 store를 담았지만, <strong>React 19 동시성 렌더링</strong>에선 렌더가 중단·재실행될 수 있다. <code>useState(() =&gt; createCartStore(...))</code>처럼 <strong>콜백</strong>을 주면 <strong>최초 1회만 안전하게</strong> 인스턴스를 만들어 더 완벽한 방어책. (<code>useRef</code> 패턴 대체)
+        </div>
+        <div class="note">
+          <strong>React 19 Context 문법</strong> <code>&lt;CartContext.Provider value={...}&gt;</code> 대신 <strong><code>&lt;CartContext value={...}&gt;</code></strong>로 <code>.Provider</code> 생략 가능.
+        </div>
+
+        <h3>3단계 — 전용 훅 (React 19 <code>use</code>)</h3>
+<pre><code><span class="c-key">import</span> { use } <span class="c-key">from</span> <span class="c-str">'react'</span>;
+<span class="c-key">import</span> { useStore } <span class="c-key">from</span> <span class="c-str">'zustand'</span>;
+
+<span class="c-key">export function</span> useCartStore&lt;T&gt;(selector: (s: CartState) =&gt; T): T {
+  <span class="c-key">const</span> store = use(CartContext);                <span class="c-com">// useContext보다 간결</span>
+  <span class="c-key">if</span> (!store) <span class="c-key">throw new</span> Error(<span class="c-str">'CartProvider 안에서 사용하세요'</span>);
+  <span class="c-key">return</span> useStore(store, selector);             <span class="c-com">// vanilla store ↔ React 연결 + selector 구독</span>
+}</code></pre>
+        <ul>
+          <li><code>use(CartContext)</code> — React 19 신규 훅. <code>useContext</code>를 대체해 명함(store 인스턴스)을 꺼냄.</li>
+          <li><strong>null 가드</strong> — Provider 우산 밖에서 쓰면 에러로 방어.</li>
+          <li><code>useStore(store, selector)</code> — <strong>바닐라 store를 React에 연결</strong>하고, 16강의 <strong>selector "어깨 톡톡"</strong>이 그대로 작동.</li>
+        </ul>
+
+        <h3>조립 — 데이터의 여정 (서버 → 화면, 지연 0)</h3>
+<pre><code><span class="c-com">// src/app/page.tsx (서버 컴포넌트)</span>
+<span class="c-key">export default async function</span> Page() {
+  <span class="c-key">const</span> initialItemsFromDB = <span class="c-key">7</span>;        <span class="c-com">// 서버에서 DB 조회</span>
+  <span class="c-key">return</span> (
+    &lt;CartProvider initialItems={initialItemsFromDB}&gt;  <span class="c-com">// 서버 데이터 물고 클라 우산 씌움</span>
+      &lt;CartCounter /&gt;
+    &lt;/CartProvider&gt;
+  );
+}</code></pre>
+        <ol>
+          <li><strong>서버 출발</strong> — 화면 뜨기 전 DB에서 "이 손님 장바구니 7개" 확인</li>
+          <li><strong>배달</strong> — 7을 <code>CartProvider</code> props로 전달 → 배급소가 7 채운 새 store 생성</li>
+          <li><strong>수령</strong> — <code>CartCounter</code>가 <code>useCartStore</code>로 명함 확인 → 이미 7. 버튼 누르면 7부터 증가</li>
+          <li><strong>워터폴 타파</strong> — 서버가 HTML+데이터를 묶어 보내 <strong>재요청 지연 0</strong></li>
+        </ol>
+
+        <div class="principle">
+          <strong>✅ 3단계 정리</strong>
+          <span class="k">① createStore(vanilla)로 공장</span> → <span class="k">② 'use client' Provider + useState 지연초기화</span> → <span class="k">③ use 훅으로 전용 훅</span>.
+          접속자별 독립 장바구니 + 서버 초기값을 지연 없이 = 16강 이론의 코드 완성.
+        </div>
+
+        <div class="note warn">
+          <strong>⚠️ 남은 치명적 문제 → 다음 강(18강)</strong> F5 새로고침 시 메모리 상태가 날아감. <code>persist</code>(localStorage)로 저장하면 되지만 — <strong>서버 초기 HTML(0개) ≠ localStorage(3개)</strong>면 <strong>Hydration 불일치 에러</strong>. 18강에서 <code>persist</code> 장착 + 이 에러를 우아하게 해결.
+        </div>
+      </article>
+
+      <!-- ══════════ 18강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-18"
+               data-section="summary"
+               data-title="18강. 지속성 — persist 미들웨어와 하이드레이션 불일치 해결"
+               data-tags="Zustand, persist, localStorage, skipHydration, rehydrate, 하이드레이션, isMounted, SSR">
+        <header class="entry-head">
+          <h2>18강. 새로고침에도 끄떡없는 데이터</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[지속성] Persist 미들웨어와 하이드레이션 불일치 완벽 해결</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4</span>
+            <span class="chip">persist</span><span class="chip">skipHydration</span>
+            <span class="chip">rehydrate</span><span class="chip">하이드레이션</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🔒</span>
+          <span><code>persist</code> 미들웨어로 store를 <b>localStorage</b>에 저장 → 새로고침에도 생존. 하지만 <b>서버 HTML(0개) ≠ localStorage(5개)</b> → <b>하이드레이션 불일치 에러</b>. 해법: <b><code>skipHydration: true</code></b>로 자동 주입을 멈추고, Provider의 <b><code>useEffect</code>에서 <code>persist.rehydrate()</code></b>를 안전한 타이밍에 수동 호출. 남은 0→5 깜빡임은 <b><code>isMounted</code> 전략</b>으로 차단.</span>
+        </div>
+
+        <h3>0. Persist란 — Cache와 헷갈리지 말 것</h3>
+        <p><code>persist</code>(지속되다) = 휘발성 RAM의 상태를 <strong>localStorage(영구 창고)</strong>에 저장해 새로고침·재부팅에도 살아남게.</p>
+        <div class="grid2">
+          <div class="box info">
+            <h4>🚀 Cache (TanStack Query)</h4>
+            <ul>
+              <li>목적: <strong>속도</strong> 최적화(빨리 가져오기)</li>
+              <li>유통기한 지나면 사라짐</li>
+            </ul>
+          </div>
+          <div class="box info">
+            <h4>🔒 Persist (Zustand)</h4>
+            <ul>
+              <li>목적: <strong>생존</strong>(오래 보존)</li>
+              <li>사용자가 비우기 전까지 영구</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>1. persist 미들웨어 적용 (store 공장)</h3>
+<pre><code><span class="c-key">import</span> { persist, createJSONStorage } <span class="c-key">from</span> <span class="c-str">'zustand/middleware'</span>;
+
+<span class="c-key">export const</span> createCartStore = (initState = <span class="c-key">0</span>) =&gt;
+  createStore&lt;CartState&gt;()(
+    persist(
+      (set) =&gt; ({ items: initState, add: () =&gt; set((s) =&gt; ({ items: s.items + <span class="c-key">1</span> })) }),
+      {
+        name: <span class="c-str">'cart-storage'</span>,                      <span class="c-com">// localStorage 키(이름표)</span>
+        storage: createJSONStorage(() =&gt; localStorage),
+        skipHydration: <span class="c-key">true</span>,                     <span class="c-com">// ⭐ 자동 주입 OFF</span>
+      }
+    )
+  );</code></pre>
+        <ul>
+          <li><code>persist(레시피, 옵션)</code> — store 로직을 감싸 변경 시마다 자동 저장.</li>
+          <li><code>name</code> — 창고에서 우리 데이터를 찾는 키.</li>
+          <li><code>storage: createJSONStorage(() =&gt; localStorage)</code> — 저장소 지정.</li>
+          <li><strong><code>skipHydration: true</code></strong> — 핵심. 아래 참고.</li>
+        </ul>
+        <div class="note">
+          <strong>💡 <code>typeof window</code> 방어코드가 불필요한 이유</strong> <code>skipHydration: true</code>면 <strong>서버 렌더 중엔 localStorage 근처에도 안 간다.</strong> 그래서 <code>() =&gt; localStorage</code>만 깔끔히 적어도 서버 에러가 안 난다(덕지덕지 방어코드 불필요).
+        </div>
+
+        <h3>2. 왜 <code>skipHydration</code>이 필요한가 — 불일치의 원리</h3>
+        <div class="note warn">
+          <strong>⚠️ 충돌 시나리오</strong> 서버는 개인 localStorage를 <strong>못 봄</strong> → 장바구니 <strong>0</strong>인 정적 HTML 전송. 브라우저는 받자마자 localStorage의 <strong>5</strong>를 보고 0을 무시하고 5를 그리려 함 → <strong>서버 설계도 ≠ 브라우저 데이터 = Hydration 불일치 에러.</strong>
+        </div>
+        <p><code>skipHydration: true</code> → 브라우저도 처음엔 서버와 똑같이 <strong>0을 그리도록 강제</strong>(브레이크). 진짜 데이터 5는 <strong>첫 렌더가 평화롭게 끝난 직후 수동 주입</strong>.</p>
+
+        <h3>3. 수동 복구 — Provider의 <code>useEffect</code> + <code>rehydrate()</code></h3>
+<pre><code><span class="c-bad">'use client'</span>;
+<span class="c-key">export function</span> CartProvider({ children, initialItems = <span class="c-key">0</span> }) {
+  <span class="c-key">const</span> [store] = useState(() =&gt; createCartStore(initialItems));
+
+  useEffect(() =&gt; {
+    <span class="c-com">// 바닐라 store엔 persist 타입이 안 보임 → any 대신 정확한 캐스팅</span>
+    <span class="c-key">type</span> PersistedStore = Mutate&lt;StoreApi&lt;CartState&gt;, [[<span class="c-str">"zustand/persist"</span>, unknown]]&gt;;
+    (store <span class="c-key">as unknown as</span> PersistedStore).persist.rehydrate(); <span class="c-com">// 안전한 타이밍에 복구</span>
+  }, [store]);
+
+  <span class="c-key">return</span> &lt;CartContext value={store}&gt;{children}&lt;/CartContext&gt;;
+}</code></pre>
+        <ul>
+          <li><strong><code>useEffect</code></strong> — 화면이 브라우저에 <strong>무사히 그려진 직후</strong>에만 실행 → 충돌 없는 시점에 창고 오픈.</li>
+          <li><strong>타입 캐스팅</strong> — 바닐라 store는 TS가 <code>persist</code> 추가를 모름. <code>any</code> 눈가림 대신 <code>Mutate&lt;StoreApi&lt;T&gt;, [["zustand/persist", unknown]]&gt;</code>로 정확히.</li>
+          <li><code>use</code> 훅 덕에 커스텀 훅이 <code>undefined</code> 반환 없이 깔끔(예외처리 고통 제거).</li>
+        </ul>
+
+        <h3>4. 남은 깜빡임(0→5) — <code>isMounted</code> 전략</h3>
+        <p>에러는 사라졌지만 새로고침 찰나 <strong>0이 보였다 5로 바뀌는</strong> 깜빡임이 남는다. 소비 컴포넌트에서 차단:</p>
+<pre><code><span class="c-bad">'use client'</span>;
+<span class="c-key">function</span> CartCounter() {
+  <span class="c-key">const</span> [isMounted, setIsMounted] = useState(<span class="c-key">false</span>);
+  <span class="c-key">const</span> items = useCartStore((s) =&gt; s.items);
+  useEffect(() =&gt; { setIsMounted(<span class="c-key">true</span>); }, []);
+
+  <span class="c-key">if</span> (!isMounted) <span class="c-key">return</span> &lt;div&gt;복구 중...&lt;/div&gt;;  <span class="c-com">// 서버 & 첫 클라 렌더 동일 → 일치</span>
+  <span class="c-key">return</span> &lt;div&gt;{items}&lt;/div&gt;;                      <span class="c-com">// 마운트 후 실제 값</span>
+}</code></pre>
+        <div class="note">
+          <strong>원리</strong> 서버(항상 <code>false</code>)와 <strong>브라우저 첫 렌더(아직 <code>false</code>)</strong>가 둘 다 "복구 중..."을 그림 → <strong>100% 일치</strong> → 하이드레이션 성공. 직후 <code>useEffect</code>로 <code>true</code> → 리렌더 → 실제 값. <strong>레이아웃 시프트 방지</strong>(스켈레톤으로 공간 확보)도 덤.
+        </div>
+        <div class="note">
+          <strong>📝 과제(강의)</strong> 깜빡임 대신 스피너를 더 우아하게 → persist의 <code>onRehydrateStorage</code> 콜백으로 "복구 완료" 플래그를 <code>true</code>로 만들고 그전까지 스피너 분기.
+        </div>
+
+        <h3>5. 보너스 — 또 다른 하이드레이션 에러 (별개 원인)</h3>
+        <table>
+          <thead><tr><th>유형</th><th>원인</th><th>해결</th></tr></thead>
+          <tbody>
+            <tr><td>데이터 불일치</td><td>서버 0 vs localStorage 5</td><td><code>skipHydration</code> + <code>useEffect</code> rehydrate</td></tr>
+            <tr><td>외부 속성 주입</td><td>브라우저 확장이 <code>&lt;html&gt;</code>에 속성 추가</td><td><code>&lt;html suppressHydrationWarning&gt;</code> (html/body에만)</td></tr>
+          </tbody>
+        </table>
+        <div class="note warn">
+          <strong>⚠️ 혼동 주의</strong> <code>suppressHydrationWarning</code>은 <strong>확장프로그램 낙서용</strong>(html/body 태그 한정)이지, 우리 <strong>데이터 불일치 해결책이 아니다.</strong> 데이터는 위 <code>isMounted</code>/<code>skipHydration</code>으로.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 정리</strong> <span class="k">persist + createJSONStorage</span>로 영속 →
+          <span class="k">skipHydration</span>으로 첫 렌더 충돌 차단 →
+          <span class="k">useEffect rehydrate</span>로 수동 복구 →
+          <span class="k">isMounted</span>로 깜빡임/시프트 제거.
+          Cache(속도·TanStack) ≠ Persist(생존·Zustand).
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (19강)</strong> localStorage를 넘어 <strong>실제 서버 DB와 실시간 동기화</strong> — Next 16 <strong>Server Actions + Zustand</strong> 결합.
+        </div>
+
+        <div class="note">
+          <strong>🔎 정확성 한 줄</strong> 강의가 "PPR(Next 15+)이 기본이라 불일치가 더 잦다"고 했는데, <strong>PPR은 아직 실험적(기본 아님)</strong>이고 이 불일치는 <strong>PPR과 무관하게 일반 SSR + localStorage 조합에서 발생</strong>한다. 해결 패턴(skipHydration·rehydrate·isMounted) 자체는 정확. → 자세히는 인사이트의 <em>"18강 팩트체크"</em>(필요시 추가).
+        </div>
+      </article>
+
+      <!-- ══════════ 19강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-19"
+               data-section="summary"
+               data-title="19강. 풀스택 동기화 — Server Actions와 낙관적 업데이트(Optimistic UI)"
+               data-tags="Zustand, Server Actions, use server, Optimistic UI, 낙관적 업데이트, useTransition, 롤백, 풀스택">
+        <header class="entry-head">
+          <h2>19강. 브라우저와 DB의 실시간 연동</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[풀스택 동기화] Server Actions와 낙관적 업데이트(Optimistic UI)</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4</span>
+            <span class="chip">Server Actions</span><span class="chip">Optimistic UI</span>
+            <span class="chip">useTransition</span><span class="chip">롤백</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">⚡</span>
+          <span>localStorage만으론 부족(크로스 기기·결제) → <b>Server Actions</b>로 DB 동기화. 핵심은 <b>낙관적 업데이트</b>: 서버 응답을 <b>기다리지 않고 화면부터 즉시</b> 갱신, 백그라운드로 서버 저장, 실패 시 <b>롤백</b>. 롤백은 <b>고정값 덮어쓰기 대신 상대값(-1)</b>으로 해 연속 클릭(race) 방어. 버튼 로딩은 <code>useTransition</code>의 <code>isPending</code>으로.</span>
+        </div>
+
+        <h3>1. Server Action — <code>'use server'</code> 보안 터널</h3>
+<pre><code><span class="c-bad">'use server'</span>;
+<span class="c-key">let</span> mockDB = { cartRecords: [], currentTotal: <span class="c-key">0</span> };
+
+<span class="c-key">export async function</span> syncCartWithDatabase(items) {
+  <span class="c-key">await new</span> Promise((r) =&gt; setTimeout(r, <span class="c-key">1000</span>)); <span class="c-com">// 지연 시뮬레이션</span>
+  mockDB.cartRecords.push(items);
+  <span class="c-key">return</span> { success: <span class="c-key">true</span> };
+}</code></pre>
+        <ul>
+          <li><code>'use server'</code> — 이 파일 함수는 <strong>브라우저로 안 내려가고 서버에서만</strong> 실행. DB 비밀·민감 로직 안전. API 엔드포인트 없이 일반 함수처럼 호출.</li>
+          <li><strong>콘솔 위치</strong> — <code>console.log</code>는 브라우저가 아니라 <strong>서버(터미널)</strong>에 찍힌다.</li>
+        </ul>
+        <div class="note warn">
+          <strong>⚠️ mock DB 함정</strong> 메모리 전역 변수라 <strong>서버리스(Vercel)에선 요청마다 초기화</strong>될 수 있다("배포했더니 장바구니가 자꾸 리셋"). 프로덕션은 <strong>실제 DB</strong>(<code>prisma.cart.update</code> 등)로 교체 필수.
+        </div>
+
+        <h3>2. 낙관적 업데이트 (store 액션) — 하이라이트</h3>
+<pre><code>add: <span class="c-key">async</span> () =&gt; {
+  <span class="c-key">const</span> prev = get().items;          <span class="c-com">// 1) 원래 값 백업</span>
+  set({ items: prev + <span class="c-key">1</span> });          <span class="c-com">// 2) 화면 '먼저' 즉시 갱신</span>
+
+  <span class="c-key">const</span> r = <span class="c-key">await</span> syncCartWithDatabase(prev + <span class="c-key">1</span>); <span class="c-com">// 3) 백그라운드 저장</span>
+
+  <span class="c-key">if</span> (!r.success) {
+    set((s) =&gt; ({ items: s.items - <span class="c-key">1</span> }));  <span class="c-com">// 4) 실패 시 롤백 (상대값!)</span>
+  }
+}</code></pre>
+        <div class="note warn">
+          <strong>⭐ 실무 핵심 — 롤백은 "상대값(-1)" </strong> 실패 시 <code>set({ items: previousItems })</code>(고정값 덮어쓰기) ❌ → 통신 1초 사이 사용자가 <strong>따닥 연속 클릭</strong>하면 그 추가분까지 날아감(상태 꼬임). <code>set((s) =&gt; ({ items: s.items - 1 }))</code>(현재값에서 -1) ✅ → <strong>연속 클릭(race condition)까지 방어</strong>.
+        </div>
+        <div class="note">
+          <strong>왜 store 레벨인가</strong> React 19 <code>useOptimistic</code> 훅도 있지만 <strong>컴포넌트 단위</strong>. 장바구니처럼 <strong>앱 전역 공유 상태</strong>의 낙관적 업데이트는 <strong>Zustand store 레벨</strong>이 더 안정적·확장적. (<code>get()</code>으로 set 밖에서 최신값 참조)
+        </div>
+
+        <h3>3. Provider — 17·18강과 동일</h3>
+        <p><code>useState(() =&gt; createCartStore())</code> 지연 초기화 + <code>useEffect</code>에서 <code>persist.rehydrate()</code> + <code>use(CartContext)</code> 전용 훅. (앞 카드 참고)</p>
+
+        <h3>4. 버튼 — <code>useTransition</code>으로 우아한 로딩</h3>
+<pre><code><span class="c-key">const</span> [isPending, startTransition] = useTransition();
+
+<span class="c-key">const</span> onClick = () =&gt; {
+  startTransition(<span class="c-key">async</span> () =&gt; { <span class="c-key">await</span> add(); }); <span class="c-com">// 비동기 액션 래핑</span>
+};
+<span class="c-com">// 버튼: isPending이면 'SYNCING...' + 투명도, 안 잠금</span></code></pre>
+        <ul>
+          <li><code>startTransition(async …)</code> — React 19. 비동기 작업을 <strong>"급하지 않은 백그라운드"</strong>로 표시 → <code>isPending</code> 자동 토글.</li>
+          <li><strong><code>disabled</code> 생략</strong> — 버튼을 잠그지 않는다. 낙관적 업데이트로 숫자는 <strong>즉시</strong> 오르고, 버튼은 텍스트·투명도로 로딩만 표시 → <strong>여러 번 자유롭게 클릭</strong> 가능.</li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 흐름 정리</strong>
+          <span class="k">① 화면 먼저 set(낙관적)</span> → <span class="k">② await 서버 액션(백그라운드)</span> → <span class="k">③ 실패 시 상대값 롤백(race 방어)</span>.
+          전역 상태 낙관적 업데이트는 <span class="k">store 레벨</span>, 버튼 로딩은 <span class="k">useTransition</span>. localStorage(개인)와 DB(서버) 두 세계를 Server Action으로 연결.
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (20강)</strong> 이 상태 시스템을 Next.js <strong>병렬(Parallel)·가로채기(Intercepting) 라우팅</strong>과 엮어 <strong>모달 위에서 장바구니 제어</strong>.
+        </div>
+
+        <div class="note">
+          <strong>🔎 정확성 한 줄</strong> 패턴은 정확. 단 "-1 롤백"은 <strong>각 액션이 독립적 +1일 때만</strong> 안전한 단순화 — 실제 서비스는 보통 <strong>서버 응답의 실제 수량으로 reconcile</strong>(서버를 진실로)하는 게 더 견고. 단일 카운터 예제에선 -1로 충분.
+        </div>
+      </article>
+
+      <!-- ══════════ 20강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-20"
+               data-section="summary"
+               data-title="20강. 고급 라우팅 — 병렬·가로채기 라우팅 기반 장바구니 모달"
+               data-tags="Next.js, 병렬 라우팅, 가로채기 라우팅, parallel routes, intercepting routes, 모달, Zustand, default.tsx">
+        <header class="entry-head">
+          <h2>20강. 병렬·가로채기 라우팅 모달</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[고급 라우팅] Parallel/Intercepting Routing 기반 장바구니 모달</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4</span>
+            <span class="chip">병렬 라우팅</span><span class="chip">가로채기 라우팅</span>
+            <span class="chip">모달</span><span class="chip">Zustand 공유</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🪟</span>
+          <span>"보던 화면 위에 모달로 장바구니" = Next.js <b>병렬 라우팅(<code>@modal</code> 슬롯)</b> + <b>가로채기 라우팅(<code>(.)cart</code>)</b>. 링크 클릭 이동을 <b>낚아채</b> 슬롯에 모달만 띄우고, 직접 접근/새로고침엔 <b>전체 페이지</b>로. Zustand는 <b>children·modal 슬롯이 같은 카트 상태를 공유</b>하는 역할(layout의 Provider). 강의 본체는 <b>Next 라우팅</b>이고 상태관리는 보조.</span>
+        </div>
+
+        <h3>0. 폴더 구조 (이게 전부)</h3>
+<pre><code>app/
+├ layout.tsx          <span class="c-com">// children + modal 슬롯 props</span>
+├ page.tsx            <span class="c-com">// 메인 (/cart 가는 &lt;Link&gt; 트리거)</span>
+├ cart/
+│  └ page.tsx         <span class="c-com">// 전체화면 — 직접접근/새로고침용 (서버 컴포넌트 OK)</span>
+└ @modal/             <span class="c-com">// 병렬 슬롯 (@ = slot)</span>
+   ├ default.tsx      <span class="c-com">// null 반환 — 평소 빈 슬롯 (필수!)</span>
+   └ (.)cart/
+      └ page.tsx      <span class="c-com">// 가로채기 모달 ('use client', router.back())</span></code></pre>
+
+        <h3>1. 병렬 라우팅 — <code>@modal</code> 슬롯</h3>
+        <ul>
+          <li>보통은 URL 바뀌면 <strong>화면 전체</strong> 교체. 병렬 라우팅은 <strong>한 레이아웃에 독립 화면(슬롯) 여러 개</strong> 동시 렌더.</li>
+          <li>폴더명 앞 <code>@</code>(<code>@modal</code>) → Next가 <strong>슬롯</strong>으로 인식 → <strong>layout의 props로 자동 주입</strong>.</li>
+        </ul>
+<pre><code><span class="c-key">export default function</span> RootLayout({ children, modal }) {
+  <span class="c-key">return</span> &lt;CartProvider&gt;{children}{modal}&lt;/CartProvider&gt;; <span class="c-com">// 두 슬롯이 상태 공유</span>
+}</code></pre>
+        <div class="note warn">
+          <strong>⚠️ <code>default.tsx</code>는 바늘과 실</strong> 슬롯에 그릴 게 없으면 <strong>404로 화면이 깨진다.</strong> <code>@modal/default.tsx</code>가 <code>null</code>을 반환해야 평소 슬롯이 <strong>투명하게 비고</strong>, 가로채기 때만 모달이 뜬다. (병렬 라우팅 쓰면 필수 암기)
+        </div>
+
+        <h3>2. 가로채기 라우팅 — <code>(.)cart</code></h3>
+        <ul>
+          <li>사용자가 <strong>앱 내부 <code>&lt;Link href="/cart"&gt;</code></strong> 클릭 → 전체 이동을 <strong>중간에서 낚아챔</strong>.</li>
+          <li><code>(.)</code> = 터미널 <code>./</code>처럼 <strong>"같은 레벨"</strong>의 <code>/cart</code>를 가로챈다는 신호.</li>
+          <li>→ 실제 <code>/cart/page.tsx</code> 대신 <code>@modal/(.)cart/page.tsx</code>를 <strong>모달로</strong> 띄움.</li>
+        </ul>
+        <div class="note">
+          <strong>가로채기 prefix</strong> <code>(.)</code> 같은 레벨 · <code>(..)</code> 한 단계 위 · <code>(..)(..)</code> 두 단계 · <code>(...)</code> 루트 기준.
+        </div>
+
+        <h3>3. 모달 vs 전체 페이지 — 파일 2개가 필요한 이유</h3>
+        <table>
+          <thead><tr><th>진입 방식</th><th>보이는 것</th><th>파일</th></tr></thead>
+          <tbody>
+            <tr><td>앱 내부 <code>&lt;Link&gt;</code> 클릭</td><td>배경 유지 + <strong>모달</strong></td><td><code>@modal/(.)cart/page.tsx</code></td></tr>
+            <tr><td>주소창 직접 입력 · 새로고침 · 외부 링크</td><td><strong>전체 화면</strong></td><td><code>cart/page.tsx</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note warn">
+          <strong>⚠️ 왜?</strong> 직접 접근/새로고침은 <strong>앱 내부 이동 궤적을 벗어나</strong> 가로채기 컨텍스트가 날아간다. 이때 에러 안 나려면 <strong>일반 <code>cart/page.tsx</code>(전체화면)도 반드시 준비.</strong> 둘 다 있으면 Next가 상황 보고 <strong>알아서 모달/전체</strong> 선택.
+        </div>
+
+        <h3>4. 닫기 — <code>router.back()</code>의 특별함</h3>
+        <p>가로채기 모달에서 <code>router.back()</code>은 일반 뒤로가기와 다르다:</p>
+        <ul>
+          <li>주소창 URL만 <strong>모달 뜨기 전으로</strong> 되돌림</li>
+          <li>배경 페이지는 <strong>재렌더 없이 그대로 유지</strong>, 모달 슬롯만 비움 → 모달만 깔끔히 닫힘</li>
+        </ul>
+
+        <h3>5. 실무 디테일 2가지</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>📏 레이아웃 시프트 방지</h4>
+            <p style="margin:6px 0;font-size:13px"><code>overflow:hidden</code>만 주면 스크롤바 사라지며 화면이 우측으로 덜컹. <strong>스크롤바 너비(<code>innerWidth - clientWidth</code>)만큼 <code>paddingRight</code></strong>로 채움.</p>
+          </div>
+          <div class="box info">
+            <h4>🖱️ 배경 클릭 닫기 + 버블링</h4>
+            <p style="margin:6px 0;font-size:13px">오버레이 <code>onClick=close</code> + 내부 창 <code>onClick=e.stopPropagation()</code> → 창 내부 클릭 시 닫히지 않게 버블링 차단.</p>
+          </div>
+        </div>
+
+        <h3>6. Zustand의 역할 (보조)</h3>
+        <p>layout에서 <code>CartProvider</code>로 <strong>children·modal 슬롯을 함께 감싸</strong> 둘이 <strong>같은 카트 상태(개수)를 공유</strong>. 메인에서 담은 수가 모달에 즉시 반영. (16강 SSR Provider 패턴 그대로 — 전역 싱글톤은 유저 간 누수라 Context 주입)</p>
+
+        <div class="principle">
+          <strong>✅ 정리</strong> <span class="k">@modal(병렬 슬롯) + (.)cart(가로채기)</span> → 링크 클릭은 모달, 직접접근은 전체.
+          <span class="k">default.tsx=null</span>(필수) · <span class="k">router.back()</span>으로 배경 유지하며 닫기 · 파일 2개(모달/전체) · Zustand는 슬롯 간 상태 공유.
+        </div>
+
+        <div class="note">
+          <strong>📌 Next 15+ 팁</strong> 모달로 상품 상세 등 <strong>동적 라우트 params</strong>를 받으면, 15부터 params가 <strong>비동기 Promise</strong> → <code>React.use(params)</code>나 <code>await</code>로 풀어야 함.
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (21강)</strong> Zustand 섹션 마지막 — 시스템 설정 + localStorage 동시 감지로 <strong>깜빡임 없는 다크모드</strong> 동기화.
+        </div>
+
+        <div class="note">
+          <strong>🔎 한 줄</strong> 이 강의는 <strong>Next 라우팅이 본체</strong>(정확함), Zustand는 "슬롯 간 공유 상태" 보조. 라우팅 패턴은 <strong>상태관리 라이브러리 무관</strong> — jotai로도 동일(Provider로 슬롯 감싸면 끝).
+        </div>
+      </article>
+
+      <!-- ══════════ 21강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-21"
+               data-section="summary"
+               data-title="21강. 테마 관리 — persist + Tailwind v4로 다크모드 (FOUC)"
+               data-tags="Zustand, 다크모드, FOUC, persist, matchMedia, Tailwind v4, custom-variant, store.subscribe, suppressHydrationWarning">
+        <header class="entry-head">
+          <h2>21강. 다크모드 테마 관리</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[테마 관리] Zustand Persist + Tailwind CSS v4로 구현하는 다크모드</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-21 · 섹션 4 (마지막)</span>
+            <span class="chip">FOUC</span><span class="chip">matchMedia</span>
+            <span class="chip">Tailwind v4</span><span class="chip">store.subscribe</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🌗</span>
+          <span>테마(light/dark/system)를 <code>persist</code>로 저장하고, Provider의 <code>useEffect</code>에서 <b><code>rehydrate</code> + <code>&lt;html&gt;</code> classList 조작 + <code>store.subscribe</code></b>로 DOM 동기화. system은 <b><code>matchMedia</code></b>로 OS 감지. Tailwind v4는 <b><code>@custom-variant dark</code></b>로 <code>.dark</code> 클래스 수동 제어. <code>&lt;html suppressHydrationWarning&gt;</code>로 클래스 주입 mismatch 경고 억제.</span>
+        </div>
+
+        <h3>0. 문제 — FOUC (화면 깜빡임)</h3>
+        <div class="note warn">
+          <strong>⚠️ 왜 생기나</strong> 서버는 유저 테마를 <strong>모름</strong> → 기본 light HTML 전송 → 브라우저가 localStorage 확인하니 dark → 뒤늦게 검정으로 전환. 이 <strong>0.1초 하얀 번쩍임</strong>이 FOUC(Flash of Unstyled Content).
+        </div>
+
+        <h3>1. 스토어 — 18강 persist와 동일 구조</h3>
+<pre><code><span class="c-key">type</span> Theme = <span class="c-str">'light'</span> | <span class="c-str">'dark'</span> | <span class="c-str">'system'</span>;
+
+createStore&lt;ThemeState&gt;()(persist(
+  (set) =&gt; ({ theme: <span class="c-str">'system'</span>, setTheme: (t) =&gt; set({ theme: t }) }),
+  { name: <span class="c-str">'theme-storage'</span>, storage: createJSONStorage(() =&gt; localStorage),
+    skipHydration: <span class="c-key">true</span> }, <span class="c-com">// 자동 주입 OFF (mismatch 방지)</span>
+));</code></pre>
+
+        <h3>2. Provider — DOM 동기화가 핵심</h3>
+<pre><code>useEffect(() =&gt; {
+  store.persist.rehydrate();                  <span class="c-com">// localStorage 복구</span>
+
+  <span class="c-key">const</span> updateDom = (theme) =&gt; {
+    <span class="c-key">const</span> root = document.documentElement;     <span class="c-com">// &lt;html&gt;</span>
+    root.classList.remove(<span class="c-str">'light'</span>, <span class="c-str">'dark'</span>);
+    <span class="c-key">const</span> t = theme === <span class="c-str">'system'</span>
+      ? (matchMedia(<span class="c-str">'(prefers-color-scheme: dark)'</span>).matches ? <span class="c-str">'dark'</span> : <span class="c-str">'light'</span>)
+      : theme;
+    root.classList.add(t);                     <span class="c-com">// &lt;html class="dark"&gt;</span>
+  };
+
+  updateDom(store.getState().theme);
+  <span class="c-key">return</span> store.subscribe((s) =&gt; updateDom(s.theme)); <span class="c-com">// 변경 감지 → DOM 갱신</span>
+}, []);</code></pre>
+        <ul>
+          <li><strong>테마는 React state가 아니라 <code>&lt;html&gt;</code> classList로</strong> 반영 → Tailwind <code>dark:</code> 발동.</li>
+          <li><strong><code>store.subscribe</code></strong> — Zustand 바닐라 store의 <strong>React 밖 구독</strong>. 상태 변하면 콜백으로 DOM 직접 갱신. (앞 인사이트의 "React 밖 접근"의 실사용 예)</li>
+          <li><strong><code>matchMedia('(prefers-color-scheme: dark)')</code></strong> — OS 다크모드 감지(system 모드).</li>
+        </ul>
+
+        <h3>3. Tailwind v4 — <code>@custom-variant dark</code> (필수)</h3>
+<pre><code><span class="c-com">/* globals.css */</span>
+@import <span class="c-str">"tailwindcss"</span>;
+@custom-variant dark (&amp;:where(.dark, .dark *));</code></pre>
+        <div class="note">
+          <strong>왜 필요</strong> Tailwind v4는 <strong>기본적으로 OS 설정만</strong> 따른다 → <code>&lt;html&gt;</code>에 <code>.dark</code>를 붙여도 무시됨. <code>@custom-variant dark</code>로 <strong>"<code>.dark</code> 클래스가 있으면 OS와 무관하게 강제 다크"</strong>라고 선언해야 수동 제어 가능.
+        </div>
+
+        <h3>4. layout — 배치 2가지 실무 팁</h3>
+        <ul>
+          <li><strong>ThemeProvider를 최외곽</strong>에 — 테마는 UI 근간이라 <code>CartProvider</code> 등 <strong>다른 Provider보다 바깥</strong>.</li>
+          <li><strong><code>&lt;html suppressHydrationWarning&gt;</code></strong> — 클라에서 테마 클래스가 동적 주입돼 서버 HTML과 달라지는 mismatch 경고를 억제(html 태그 한정, 정당한 용법 — 18강 팩트체크 참고).</li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 정리</strong> <span class="k">persist(skipHydration) → useEffect에서 rehydrate + html classList + store.subscribe</span> → 새로고침에도 유지·버튼 즉시 전환. system은 <span class="k">matchMedia</span>, Tailwind v4는 <span class="k">@custom-variant dark</span>, html엔 <span class="k">suppressHydrationWarning</span>.
+        </div>
+
+        <div class="note warn">
+          <strong>🔎 정확성 — "깜빡임 없는"은 과장</strong> 이 패턴은 <strong>하이드레이션 <u>에러</u>는 없애지만 FOUC(깜빡임) 자체는 안 없앤다.</strong> <code>useEffect</code>는 <strong>첫 페인트 "이후"</strong> 실행 → dark 유저는 여전히 light→dark 번쩍임을 본다. <strong>진짜 flash-free</strong>는 <code>&lt;head&gt;</code>에 <strong>blocking inline script</strong>로 페인트 전에 클래스를 박는 방식(next-themes가 이걸 함). 추가로 <code>matchMedia</code>에 <code>change</code> 리스너가 없어 <strong>OS 테마 실시간 변경은 반영 안 됨</strong>(읽기 1회).
+        </div>
+
+        <div class="note">
+          <strong>🎓 섹션 4 마무리</strong> 클라 상태 → Server Action 연동 → persist → 라우팅 모달 → 테마까지 Zustand 상태관리 대장정 완료. <strong>다음 섹션은 대규모 실무 아키텍처.</strong>
+        </div>
+      </article>
+
+
+      <!-- ╔══════════════════════════════════════════════════════════╗
+           ║  SECTOR 2 — 인사이트 (질문 및 추가학습)                    ║
+           ╚══════════════════════════════════════════════════════════╝ -->
+      <div class="sector-head" id="sector-insight">
+        <span class="num">2</span>
+        <h2>인사이트</h2>
+        <span class="desc">질문에서 출발한 학습 · 추가 탐구</span>
+      </div>
+
+      <!-- ── 인사이트 #2 : 15강 팩트체크 ───────────────────────── -->
+      <article class="entry insight" id="insight-factcheck"
+               data-section="insight"
+               data-title="15강 팩트체크 — 강의가 과장·누락한 것"
+               data-tags="Zustand, Context API, Redux, useShallow, 상태 누수, RSC, 팩트체크">
+        <header class="entry-head">
+          <h2>15강 팩트체크 — 과장·누락 보정</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">팩트체크</span><span class="chip">useShallow</span><span class="chip">RSC</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 15강 주장 중 기술적으로 틀리거나 오해를 부를 부분은 없나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔎</span>
+          <span>큰 그림(확성기 효과·관료주의·클라 상태=Zustand)은 옳다. 단 <b>비유 위주라 생긴 과장·누락</b>이 있다. 특히 ① "Provider가 RSC를 해친다"는 틀림, ② selector 객체 반환 시 <code>useShallow</code> 필요(누락 시 치명), ③ "전역 store=무조건 누수"는 과장.</span>
+        </div>
+
+        <h3>🔴 명백히 틀림</h3>
+        <div class="box danger">
+          <h4>"Context Provider로 감싸면 RSC 이점이 사라진다"</h4>
+          <ul>
+            <li><code>&lt;Provider&gt;{children}&lt;/Provider&gt;</code>처럼 <strong>children을 prop으로 끼우면</strong> Provider가 <code>'use client'</code>여도 children은 <strong>서버 컴포넌트로 렌더</strong>된다.</li>
+            <li>RSC가 깨지는 건 Provider가 아니라 <strong>실제 <code>useContext</code>로 소비하는 컴포넌트</strong>를 클라이언트로 만들 때.</li>
+            <li>"Provider는 루트에 둬야 한다"도 거짓 — leaf로 내릴 수 있다.</li>
+          </ul>
+        </div>
+
+        <h3>🟡 오해 소지 — 주석 필요</h3>
+        <table>
+          <thead><tr><th>강의 주장</th><th>보정</th></tr></thead>
+          <tbody>
+            <tr><td>"selector로 <b>자동</b> 최적화"</td><td><strong>올바른 selector를 줘야</strong> 함. 객체/배열 반환 시 매번 새 참조 → <code>useShallow</code> 필수. selector 없이 전체 구독하면 Context처럼 다 리렌더</td></tr>
+            <tr><td>"값 하나만 바뀌어도 전체 리렌더"</td><td>정확히는 value <strong>참조</strong>가 바뀌면. Context도 잘게 쪼개면 완화 가능</td></tr>
+            <tr><td>"set은 자동 병합"</td><td><strong>얕은(top-level) 병합만.</strong> 중첩 객체는 수동, <code>set(_, true)</code>면 통째 교체</td></tr>
+            <tr><td>"전역 store = 누수"</td><td>과장. <strong>서버 렌더 경로에서 store에 write/요청별 데이터 주입</strong>할 때만 누수·hydration 문제. 순수 클라 UI 상태(모달 토글)는 모듈 store도 안전</td></tr>
+            <tr><td>"RTK도 관료주의 그대로"</td><td>store/Provider 구조는 남지만 <code>createSlice</code>로 작성 경험은 크게 개선됨. 과소평가</td></tr>
+            <tr><td>"구독 컴포넌트만 use client" = Zustand 장점</td><td>맞지만 <strong>Zustand 전용 아님</strong> — Context도 동일</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note warn">
+          <strong>⚠️ 가장 실수하기 쉬운 함정 — <code>useShallow</code></strong>
+<pre><code><span class="c-com">// ❌ 매 렌더 새 객체 → Object.is 항상 false → 항상 리렌더</span>
+<span class="c-key">const</span> { a, b } = useStore((s) =&gt; ({ a: s.a, b: s.b }));
+
+<span class="c-com">// ✅ 얕은 비교</span>
+<span class="c-key">import</span> { useShallow } <span class="c-key">from</span> <span class="c-str">'zustand/react/shallow'</span>;
+<span class="c-key">const</span> { a, b } = useStore(useShallow((s) =&gt; ({ a: s.a, b: s.b })));</code></pre>
+          단일 원시값(<code>s.count</code>)만 뽑으면 함정 없음. 문제는 "여러 값을 객체/배열로 묶을 때".
+        </div>
+
+        <h3>🟢 정확한 것</h3>
+        <ul>
+          <li>Provider에 변하는 값이 아니라 <strong>고정 store 인스턴스만</strong> 담아 확성기 회피 ✅</li>
+          <li><code>createStore</code>(vanilla, 순수) vs <code>create</code>(React 훅 결합) 구분 ✅</li>
+        </ul>
+      </article>
+
+      <!-- ── 인사이트 : 16강 팩트체크 ──────────────────────────── -->
+      <article class="entry insight" id="insight-factcheck-16"
+               data-section="insight"
+               data-title="16강 팩트체크 — 비유가 단순화한 지점"
+               data-tags="Zustand, SSR, 상태 누수, Provider, useSyncExternalStore, 하이드레이션, 팩트체크">
+        <header class="entry-head">
+          <h2>16강 팩트체크 — 비유가 단순화한 지점</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">팩트체크</span><span class="chip">SSR</span><span class="chip">Provider</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 16강 주장 중 틀리거나 오해를 부를 부분은? (15강보다 정확한 편)
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔎</span>
+          <span><b>명백히 틀린 건 없다.</b> 권장 패턴(요청별 store + 클라 Provider + useRef + selector)은 Next.js/Zustand 공식 가이드와 일치. 다만 비유가 ① 리렌더 메커니즘, ② 누수 조건, ③ <b>"서버가 store를 생성"</b>이라는 표현을 단순화했다.</span>
+        </div>
+
+        <h3>🟢 정확한 것 (핵심 패턴은 옳음)</h3>
+        <ul>
+          <li>set 안 쓰고 직접 mutate → 리렌더 안 됨 ✅ (메커니즘 보강은 아래)</li>
+          <li>요청마다 store 새로 생성 → Provider 전달 ✅ (공식 권장)</li>
+          <li>Provider엔 store 인스턴스(명함)만 → 폭포수 없음 ✅</li>
+          <li><code>useRef</code> + <code>if(!storeRef.current)</code>로 1회 생성 ✅</li>
+        </ul>
+
+        <h3>🟡 비유가 단순화 — 주석 필요</h3>
+        <table>
+          <thead><tr><th>강의 주장</th><th>정확한 보정</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>"set이 리렌더 신호를 보낸다"</td>
+              <td>정확히는 set이 내부 상태 교체 후 <strong>구독 listener를 notify</strong>(<code>useSyncExternalStore</code>). 또 <strong>set을 써도 객체를 in-place mutate하면</strong> 같은 참조 → <code>Object.is</code>가 "안 변함" 판정 → 리렌더 누락. 핵심은 "set" 자체가 아니라 <strong>불변(새 참조) 업데이트 + notify</strong></td>
+            </tr>
+            <tr>
+              <td>"함수형 업데이트는 useState와 같은 원리"</td>
+              <td>결과는 같지만 원리는 다름. useState는 <strong>stale closure</strong> 회피용이 핵심. Zustand는 <code>get()</code>으로 항상 최신을 읽어 <code>set({count: get().count+1})</code>도 stale 없음 → 함수형이 "필수"는 아님</td>
+            </tr>
+            <tr>
+              <td>"자동 병합"</td>
+              <td><strong>1레벨 얕은 병합만.</strong> 중첩(<code>user:{name,age}</code>)에서 <code>set({user:{name}})</code>하면 <code>age</code> 소멸 → <code>...state.user</code> 전개 필요. <code>set(_, true)</code>면 전체 교체</td>
+            </tr>
+            <tr>
+              <td>"useState/context는 모든 자식 폭포수"</td>
+              <td>props drilling은 대체로 맞지만, <strong>Context는 consumer만</strong> 리렌더(memo·value 메모이즈·context 분리로 완화). "무조건 모든 자식"은 과장</td>
+            </tr>
+            <tr>
+              <td>"전역 store = 누수"</td>
+              <td>조건부. <strong>① 모듈 스코프 싱글톤 + ② 서버 렌더 경로에서 그 store에 read/write</strong>가 겹칠 때 누수. 클라에서만 mutate하면 누수 아님(이땐 하이드레이션 문제)</td>
+            </tr>
+            <tr>
+              <td>"서버가 사용자별 store를 생성"</td>
+              <td><strong>생성 주체는 클라이언트 Provider.</strong> 실제 흐름: 서버 컴포넌트는 <strong>데이터만 fetch → initialState prop으로 전달</strong> → 클라 Provider가 <code>useRef</code>로 store 생성. store 인스턴스(함수/클래스)는 <strong>서버→클라 직렬화 불가</strong>라 RSC가 직접 만들어 내려보낼 수 없음</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note warn">
+          <strong>⚠️ 강의가 빠뜨리기 쉬운 필수 제약</strong> 이 Provider는 <code>useRef</code>/<code>useState</code>/<code>createContext</code>를 쓰므로 <strong>반드시 <code>'use client'</code> 컴포넌트</strong>. 순수 서버 컴포넌트(RSC)에선 이 훅들을 못 쓴다. → "서버에서 만든다"가 아니라 "<strong>서버는 데이터, 생성·격리는 클라 Provider의 렌더 스코프</strong>"가 정확한 그림.
+        </div>
+
+        <div class="note">
+          <strong>왜 useRef가 요청별 격리를 보장하나</strong> useRef는 모듈 전역이 아니라 <strong>컴포넌트 인스턴스(렌더 스코프) 지역</strong>. 요청마다 독립 React 트리에서 Provider가 새로 렌더 → useRef도 새로 초기화 → 격리. 핵심은 <strong>"모듈 스코프가 아니라 렌더 스코프"</strong>.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 한 줄 결론</strong> 16강의 <span class="k">권장 아키텍처는 정확</span>하다. 단 비유에서
+          <span class="k">"set=신호"(→ 불변+notify), "누수=무조건"(→ 조건부), "서버가 store 생성"(→ 클라 Provider 생성)</span> 세 가지만 정정하면 완벽.
+          + 하이드레이션: 서버/클라가 같은 <code>initCount</code>면 mismatch 없음. <code>persist</code>(localStorage)가 끼면 별도 처리 필요(다음 강).
+        </div>
+      </article>
+
+      <!-- ── 인사이트 : 18강 팩트체크 ──────────────────────────── -->
+      <article class="entry insight" id="insight-factcheck-18"
+               data-section="insight"
+               data-title="18강 팩트체크 — PPR 오류와 인과 혼동"
+               data-tags="Zustand, persist, skipHydration, PPR, use 훅, 하이드레이션, 팩트체크">
+        <header class="entry-head">
+          <h2>18강 팩트체크 — PPR 오류와 인과 혼동</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">팩트체크</span><span class="chip">PPR</span><span class="chip">skipHydration</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 18강 주장 중 틀리거나 인과를 잘못 짚은 부분은? (해결 패턴 자체는 맞음)
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔎</span>
+          <span>핵심 패턴(<code>skipHydration</code> + 수동 <code>rehydrate</code> + <code>isMounted</code>)은 <b>실무적으로 정확</b>. 하지만 ① <b>PPR 주장은 3겹으로 틀렸고</b>, ② "skipHydration이 서버 에러를 막는다", ③ "use 훅이 undefined를 없앤다"는 <b>인과를 잘못 짚었다</b>.</span>
+        </div>
+
+        <h3>🔴 명백히 틀림 — PPR 주장</h3>
+        <div class="box danger">
+          <h4>"Next 15부터 PPR 기본화 → 응답이 빨라 불일치가 더 빈번 → skipHydration 필수"</h4>
+          <ul>
+            <li><strong>기본화 아님</strong> — PPR은 Next 15에서 <strong>experimental opt-in</strong>(<code>experimental.ppr:'incremental'</code> + 라우트별 <code>experimental_ppr</code>). 디폴트가 아니다.</li>
+            <li><strong>인과 오류</strong> — 이 불일치는 PPR과 <strong>무관</strong>. <strong>클라 전용 localStorage + 서버 프리렌더(SSR/SSG/ISR 무엇이든)</strong>면 항상 나는 결정론적 현상(서버는 localStorage를 못 봄).</li>
+            <li><strong>"빨라서 더 난다"는 틀림</strong> — hydration mismatch는 <strong>렌더된 마크업 차이</strong>로 판정되지 <strong>타이밍·속도와 무관</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="note">
+          <strong>🔬 정밀 보강 — "Next 16에서 hydration 에러가 늘었다"는 체감의 진짜 정체</strong> 강의의 PPR 인과는 틀렸지만, "요즘 더 자주 터진다"는 체감 자체엔 실제 원인이 있다. 단 PPR이 본질이 아니라 <strong>Next 16이 묶어온 변화들의 복합 효과</strong>:
+          <ul>
+            <li><strong>진짜 주범 = React 19 에러 정책 (PPR 아님)</strong> — React 18은 mismatch를 <strong>warning</strong>으로 흘렸지만 React 19는 <strong>hard error</strong>로 던진다. Next 16이 React 19를 기본 탑재 → <strong>"버그가 늘었다"가 아니라 묻혀 있던 게 빨갛게 드러났다."</strong></li>
+            <li><strong>PPR의 구조적 기여 (이 부분은 팩트)</strong> — PPR은 <strong>정적 셸을 먼저, 동적 부분을 나중에 스트리밍</strong>. 사용자별 데이터(이름·장바구니 수·타임스탬프)를 <strong>Suspense로 안 감싸면</strong> 서버는 빈 셸, 클라는 데이터 기대 → mismatch. 업그레이드 후 가장 흔한 보고.</li>
+            <li><strong>회피 가능</strong> — 처방은 명확: <strong>동적 데이터를 fallback 일치하는 Suspense 경계로 감싸기</strong>. 제대로 하면 PPR이 오히려 정적/동적을 깔끔히 분리. (Next 16 에러 오버레이는 <code>+ Client / - Server</code> diff로 갈린 쪽을 바로 표시)</li>
+          </ul>
+        </div>
+        <table>
+          <thead><tr><th>주장</th><th class="center">평가</th></tr></thead>
+          <tbody>
+            <tr><td>"PPR이 hydration 이슈를 <strong>본질적으로</strong> 더 만든다"</td><td class="center no">❌ 부정확</td></tr>
+            <tr><td>"Next 16 업그레이드 후 hydration 에러가 더 자주 <strong>표면화</strong>"</td><td class="center yes">✅ 팩트 (주원인 React 19 hard error)</td></tr>
+            <tr><td>"PPR에서 <strong>Suspense 누락</strong> 시 셸/동적 mismatch가 새로 생김"</td><td class="center yes">✅ 팩트 (Suspense로 회피 가능)</td></tr>
+          </tbody>
+        </table>
+        <div class="note warn">
+          <strong>📦 우리 프로젝트 맥락</strong> <strong>PPR은 App Router 전용.</strong> 이 모노레포는 주력 앱(<code>apps/lessee</code>·<code>apps/lessor</code>)이 <strong>Pages Router</strong>, <code>realtor</code>/<code>admin</code>만 App Router다.
+          <ul>
+            <li><strong>Pages Router 앱</strong> — PPR 영향 <strong>자체가 없음</strong>(jotai <code>useHydrateAtoms</code> SSR 그대로 유지).</li>
+            <li><strong>App Router 앱(realtor/admin)</strong> — 16 업글 + PPR 켤 때만 해당. 관건은 <strong>jotai 상태가 들어가는 동적 영역을 Suspense로 감싸는지</strong>(<code>apps/realtor/server/serverFetch.ts</code> 류 SSR fetch가 셸 밖에서 동적 렌더 안 하도록 점검).</li>
+            <li>→ 결론: 상태관리 라이브러리(jotai/zustand)와 <strong>무관</strong>. App Router + PPR 채택 시 <strong>Suspense 경계 설계</strong>가 본질이며, 이 우려가 <strong>jotai 유지 판단을 바꾸지 않는다.</strong></li>
+          </ul>
+        </div>
+
+        <h3>🟡 인과를 잘못 짚음 — 주석 필요</h3>
+        <table>
+          <thead><tr><th>강의 주장</th><th>정확한 보정</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>"<code>skipHydration</code> 덕에 서버에서 localStorage 근처도 안 가 방어코드 불필요"</td>
+              <td>서버 무에러의 공은 skipHydration이 아니라 <strong><code>createJSONStorage</code>의 내부 try/catch + 지연 팩토리</strong>. 서버에선 <code>localStorage</code> 참조가 던지지만 catch로 <strong>undefined storage</strong> 반환 → get/setItem 가드. <strong>skipHydration이 실제로 막는 건 "클라 생성 시 자동 rehydrate"</strong>(서버 접근 아님)</td>
+            </tr>
+            <tr>
+              <td>"React 19 <code>use</code> 훅이라 <code>undefined</code> 예외처리가 사라짐"</td>
+              <td><code>use(Context)</code>는 <code>useContext</code>와 사실상 동등. undefined를 안 받는 건 <strong>Provider가 항상 store를 보장 + null 가드</strong> 덕분이지 use 덕이 아님. use의 진짜 강점은 <strong>조건부 호출 가능 + Promise/Context 언래핑(Suspense)</strong></td>
+            </tr>
+            <tr>
+              <td>"<code>Mutate&lt;StoreApi&lt;T&gt;, [['zustand/persist',unknown]]&gt;</code> 캐스팅"</td>
+              <td>타입 자체는 <strong>맞고 공식 표기</strong>. 단 차선책 — <code>createStore&lt;T&gt;()(persist(...))</code> 커리드 시그니처나 <code>ReturnType&lt;typeof createCartStore&gt;</code>로 <strong>추론을 살리면 캐스팅 자체가 불필요</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🟢 정확한 것 (해결 패턴은 맞음)</h3>
+        <ul>
+          <li><strong>mismatch 메커니즘</strong> — skipHydration 없으면 persist가 <strong>생성 시 동기 rehydrate</strong> → 클라 첫 렌더가 5로 덮여 서버(0)와 충돌. skipHydration:true면 클라도 0으로 시작 + 수동 <code>rehydrate()</code> ✅</li>
+          <li><strong>useEffect 수동 주입</strong> — 첫 렌더(서버=클라=0) 직후 호출 ✅ (단 <code>rehydrate()</code>는 <strong>Promise 반환</strong> — async storage 대비 완료처리 염두)</li>
+          <li><strong>isMounted 전략</strong> — 서버=클라 첫 렌더 일치로 mismatch 차단 ✅ (단점: 보일러플레이트 반복 + <strong>첫 페인트에 실제 콘텐츠 부재 → CLS/LCP 손해</strong>)</li>
+          <li><strong><code>onRehydrateStorage</code></strong> — 복구 완료 플래그로 스피너 분기, store 단일 지점 관리 → isMounted보다 우아 ✅</li>
+          <li><strong><code>suppressHydrationWarning</code></strong> — html/body 한정, 확장프로그램 속성 주입용. 데이터 불일치 해결책 아님 ✅ (자식 트리 전체가 아니라 <strong>해당 요소+한 단계만</strong> 억제)</li>
+          <li><strong>Cache vs Persist</strong> — 개념 대비 옳음 ✅ (단 경계는 단정적이지 않음: TanStack도 <code>persistQueryClient</code>로 영속 가능)</li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 한 줄</strong> 18강의 <span class="k">코드·패턴은 정확</span>하다. 단 <span class="k">PPR이 원인이라는 서사는 버리고</span>("localStorage+프리렌더면 항상 발생"이 진실), <span class="k">skipHydration·use 훅의 인과만 바로잡으면</span> 완벽.
+        </div>
+      </article>
+
+      <!-- ── 인사이트 : 21강 팩트체크 ──────────────────────────── -->
+      <article class="entry insight" id="insight-factcheck-21"
+               data-section="insight"
+               data-title="21강 팩트체크 — '깜빡임 없음'은 사실이 아니다"
+               data-tags="다크모드, FOUC, 하이드레이션, matchMedia, Tailwind v4, suppressHydrationWarning, 팩트체크">
+        <header class="entry-head">
+          <h2>21강 팩트체크 — "깜빡임 없음"은 사실이 아니다</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">팩트체크</span><span class="chip">FOUC</span><span class="chip">matchMedia</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 21강의 다크모드 패턴은 정말 "깜빡임 없는" 완벽한 구현인가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔎</span>
+          <span>정적 구성(Tailwind v4 <code>@custom-variant</code>, persist 문법)은 정확. 하지만 <b>셀링포인트인 "깜빡임 없음"이 거짓</b> — 이 패턴은 <b>hydration 에러만 없애고 FOUC(flash)는 그대로</b> 남긴다. 또 <b>matchMedia에 change 리스너가 없어</b> OS 테마 실시간 반영도 안 됨.</span>
+        </div>
+
+        <h3>🔴 명백히 틀림 — "깜빡임 없는 완벽한 다크모드"</h3>
+        <div class="box danger">
+          <h4>hydration 에러 해결 ≠ flash 해결 (둘을 혼동)</h4>
+          <p style="margin:6px 0">렌더 타임라인:</p>
+          <ol style="margin:6px 0">
+            <li>SSR: <code>&lt;html&gt;</code>에 테마 클래스 없음(서버는 유저 테마 모름)</li>
+            <li>브라우저 <strong>첫 페인트: 클래스 없이 light로 실제 그려짐</strong></li>
+            <li>hydration 후 <code>useEffect</code> 실행 → 그제야 <code>.dark</code> 추가</li>
+            <li>→ dark 유저는 <strong>light→dark 번쩍임을 그대로 봄</strong></li>
+          </ol>
+          <p style="margin:6px 0"><code>useEffect</code>는 <strong>페인트 이후(commit 후)</strong> 실행 → 페인트 전에 클래스를 못 박는다. <strong>"깜빡임 없음"은 성립 불가.</strong></p>
+        </div>
+        <div class="note">
+          <strong>✅ 진짜 flash-free 조건</strong> <code>&lt;head&gt;</code>에 <strong>blocking inline script</strong>(렌더 차단)를 넣어 <strong>페인트 전에 동기적으로</strong> localStorage를 읽고 <code>documentElement.classList</code>를 세팅해야 한다. <strong>next-themes가 <code>ThemeScript</code>로 하는 게 바로 이것.</strong> 강의 코드엔 이 inline script가 <strong>없으므로 flash-free 아님.</strong>
+        </div>
+
+        <h3>🔴 틀림 — "matchMedia로 OS 실시간 판별"</h3>
+        <div class="box danger">
+          <h4><code>change</code> 리스너가 없다</h4>
+          <ul>
+            <li><code>matchMedia(...).matches</code>를 <strong>1회 읽기만</strong> 함. <code>.addEventListener('change', …)</code> 없음.</li>
+            <li>→ system 모드에서 <strong>런타임에 OS 테마를 바꿔도 화면 자동 갱신 안 됨</strong>(새로고침 전까지 옛 테마).</li>
+            <li><code>store.subscribe</code>는 <strong>Zustand 상태 변화만</strong> 감지 — OS 미디어쿼리 변화는 못 잡음. "실시간"은 과장.</li>
+          </ul>
+        </div>
+
+        <h3>🟡 오해 소지 — 주석 필요</h3>
+        <table>
+          <thead><tr><th>강의 주장</th><th>보정</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>"<code>html</code>에 <code>suppressHydrationWarning</code>으로 클래스 mismatch 억제"</td>
+              <td>용법 자체는 정당(next-themes도 씀). 단 이 코드는 클래스 주입이 <strong>useEffect(hydration 이후)</strong>라 <strong>애초에 mismatch가 없음</strong> → 실질 <strong>잉여</strong>. 정작 <em>필요해지는 건 빠져있는 inline-script 방식</em>일 때</td>
+            </tr>
+            <tr>
+              <td>"<code>skipHydration</code>으로 렌더 불일치 방지"</td>
+              <td>일반론은 맞지만, 이 코드는 theme를 <strong>JSX에 렌더 안 하고 <code>classList</code> 명령형 조작</strong>만 함 → 막아줄 렌더 mismatch가 사실상 없음(과한 정당화)</td>
+            </tr>
+            <tr>
+              <td>"ThemeProvider는 근간이라 최외곽에 둬야"</td>
+              <td>합리적 관례지만 <strong>강제 아님</strong>. <code>documentElement</code> 명령형 조작이라 <strong>Provider 중첩 순서와 기술적으로 무관</strong>(안쪽에 둬도 <code>&lt;html&gt;</code>에 똑같이 붙음)</td>
+            </tr>
+            <tr>
+              <td>(17강) useState 지연초기화 권장 → 21강 <code>useRef</code> 회귀</td>
+              <td>둘 다 React 공식 인정 패턴이라 <strong>안전성 차이는 실질 없음</strong>. 단 같은 시리즈에서 권장안 번복은 <strong>교육적 일관성 결여</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🟢 정확한 것</h3>
+        <ul>
+          <li><strong>FOUC 발생 원리</strong> 설명 ✅ (단 제시 코드가 그걸 못 고치는 게 모순)</li>
+          <li><strong>Tailwind v4</strong> 기본은 OS만 따름 → <code>@custom-variant dark (&amp;:where(.dark, .dark *))</code>로 클래스 수동 제어 ✅ (공식 구문, <code>:where</code>는 명시도 0 유지)</li>
+          <li><code>createStore&lt;T&gt;()(persist(...))</code> 커리드 시그니처 ✅</li>
+          <li><code>store.subscribe</code>로 React 밖에서 DOM 갱신 ✅ ("React 밖 접근"의 실사용)</li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 총평</strong> 정적 구성은 정확하나 <span class="k">핵심 셀링포인트 "깜빡임 없음"이 거짓</span>. 실제론 <span class="k">hydration 에러만 제거</span>, FOUC는 남음. 빠진 두 장치 = <span class="k">① head의 blocking inline script(진짜 flash-free) ② matchMedia change 리스너(OS 실시간)</span>. 둘 다 next-themes는 구현 → <strong>실무는 그냥 next-themes 권장.</strong>
+        </div>
+      </article>
+
+      <!-- ── 인사이트 : useState 지연 초기화 ───────────────────── -->
+      <article class="entry insight" id="insight-lazy-init"
+               data-section="insight"
+               data-title="지연 초기화 (Lazy Initialization) — useState(() => ...) 완전 이해"
+               data-tags="React, useState, 지연 초기화, lazy initializer, useRef, useMemo, StrictMode">
+        <header class="entry-head">
+          <h2>지연 초기화 (Lazy Initialization)</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">useState</span><span class="chip">React 16.8+</span><span class="chip">store 생성</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 17·18강의 <code>const [store] = useState(() =&gt; createCartStore(...))</code> — 왜 값이 아니라 함수를 넣나? 언제·왜 생긴 문법이고 원리·주의점은?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🥚</span>
+          <span><code>useState</code>에 <b>값 대신 함수</b>를 주면 React가 그 함수를 <b>최초 마운트 1회만</b> 호출해 초기값을 얻고, 이후 렌더에선 <b>완전히 무시</b>한다. 비싼 계산·인스턴스 생성을 <b>매 렌더 반복하지 않기</b> 위한 것. 핵심은 "값을 <b>지금 계산</b>" vs "계산 <b>방법을 넘겨</b> React가 한 번만".</span>
+        </div>
+
+        <h3>1. 무엇이 문제인가 — 값 형태의 낭비</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>❌ 즉시 평가 (매 렌더 실행)</h4>
+<pre><code><span class="c-key">const</span> [s] = useState(createStore());
+<span class="c-com">// createStore()가 '매 렌더' 실행됨.</span>
+<span class="c-com">// 결과는 첫 렌더만 쓰고 나머진 버림 → 낭비</span></code></pre>
+          </div>
+          <div class="box safe">
+            <h4>✅ 지연 초기화 (1회 실행)</h4>
+<pre><code><span class="c-key">const</span> [s] = useState(() =&gt; createStore());
+<span class="c-com">// 화살표 함수 '몸통'은 최초 1회만 실행</span>
+<span class="c-com">// 이후 렌더에선 React가 인자를 무시</span></code></pre>
+          </div>
+        </div>
+        <div class="note">
+          <strong>왜 값 형태가 낭비인가</strong> <code>useState(x)</code>에서 React는 <strong>리렌더 시 인자 <code>x</code>를 무시</strong>(이미 state를 들고 있으니)하지만, JS는 함수에 넘기기 전 <strong><code>x</code> 표현식을 항상 평가</strong>한다. <code>createStore()</code>가 거기 있으면 매 렌더 호출된다 — 결과는 안 쓰는데도.
+        </div>
+
+        <h3>2. 언제·왜 도입됐나</h3>
+        <ul>
+          <li><strong>시점</strong> — Hooks와 함께 <strong>React 16.8 (2019.2)</strong>. "lazy initial state"는 처음부터 <code>useState</code> 명세에 포함.</li>
+          <li><strong>이유 1 (성능)</strong> — 무거운 초기 계산(<code>JSON.parse(localStorage…)</code>, 큰 배열 생성)을 매 렌더 반복하지 않으려고.</li>
+          <li><strong>이유 2 (정확성/정체성)</strong> — <code>new QueryClient()</code>·<code>createStore()</code>처럼 <strong>인스턴스를 딱 하나만</strong> 만들어야 하는 경우. 매 렌더 새로 만들면(설령 버려져도) 비용·부작용 발생.</li>
+        </ul>
+
+        <h3>3. 원리 (React가 하는 일)</h3>
+        <p><code>useState</code>는 인자가 <strong>함수면 "초기화 함수(initializer)"</strong>로 취급한다.</p>
+        <ul>
+          <li><strong>최초 마운트</strong> — initializer를 <strong>인자 없이</strong> 호출해 반환값을 초기 state로 저장.</li>
+          <li><strong>리렌더</strong> — 이미 저장된 state가 있으므로 <strong>initializer를 호출하지 않고 인자 자체를 무시</strong>.</li>
+        </ul>
+        <div class="note">
+          <strong>참고</strong> <code>useReducer</code>의 지연 초기화는 형태가 다르다 → <code>useReducer(reducer, initialArg, init)</code>에서 <code>init(initialArg)</code>로 호출(인자 받음). <code>useState</code> initializer는 <strong>인자를 받지 않는다</strong>.
+        </div>
+
+        <h3>4. 어떻게 쓰나</h3>
+<pre><code><span class="c-com">// 무거운 초기 계산</span>
+<span class="c-key">const</span> [tree] = useState(() =&gt; buildHugeTree(props.seed));
+<span class="c-com">// localStorage 파싱</span>
+<span class="c-key">const</span> [draft] = useState(() =&gt; JSON.parse(localStorage.getItem(<span class="c-str">'draft'</span>) ?? <span class="c-str">'{}'</span>));
+<span class="c-com">// 인스턴스 1회 생성 (Zustand/React Query)</span>
+<span class="c-key">const</span> [store]  = useState(() =&gt; createCartStore(initialItems));
+<span class="c-key">const</span> [qc]     = useState(() =&gt; <span class="c-key">new</span> QueryClient());</code></pre>
+
+        <h3>5. ⚠️ 주의점</h3>
+        <div class="box danger">
+          <h4>흔한 함정</h4>
+          <ul>
+            <li><strong>함수를 "호출"하면 무의미</strong> — <code>useState(createStore())</code>(❌) vs <code>useState(() =&gt; createStore())</code>(✅). 괄호 하나 차이로 매 렌더 실행.</li>
+            <li><strong>initializer는 1회뿐 → props 변경에 반응 안 함</strong> — <code>useState(() =&gt; createStore(initialItems))</code>는 첫 <code>initialItems</code>만 박제. 이후 prop이 바뀌어도 store는 안 바뀐다(파생상태 함정). SSR 패턴에선 보통 의도된 동작.</li>
+            <li><strong>순수해야 함</strong> — initializer 안에서 구독·이벤트 등록 같은 <strong>부작용 금지</strong>. <strong>React 18+ StrictMode(dev)는 initializer를 2번 호출</strong>해 불순물을 노출시킨다(인스턴스가 dev에서 2개 생길 수 있음 → 순수 생성이면 OK).</li>
+            <li><strong>"1회" = per mount, 영원히 1회 아님</strong> — 리렌더엔 안 돌지만 <strong>언마운트 후 재마운트엔 다시 실행</strong>(새 인스턴스 = 새 state). <code>key</code> 변경·조건부 렌더 제거/복귀·라우트 이동·StrictMode가 재마운트를 유발. 마운트를 넘는 보존이 필요하면 그건 지연초기화가 아니라 <strong>persist / 상태 끌어올리기 / 외부 store</strong>의 몫.</li>
+          </ul>
+        </div>
+        <div class="note">
+          <strong>📌 재마운트 시 동작 (Zustand 맥락)</strong> <code>CartProvider</code>가 언마운트→재마운트되면 <strong>새 store 인스턴스</strong>가 생겨 <strong>인메모리 상태는 사라진다</strong>. 단 <code>persist</code>면 <code>rehydrate()</code>가 localStorage에서 값을 다시 끌어와 <strong>사용자 눈엔 보존</strong>(인스턴스는 새것, 영속 데이터는 유지).
+          <table style="margin-top:8px">
+            <thead><tr><th>사건</th><th class="center">initializer 재실행</th><th>state</th></tr></thead>
+            <tbody>
+              <tr><td>리렌더</td><td class="center no">✗</td><td>유지</td></tr>
+              <tr><td>언마운트 → 재마운트</td><td class="center yes">✓</td><td>새로 생성</td></tr>
+              <tr><td><code>key</code> 변경</td><td class="center yes">✓ (강제 재마운트)</td><td>새로 생성</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note warn">
+          <strong>⚠️ <code>useMemo</code>로 "1회 생성" 하지 말 것</strong> <code>useMemo(() =&gt; createStore(), [])</code>는 <strong>정체성 보장이 아니다</strong> — React는 메모리 압박 시 캐시를 버리고 재계산할 수 있다(공식 문서). "딱 하나만"이 필요하면 <strong><code>useState</code> 지연 초기화</strong>나 <code>useRef</code> 가드를 써라.
+        </div>
+
+        <h3>6. useState 지연초기화 vs useRef 가드 (17강 맥락)</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>useRef + 가드 (과거 패턴)</h4>
+<pre><code><span class="c-key">const</span> ref = useRef();
+<span class="c-key">if</span> (!ref.current)
+  ref.current = createStore();</code></pre>
+            <p style="margin:6px 0;font-size:13px"><code>useRef(createStore())</code>는 매 렌더 생성되므로 <strong>반드시 <code>if</code> 가드</strong> 필요.</p>
+          </div>
+          <div class="box safe">
+            <h4>useState 지연초기화 (권장)</h4>
+<pre><code><span class="c-key">const</span> [store] =
+  useState(() =&gt; createStore());</code></pre>
+            <p style="margin:6px 0;font-size:13px">가드 불필요. <strong>React 19 동시성</strong>에서 렌더가 중단·재시작돼도 React가 state로 안전 관리 → 17강이 useRef에서 이걸로 전환한 이유.</p>
+          </div>
+        </div>
+
+        <div class="principle">
+          <strong>✅ 한 줄</strong> <span class="k">값을 넣으면 매 렌더 계산, 함수를 넣으면 최초 1회</span>.
+          비싼 계산·<span class="k">단 하나의 인스턴스</span>엔 <code>useState(() =&gt; ...)</code>.
+          단 <span class="k">initializer는 순수·1회뿐</span>(props 변경 무반응, dev 2회 호출), <span class="k">useMemo로 정체성 보장 금지</span>.
+          그리고 <span class="k">"렌더 사이 안정성"이지 "마운트를 넘는 영속"이 아니다</span> — 재마운트엔 다시 돈다.
+        </div>
+      </article>
+
+      <!-- ── 인사이트 : 낙관적 업데이트 — 연속 클릭 & 왜 TanStack Query ── -->
+      <article class="entry insight" id="insight-optimistic-tanstack"
+               data-section="insight"
+               data-title="낙관적 업데이트 — 연속 클릭 race & 왜 그냥 TanStack Query인가"
+               data-tags="Optimistic UI, 낙관적 업데이트, TanStack Query, useMutation, race condition, Server Actions, 서버 상태">
+        <header class="entry-head">
+          <h2>낙관적 업데이트 — 연속 클릭 &amp; 왜 TanStack Query인가</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">Optimistic UI</span><span class="chip">TanStack Query</span><span class="chip">race</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> ① 카트를 DB에 동기화하면 서버 상태인데 그냥 TanStack Query 쓰면 되지 않나? ② 버튼을 안 막았는데 <strong>연속으로 빠르게 누르면</strong> 어떻게 되나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">⚡</span>
+          <span>DB가 진실이면 그건 <b>서버 상태 → <code>useMutation</code>이 정석</b>(낙관적+롤백+재동기화 내장). 강의의 Zustand 손코딩은 <b>화면만 맞추고 서버 정합은 빈 채로</b> 둔다. 연속 클릭 시 <b>화면은 정상 누적</b>(get 최신값+동기 set)되지만, <b>서버는 N개 동시요청 + 완료 순서 race</b>로 틀어질 수 있다. <code>-1 롤백</code>은 그래서 짠 것.</span>
+        </div>
+
+        <h3>1. 연속 클릭 추적 — 화면은 왜 정상인가</h3>
+        <p><code>add</code>가 매번 <code>get().items</code>(<strong>최신값</strong>)를 읽고 <code>set</code>을 <strong>await 전에 동기 실행</strong>하기 때문:</p>
+        <table>
+          <thead><tr><th>클릭</th><th><code>get().items</code></th><th><code>set</code></th><th>서버요청</th></tr></thead>
+          <tbody>
+            <tr><td>1 (t=0)</td><td>0</td><td>items=1</td><td>sync(1)</td></tr>
+            <tr><td>2 (t=50ms)</td><td><strong>1</strong> (1번 set 반영)</td><td>items=2</td><td>sync(2)</td></tr>
+            <tr><td>3 (t=100ms)</td><td><strong>2</strong></td><td>items=3</td><td>sync(3)</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>그래서 화면은 0→1→2→3 정확히 누적</strong> — 핸들러를 안 막아도 lost update 없음. (만약 <code>prev</code>를 클로저 캡처하거나 set 전에 await가 끼면 누락 났을 것). <code>isPending</code>은 하나라도 진행 중이면 true라 버튼은 내내 'SYNCING' + 투명도, 단 <strong>disabled 아니라 클릭은 계속 먹힘</strong>.
+        </div>
+
+        <h3>2. 숨은 비용 2가지</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>① N개 동시 요청 (dedup/취소 없음)</h4>
+            <p style="margin:6px 0;font-size:13px">3번 누르면 <code>sync(1/2/3)</code>이 <strong>겹쳐서 발송</strong>. <code>startTransition</code>은 중복제거도 이전요청 취소도 안 함.</p>
+          </div>
+          <div class="box danger">
+            <h4>② 서버 측 race (진짜 함정)</h4>
+            <p style="margin:6px 0;font-size:13px">3 요청이 각각 <code>currentTotal=items</code>. <strong>완료 순서 미보장</strong> → sync(3)이 먼저 끝나면 최종 DB가 <strong>3이 아니라 1</strong>. <strong>화면 3 ≠ DB 1</strong> 불일치.</p>
+          </div>
+        </div>
+
+        <h3>3. 그래서 롤백이 "-1 상대값"인 이유</h3>
+        <p>클릭 2만 실패 시(이미 items=3): <code>set(s =&gt; s.items - 1)</code> → 2.</p>
+        <ul>
+          <li>카운터는 <strong>어느 +1을 빼든 동등(fungible)</strong> → 결과 2 = "성공 2건"과 일치 ✅</li>
+          <li><code>set({items: previousItems})</code>(=1)로 덮으면 클릭 3 증가분까지 소실 ❌</li>
+        </ul>
+        <div class="note warn">
+          <strong>한계</strong> -1 롤백은 <strong>클라 일관성만</strong> 지킨다. 위 <strong>서버 측 race(2번)는 여전히 미해결</strong> — 화면과 DB가 갈릴 수 있음.
+        </div>
+
+        <h3>4. 왜 그냥 TanStack Query인가 — 진실의 원천으로 판단</h3>
+        <p>DB에 저장돼 <strong>그게 진실의 원천</strong>이면(로그인·결제·크로스기기) = <strong>서버 상태</strong> → <code>useMutation</code>이 이걸 위한 도구. 강의는 자기 <strong>15강 원칙("서버상태=TanStack")을 어겼다.</strong></p>
+<pre><code>useMutation({
+  mutationFn: syncCartWithDatabase,
+  onMutate: <span class="c-key">async</span> (next) =&gt; {
+    <span class="c-key">await</span> qc.cancelQueries({ queryKey: [<span class="c-str">'cart'</span>] }); <span class="c-com">// 중복 정리</span>
+    <span class="c-key">const</span> prev = qc.getQueryData([<span class="c-str">'cart'</span>]);          <span class="c-com">// 전체 스냅샷</span>
+    qc.setQueryData([<span class="c-str">'cart'</span>], next);                  <span class="c-com">// 낙관적</span>
+    <span class="c-key">return</span> { prev };
+  },
+  onError: (_e, _v, ctx) =&gt; qc.setQueryData([<span class="c-str">'cart'</span>], ctx.prev), <span class="c-com">// 롤백</span>
+  onSettled: () =&gt; qc.invalidateQueries({ queryKey: [<span class="c-str">'cart'</span>] }), <span class="c-com">// 서버 진실로 재동기화</span>
+});</code></pre>
+        <div class="note">
+          <strong>왜 더 견고한가</strong> ① <code>onMutate</code>가 <strong>전체 이전 스냅샷</strong> 복원(부분 실패 안전) · ② <code>onSettled</code>의 <strong>invalidate→refetch</strong>로 위 서버 race를 <strong>서버 진실에 맞춰 reconcile</strong>(손계산 -1 불필요) · ③ 캐싱·dedup은 덤. 강의의 "-1"이 못 한 걸 구조적으로 해결.
+        </div>
+
+        <h3>5. 결정 규칙 & 우리 프로젝트</h3>
+        <div class="principle">
+          <strong>✅ "진실의 원천이 누구냐"로 갈린다</strong>
+          <br>· 서버가 진실(로그인·결제·크로스기기) → <span class="k">TanStack Query <code>useMutation</code></span>(낙관적 내장)
+          <br>· 클라가 진실(<span class="k">local-first</span>·즉각·오프라인, DB는 fire-and-forget) → <span class="k">Zustand/Jotai + persist + 백그라운드 sync</span>(강의 방식)
+          <br>· 현실 카트는 흔히 <span class="k">하이브리드</span>(게스트=클라 / 로그인=서버)
+        </div>
+        <div class="note">
+          <strong>📦 우리 프로젝트</strong> 이미 TanStack Query <strong>~1,600 사용처</strong>로 서버 상태 관리 → <strong>DB 동기 카트면 당연히 <code>useMutation</code></strong>, jotai/zustand로 끌고 갈 이유 없음. 강의의 Zustand-옵티미스틱은 <strong>패턴 학습용</strong>(낙관적 원리 자체는 라이브러리 무관 — jotai write-atom으로도 동일).
+        </div>
+      </article>
+
+      <!-- ── 인사이트 #3 : Jotai vs Zustand + Next.js 궁합 ─────── -->
+      <article class="entry insight" id="insight-jotai-vs-zustand"
+               data-section="insight"
+               data-title="Jotai vs Zustand 깊게 — '값이 어디 사는가'로 모든 차이 이해하기"
+               data-tags="Zustand, Jotai, 상태관리, SSR, atom, store, useHydrateAtoms, 리렌더">
+        <header class="entry-head">
+          <h2>Jotai vs Zustand — '값이 어디 사는가'로 이해하기</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">Jotai</span><span class="chip">Zustand</span><span class="chip">멘탈모델</span><span class="chip">SSR</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 둘 다 pmndrs 라이브러리인데 뭐가 본질적으로 다르고, 왜 Next.js SSR에서 다르게 동작하나? (표만 봐선 이해가 안 됨)
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔑</span>
+          <span>딱 하나만 기억하면 나머지가 다 풀린다 → <b>"값(state)이 어디에 저장되는가"</b>.
+          Zustand는 <b>store 객체가 값을 직접 들고 있다</b>(정의=그릇=값). Jotai는 <b>atom은 '이름표(키)'일 뿐 값이 없고</b>, 값은 별도의 <b>store에 따로 산다</b>(정의 ↔ 값 분리). 이 한 줄에서 리렌더·SSR·보일러플레이트 차이가 전부 갈린다.</span>
+        </div>
+
+        <!-- ============ 0. 핵심 통찰 ============ -->
+        <h3>0. 단 하나의 핵심 — 값의 거처</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>🐻 Zustand — 그릇이 값을 들고 있음</h4>
+            <p style="margin:6px 0"><code>create()</code>가 만든 store는 <strong>그 자체가 값을 담은 그릇</strong>이다. "정의 + 값"이 한 덩어리.</p>
+<pre><code><span class="c-key">const</span> useStore = create(() =&gt; ({ count: 0 }));
+<span class="c-com">// useStore 안에 0이 '실제로' 들어있음</span>
+useStore.getState().count; <span class="c-com">// 0</span></code></pre>
+          </div>
+          <div class="box info">
+            <h4>⚛️ Jotai — 이름표 + 창고 분리</h4>
+            <p style="margin:6px 0"><code>atom()</code>은 <strong>값이 없는 '이름표(키)'</strong>. 실제 값은 <code>store</code>(창고)에 저장되고, atom은 그 칸을 가리키는 주소일 뿐.</p>
+<pre><code><span class="c-key">const</span> countAtom = atom(0);
+<span class="c-com">// countAtom엔 0이 없다. '초기값 0짜리 칸'의 이름표일 뿐</span>
+store.get(countAtom); <span class="c-com">// store(창고)가 값을 보관</span></code></pre>
+          </div>
+        </div>
+        <div class="analogy">
+          <span class="ico">🗄️</span>
+          <div><strong>Zustand</strong> = 내용물이 든 <strong>도시락 통</strong>(통=값). 통을 복제하면 내용물도 복제됨.
+          <strong>Jotai</strong> = <strong>사물함 번호표</strong>(atom) + <strong>사물함 건물</strong>(store). 번호표는 어디에 붙여도 안전하고(값이 없으니), 실제 짐은 "어느 건물의" 그 번호 칸에 있느냐로 정해진다. → <strong>같은 번호표도 건물(store)이 다르면 다른 짐</strong>.</div>
+        </div>
+
+        <!-- ============ 1. 같은 카운터, 양쪽 구현 ============ -->
+        <h3>1. 같은 기능을 양쪽으로 — 코드로 체감</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>🐻 Zustand</h4>
+<pre><code><span class="c-com">// 1) 그릇(상태+액션)을 통째로 정의</span>
+<span class="c-key">const</span> useStore = create&lt;S&gt;((set) =&gt; ({
+  count: 0,
+  name: <span class="c-str">'kim'</span>,
+  inc: () =&gt; set((s) =&gt; ({ count: s.count+1 })),
+}));
+
+<span class="c-com">// 2) selector로 '슬라이스'를 잘라 구독</span>
+<span class="c-key">const</span> count = useStore((s) =&gt; s.count);
+<span class="c-key">const</span> inc   = useStore((s) =&gt; s.inc);</code></pre>
+            <p style="margin:6px 0;font-size:13px">큰 그릇 하나를 만들고 <strong>잘라서</strong> 쓴다 (top-down).</p>
+          </div>
+          <div class="box info">
+            <h4>⚛️ Jotai</h4>
+<pre><code><span class="c-com">// 1) 조각(atom)을 따로따로 선언</span>
+<span class="c-key">const</span> countAtom = atom(0);
+<span class="c-key">const</span> nameAtom  = atom(<span class="c-str">'kim'</span>);
+
+<span class="c-com">// 2) 필요한 atom만 집어 구독</span>
+<span class="c-key">const</span> [count, setCount] = useAtom(countAtom);
+<span class="c-key">const</span> inc = () =&gt; setCount((c) =&gt; c+1);</code></pre>
+            <p style="margin:6px 0;font-size:13px">작은 조각을 <strong>모아서</strong> 쓴다 (bottom-up). "전역 useState" 느낌.</p>
+          </div>
+        </div>
+
+        <!-- ============ 2. 리렌더 ============ -->
+        <h3>2. 리렌더 — 둘 다 "필요한 것만"이지만 방식이 다르다</h3>
+        <table>
+          <thead><tr><th></th><th>Zustand</th><th>Jotai</th></tr></thead>
+          <tbody>
+            <tr><td>구독 단위</td><td>selector가 <strong>잘라낸 결과</strong></td><td><strong>atom 그 자체</strong></td></tr>
+            <tr><td>비교 방식</td><td>이전·이후 결과를 <code>Object.is</code></td><td>구독한 atom이 바뀌었나(그래프)</td></tr>
+            <tr><td>흔한 함정</td><td><strong>객체 반환 시 매번 새 참조</strong> → <code>useShallow</code> 필요</td><td>atom 단위라 참조 함정이 적음</td></tr>
+            <tr><td>파생 상태</td><td>selector 안에서 계산(구독 단위는 원본)</td><td><strong>derived atom</strong>(의존 atom 변할 때만 재계산·캐시)</td></tr>
+          </tbody>
+        </table>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>🐻 Zustand 함정</h4>
+<pre><code><span class="c-com">// 매 렌더 새 객체 → 항상 리렌더</span>
+<span class="c-key">const</span> {a,b} = useStore((s)=&gt;({a:s.a,b:s.b}));
+<span class="c-com">// ✅ useShallow로 해결</span>
+useStore(useShallow((s)=&gt;({a:s.a,b:s.b})));</code></pre>
+          </div>
+          <div class="box safe">
+            <h4>⚛️ Jotai 파생</h4>
+<pre><code><span class="c-key">const</span> countAtom   = atom(0);
+<span class="c-com">// count 바뀔 때만 재계산, 결과 캐시됨</span>
+<span class="c-key">const</span> doubledAtom = atom((get)=&gt;get(countAtom)*2);</code></pre>
+          </div>
+        </div>
+        <p style="font-size:13.5px"><strong>직관:</strong> 상태가 <strong>잘게 독립적</strong>이면 Jotai가 자연스럽게 세밀(조각 단위가 기본값). 하나의 <strong>큰 트리를 여러 각도로 슬라이싱</strong>하면 Zustand selector가 유연. 우열이 아니라 "기본값에서 실수 가능성 + 보일러플레이트"의 차이.</p>
+
+        <!-- ============ 3. SSR — 왜 다른가 (1차 원리) ============ -->
+        <h3>3. Next.js SSR에서 왜 다르게 동작하나 (가장 중요)</h3>
+        <div class="note warn">
+          <strong>⚠️ 공통 전제</strong> Next 서버는 <strong>한 프로세스로 모든 요청을 처리</strong>한다. 모듈 스코프(파일 최상단)에 만든 <strong>값을 담은 그릇</strong>은 요청끼리 공유 → 서버 렌더 중 값을 쓰면 사용자 간 누수. <strong>그래서 "값을 담은 것"을 모듈 전역에 두면 안 된다.</strong>
+        </div>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>🐻 Zustand — store = 값 그릇 → 전역 금지</h4>
+<pre><code><span class="c-com">// ❌ 모듈 전역 = 값이 서버에 공유됨</span>
+<span class="c-key">export const</span> useStore = create(...);
+
+<span class="c-com">// ✅ 요청마다 새로 찍는 '공장' + 내 Context</span>
+<span class="c-key">const</span> makeStore = (init) =&gt;
+  createStore(() =&gt; ({ count: init }));
+<span class="c-com">// Provider에서 useRef로 1회 생성해 격리</span></code></pre>
+            <p style="margin:6px 0;font-size:13px"><strong>store가 곧 값</strong>이라 전역에 못 둔다 → 공장 함수 + 커스텀 Context + <code>useStore(store, sel)</code> 직접 배선. 보일러플레이트 ↑</p>
+          </div>
+          <div class="box safe">
+            <h4>⚛️ Jotai — atom = 값 없는 키 → 전역 OK</h4>
+<pre><code><span class="c-com">// ✅ atom은 값이 없으니 전역에 둬도 안전</span>
+<span class="c-key">export const</span> countAtom = atom(0);
+
+<span class="c-com">// 값 격리는 Provider(요청별 store)가 담당</span>
+&lt;Provider&gt;{children}&lt;/Provider&gt;
+<span class="c-com">// 서버 초기값 주입</span>
+useHydrateAtoms([[countAtom, serverValue]]);</code></pre>
+            <p style="margin:6px 0;font-size:13px"><strong>atom 정의는 전역 그대로</strong> 두고, 값만 <code>&lt;Provider&gt;</code>가 만든 store에 격리. 공장 함수 불필요. 보일러플레이트 ↓</p>
+          </div>
+        </div>
+        <div class="note">
+          <strong>정확히 짚기 (오해 방지)</strong> "Jotai라서 Provider가 필요 없다"가 <u>아니다</u>. SSR 격리·초기값 주입을 하려면 <strong>Jotai도 <code>&lt;Provider&gt;</code>를 쓴다</strong>(안 쓰면 모듈 전역 <em>default store</em>를 쓰는데, 그건 서버에서 공유됨 → 같은 누수 위험). 진짜 차이는 <strong>"무엇을 전역에 둘 수 있나"</strong>다:
+          <br>· Zustand: <strong>값 그릇(store)</strong>을 전역에 두면 위험 → 공장+Context 직접 구성
+          · Jotai: <strong>이름표(atom)</strong>는 전역 안전, 값 격리는 Provider가 기본 제공 → 더 가벼움
+        </div>
+        <div class="principle">
+          <strong>한 문장</strong> 둘 다 <span class="k">Provider로 요청별 값을 격리</span>한다(둘 다 Provider엔 변하는 값이 아니라 <span class="k">store 참조만</span> 담아 폭포수 없음). 차이는 <span class="k">Jotai는 atom(정의)이 값과 분리돼 전역에 둬도 안전</span>해 배선이 적고, <span class="k">Zustand는 store가 값을 들고 있어</span> 요청별 공장+Context를 직접 짜야 한다는 것.
+        </div>
+
+        <!-- ============ 4. API 한눈에 ============ -->
+        <h3>4. API 대응표</h3>
+        <table>
+          <thead><tr><th>하고 싶은 것</th><th>Zustand</th><th>Jotai</th></tr></thead>
+          <tbody>
+            <tr><td>정의</td><td><code>create(...)</code> / <code>createStore(...)</code></td><td><code>atom(...)</code></td></tr>
+            <tr><td>값 + setter</td><td><code>useStore((s)=&gt;s.x)</code> + 액션</td><td><code>useAtom(a)</code></td></tr>
+            <tr><td>값만 (읽기)</td><td><code>useStore((s)=&gt;s.x)</code></td><td><code>useAtomValue(a)</code></td></tr>
+            <tr><td>setter만 (구독 X)</td><td><code>useStore((s)=&gt;s.setX)</code></td><td><code>useSetAtom(a)</code></td></tr>
+            <tr><td>파생</td><td>selector 내부 계산</td><td><code>atom((get)=&gt;...)</code></td></tr>
+            <tr><td>React 밖 접근</td><td><strong>쉬움</strong> <code>store.getState()/setState()</code></td><td>가능 <code>getDefaultStore().get/set</code>·<code>store.sub()</code> (Provider 격리 시 store ref 필요)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note">
+          <strong>📌 "React 밖 접근"이란?</strong> 컴포넌트·훅이 <u>아닌</u> 평범한 JS(웹소켓 <code>socket.on</code> 콜백, 전역 <code>addEventListener</code>, <code>setInterval</code>, store 액션 내부, 테스트). 여기선 훅(<code>useStore(selector)</code>)을 못 쓴다. Zustand store는 <strong>훅이자 평범한 store 객체</strong>라 밖에서 <code>getState()/setState()</code>로 직접 접근된다.
+        </div>
+
+        <div class="note warn">
+          <strong>⚠️ 먼저 — 이건 store에 둘 게 아니다</strong> 토큰·테마·언어·<u>공유할 필터</u>처럼 <strong>영속·공유·직렬화</strong> 상태는 store가 아니라 <strong>쿠키 / localStorage / 쿼리스트링</strong>이 정답(store에만 두면 새로고침에 날아감 = 안티패턴). 그래서 "axios 인터셉터에서 토큰 읽기"는 보통 <strong>쿠키(httpOnly면 자동 전송)나 localStorage</strong>로 해결 — store가 필요 없다.
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">결정 규칙 — 어디에 둘까</h4>
+        <div class="grid2">
+          <div class="box info">
+            <h4>🍪 브라우저 상태 (쿠키 / localStorage / URL)</h4>
+            <ul>
+              <li><strong>영속</strong>(새로고침·재방문에도 유지): 토큰·테마·언어</li>
+              <li><strong>공유·북마크·뒤로가기</strong>: 검색어·필터·탭 → <strong>쿼리스트링</strong></li>
+              <li>직렬화 가능한 작은 문자열</li>
+            </ul>
+          </div>
+          <div class="box info">
+            <h4>🐻 인메모리 store (Zustand)</h4>
+            <ul>
+              <li><strong>휘발성</strong>(영속하면 안 됨): 모달 열림·진행 중 폼</li>
+              <li><strong>반응형 + 크거나 잦은 변경</strong>: 실시간 스트림·큰 파생 데이터</li>
+              <li>URL/스토리지에 담기 부적절한 런타임 객체</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">그래서 'React 밖 접근'이 진짜 필요한 경우 (브라우저 상태로 못 가는 것)</h4>
+        <p style="font-size:13.5px;margin:6px 0">공통 조건: <strong>(a) 영속·공유 불필요 + (b) 인메모리·반응형 + (c) 트리거가 React 밖</strong>. 셋이 겹칠 때만.</p>
+        <ul>
+          <li><strong>실시간 스트림</strong> — 웹소켓/SSE로 쏟아지는 채팅·알림·시세를 메모리에 쌓기. localStorage 부적합(용량·성능·반응성). 소켓 콜백은 React 밖 ✅</li>
+          <li><strong>휘발성 UI 상태를 밖에서 읽기</strong> — 전역 단축키 리스너가 <code>getState().isModalOpen</code> 확인. 모달 열림은 <strong>영속하면 안 되는</strong> 상태 → 쿠키/스토리지가 틀림 ✅</li>
+          <li><strong>액션 간 연쇄</strong> — store 액션 안에서 <code>get()</code>으로 다른 슬라이스를 읽어 계산. 브라우저 상태와 무관, 대체재 없음 ✅</li>
+          <li><strong>테스트</strong> — 컴포넌트 렌더 없이 <code>setState()</code>로 상태 세팅 후 로직만 검증 ✅</li>
+        </ul>
+<pre><code><span class="c-com">// socket.ts  ← React 밖 콜백 + 휘발성·반응형 스트림 = store가 정답</span>
+socket.on(<span class="c-str">'message'</span>, (msg) =&gt; {
+  useChatStore.getState().addMessage(msg);   <span class="c-com">// 밖에서 직접 push</span>
+});
+
+<span class="c-com">// shortcut.ts  ← 전역 리스너가 '지금 휘발성 UI 상태'를 읽음</span>
+window.addEventListener(<span class="c-str">'keydown'</span>, (e) =&gt; {
+  <span class="c-key">if</span> (e.key === <span class="c-str">'Escape'</span> &amp;&amp; useUIStore.getState().isModalOpen) {
+    useUIStore.getState().closeModal();
+  }
+});</code></pre>
+
+        <div class="note">
+          <strong>🔗 둘은 양자택일이 아니다</strong> localStorage는 <strong>같은 탭에서 변경이 반응형이 아니라서</strong>, 영속값을 store에 <strong>미러링</strong>해 UI 반응성을 얻는다. Zustand <code>persist</code>가 이 동기화(store ↔ localStorage)를 자동화. → 예: 테마 = <em>저장은 localStorage · 화면 반응은 store · 연결은 persist</em>.
+        </div>
+
+        <div class="note warn">
+          <strong>⚠️ <code>getState()</code> 주의</strong> 구독이 아니라 <strong>그 순간 스냅샷</strong>. "바뀌면 다시 실행" 안 됨. → 화면에 그릴 값은 컴포넌트 안 <code>useStore(selector)</code>(구독), 밖에서 명령형으로 '지금 값만' 필요할 때 <code>getState()</code>. 컴포넌트 안에서 <code>getState()</code> 쓰면 리렌더 안 되니 금물.
+        </div>
+
+        <!-- ============ 5. 생태계 ============ -->
+        <h3>5. 생태계 / 비동기</h3>
+        <table>
+          <thead><tr><th>기능</th><th>Zustand</th><th>Jotai</th></tr></thead>
+          <tbody>
+            <tr><td>영속화</td><td><code>persist</code> 미들웨어</td><td><code>atomWithStorage</code></td></tr>
+            <tr><td>비동기</td><td>액션 내 async/await</td><td><strong>async atom</strong>(Suspense 자동 연동)</td></tr>
+            <tr><td>서버상태 통합</td><td>별도(TanStack Query)</td><td><code>jotai-tanstack-query</code></td></tr>
+            <tr><td>합성 방식</td><td>미들웨어 중첩 <code>persist(devtools(...))</code></td><td>atom 유틸 조합(<code>jotai/utils</code>)</td></tr>
+          </tbody>
+        </table>
+
+        <!-- ============ 6. 선택 ============ -->
+        <h3>6. 언제 무엇을</h3>
+        <div class="grid2">
+          <div class="box safe">
+            <h4>🐻 Zustand가 유리</h4>
+            <ul>
+              <li>인증·테마·장바구니 같은 <strong>명확한 도메인 store 하나</strong></li>
+              <li>"store + 액션" Redux형 멘탈모델 선호</li>
+              <li><strong>React 밖</strong>(이벤트 핸들러·유틸)에서 상태 접근</li>
+              <li>미들웨어를 중앙에서 명시적으로 합성</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>⚛️ Jotai가 유리</h4>
+            <ul>
+              <li>상태가 <strong>잘게 쪼개진 독립 단위</strong>, 로컬→전역 승격 잦음</li>
+              <li><strong>파생 상태</strong>가 많고 의존 그래프 자동 재계산 필요</li>
+              <li><strong>App Router SSR</strong>을 최소 보일러플레이트로</li>
+              <li>비동기 + Suspense를 상태와 매끄럽게 통합</li>
+            </ul>
+          </div>
+        </div>
+        <div class="note warn">
+          <strong>⚖️ 솔직한 무승부 — "능력 차이"는 거의 없다</strong> 위 "유리" 항목은 <u>capability가 아니라 결(shape)·취향·생태계 적합성</u>이다. 깐깐히 따지면:
+          <ul>
+            <li><strong>응집도(상태+액션 한곳)</strong> — Jotai도 atom + <strong>write-atom</strong>(<code>atom(null,(get,set)=&gt;...)</code>)을 한 모듈/훅에 모으면 동일. 오히려 <strong>파생 상태는 Jotai가 더 응집적</strong>(derived atom 자동 재계산).</li>
+            <li><strong>단일 store 멘탈모델</strong> — Jotai로 atom 묶어 충분히 재현. 순수 <strong>취향</strong>.</li>
+            <li><strong>React 밖 접근</strong> — Jotai v2 <code>getDefaultStore()</code>·<code>store.sub()</code>로 가능(Provider 없을 때). Zustand가 유리한 건 <strong>"Provider 격리 store + 밖에서 접근"</strong>이라는 드문 교집합뿐.</li>
+          </ul>
+          → Jotai가 못 하고 Zustand만 되는 <strong>근본적 갭은 사실상 없다.</strong> 둘은 ~90% 겹치는 같은 도구의 다른 <strong>모양</strong>.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 권장 아키텍처</strong> 서버 상태(목록·캐싱·재검증)는 <span class="k">TanStack Query</span>, 순수 클라 상태(모달·필터·선택)는 <span class="k">Zustand 또는 Jotai 하나</span>. 둘을 섞지 말고 경계를 분명히(서버 데이터를 store에 복사하면 동기화 지옥).
+          <br>→ 겹침이 ~90%라 <span class="k">결정은 능력이 아니라 ① 기존 코드베이스 ② 팀 멘탈모델 ③ 실제 쓰는 생태계 기능</span>으로 한다.
+          <span class="k">단일 store 느낌·외부접근 기본 = Zustand</span> · <span class="k">파생·async(Suspense)·SSR 가벼움·atomFamily = Jotai</span>.
+        </div>
+      </article>
+
+
+      <!-- ╔══════════════════════════════════════════════════════════╗
+           ║  SECTOR 3 — 우리 프로젝트 (zaritalk-front)                 ║
+           ╚══════════════════════════════════════════════════════════╝ -->
+      <div class="sector-head" id="sector-project">
+        <span class="num">3</span>
+        <h2>우리 프로젝트</h2>
+        <span class="desc">zaritalk-front 실측 · jotai 사용 현황과 판단</span>
+      </div>
+
+      <!-- ── 프로젝트 #1 : jotai 사용 현황 & 판단 ──────────────── -->
+      <article class="entry project" id="project-jotai"
+               data-section="project"
+               data-title="zaritalk-front의 jotai 현황 & zustand 마이그레이션 판단"
+               data-tags="Jotai, Zustand, zaritalk-front, 모노레포, SSR, atomFamily, TanStack Query"
+               data-date="2026-06-21">
+        <header class="entry-head">
+          <h2>zaritalk-front — jotai 현황 &amp; 마이그레이션 판단</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">실측</span><span class="chip">Jotai</span><span class="chip">모노레포</span><span class="chip">의사결정</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 우리 프로젝트는 jotai를 쓰는데, zustand로 갈아탈 이유가 있나? (앞 인사이트의 일반론을 <em>우리 코드</em>에 적용)
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🏠</span>
+          <span><b>결론: jotai 유지, 마이그레이션 비권장.</b> 이미 jotai의 차별 기능(<code>atomWithStorage</code>·<code>atomFamily</code>·<code>useHydrateAtoms</code>)을 핵심으로 쓰고, 멀티앱 Next.js + per-atom SSR 구조에 정확히 맞으며, 서버 상태는 TanStack Query가 분리 담당해 jotai 역할이 "UI/폼 상태"로 명확하다. zustand의 실익(응집도·React 밖 접근)은 현재 페인포인트가 아니다.</span>
+        </div>
+
+        <h3>1. 사용 현황 (실측)</h3>
+        <ul>
+          <li><strong>버전</strong> — 루트 중앙 관리: <code>jotai@^2.1.0</code>, <code>jotai-family@^1.0.2</code></li>
+          <li><strong>규모</strong> — 약 <strong>200개 atom</strong> (global-state 45 + 18개 도메인 모듈 154)</li>
+          <li><strong>구조</strong> — <code>@zaritalk/global-state</code>가 <code>useAlertState</code>·<code>useToastState</code>·<code>useCookieState</code> 등 <strong>커스텀 훅으로 atom을 캡슐화</strong>. 도메인별 <code>src/state/</code>는 각자 로컬 전역상태</li>
+          <li><strong>활용 API</strong> — <code>atomWithStorage</code>(localStorage), <code>atomFamily</code>(쿠키 동적 키), <code>useHydrateAtoms</code>(SSR), <code>atomWithReset</code></li>
+          <li><strong>역할 분담</strong> — 서버 상태 = TanStack Query(<strong>약 1,600 사용처</strong>) · jotai = UI·폼·필터 전담</li>
+          <li><strong>zustand</strong> — 현재 <strong>0건</strong></li>
+        </ul>
+
+        <h3>2. 우리 맥락에서의 jotai vs zustand</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>항목</th><th>jotai</th><th>zustand</th></tr></thead>
+          <tbody>
+            <tr><td>모델</td><td>Bottom-up, atom 단위 조합</td><td>Top-down, store 단위 중앙 객체</td></tr>
+            <tr><td>리렌더 최적화</td><td>atom 구독 → 자동 fine-grained</td><td>selector 직접 작성해야</td></tr>
+            <tr><td>SSR/하이드레이션</td><td><code>useHydrateAtoms</code> per-atom 주입(Next 친화)</td><td>가능하나 store 단위라 다소 수동</td></tr>
+            <tr><td>영속화</td><td><code>atomWithStorage</code> 내장</td><td><code>persist</code> 미들웨어</td></tr>
+            <tr><td>동적 키 상태</td><td><strong><code>atomFamily</code></strong>(현재 쿠키에 활용 중)</td><td>직접 구현 필요</td></tr>
+            <tr><td>Provider</td><td>SPA는 선택(default store) · <strong>SSR 격리엔 필요</strong>(내장 <code>&lt;Provider&gt;</code>+<code>useHydrateAtoms</code>, 가벼움)</td><td>SPA는 불필요(모듈 싱글톤) · <strong>SSR 격리엔 필요</strong>(<code>createStore</code>+Context 수작업)</td></tr>
+            <tr><td>보일러플레이트</td><td>atom 선언이 잘게 쪼개짐</td><td>store 하나에 액션 모음 → 응집도↑</td></tr>
+            <tr><td>복잡한 비동기 액션</td><td>파생 atom 가능하나 분산</td><td>store action으로 모으기 깔끔</td></tr>
+            <tr><td>번들</td><td>~3KB</td><td>~1KB</td></tr>
+            <tr><td>React 외부 사용</td><td>가능(<code>getDefaultStore()</code>·<code>store.sub()</code>) · Provider 격리 시 store ref 필요</td><td>모듈 store면 <code>getState/setState</code> 바로 호출 — 더 간단</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="note">
+          <strong>한 줄</strong> jotai = "잘게 쪼갠 파생 상태 + fine-grained 리렌더"에 강함 · zustand = "상태+액션 응집도 + React 외부 접근"에 강함. <em>(단 이건 <strong>경향성·기본값</strong>일 뿐 능력 차이는 아니다 — 아래 ⚖️ 참고)</em>
+        </div>
+
+        <h3>3. 판단 — jotai 유지 (마이그레이션 비권장)</h3>
+        <div class="box safe">
+          <h4>✅ 유지 근거</h4>
+          <ul>
+            <li><strong>차별 기능을 이미 핵심 사용</strong> — <code>atomWithStorage</code>·<code>atomFamily</code>(쿠키)·<code>useHydrateAtoms</code>(SSR)는 zustand에선 미들웨어/수동 구현 → 단순 교체가 아니라 <strong>재설계</strong>.</li>
+            <li><strong>멀티앱 모노레포 + Next.js와 정합</strong> — lessee/lessor/realtor/admin 등 6개 앱이 <code>JotaiProvider</code>로 스코프 격리 + atom 단위 SSR 주입. (<code>apps/realtor/server/serverFetch.ts</code> 같은 SSR 경로와 연결)</li>
+            <li><strong>비용 &gt; 이득</strong> — 200 atom + 커스텀 훅 + 18 도메인 교체 비용은 큰데, zustand 실익(응집도·React 밖 접근)은 <strong>현 페인포인트가 아님</strong>. 서버 상태는 TanStack Query가 책임져 jotai 역할이 "UI/폼"으로 명확 — jotai가 가장 잘하는 영역.</li>
+            <li><strong>훅 캡슐화가 잘 됨</strong> — 앱 코드가 atom을 직접 import 안 하고 <code>useAlertState()</code>류만 사용 → 추상화 경계가 깔끔. 라이브러리 무관하게 좋은 설계라 바꿀 동기 약함.</li>
+          </ul>
+        </div>
+
+        <h3>4. zustand를 고려할 신호 (지금은 해당 없음)</h3>
+        <div class="box info">
+          <h4>📡 누적되면 일부 도메인에 부분 도입 검토</h4>
+          <ul>
+            <li>한 도메인에서 상태+복잡한 액션 로직이 <strong>여러 atom에 흩어져</strong> 관리가 어려워질 때 (store action으로 응집)</li>
+            <li>React 밖(유틸·이벤트 핸들러)에서 전역상태를 <strong>직접 읽고/쓰는 요구가 빈번</strong>해질 때</li>
+            <li>atom 간 <strong>의존 그래프가 복잡</strong>해 디버깅이 힘들어질 때</li>
+          </ul>
+        </div>
+        <div class="note warn">
+          <strong>⚠️ 그때도 전면 교체 X</strong> jotai 유지 + 특정 도메인만 zustand 병행이 현실적. <strong>두 라이브러리는 공존 가능.</strong>
+        </div>
+
+        <div class="note">
+          <strong>⚖️ 판단의 근거 = 능력이 아니라 적합성</strong> jotai/zustand는 <strong>능력으로는 거의 무승부</strong>(응집도·단일 store·외부접근 모두 jotai로 재현 가능, 근본 갭 없음 — 인사이트 카드 참고). 그래서 선택은 <strong>① 기존 코드베이스 ② 팀 멘탈모델 ③ 실제 쓰는 생태계 기능</strong>으로 갈리는데, <strong>셋 다 jotai를 가리킨다</strong>(이미 200 atom · <code>atomFamily</code>·<code>atomWithStorage</code>·<code>useHydrateAtoms</code> 정착). "zustand가 불편해 보임"은 라이브러리 단점이 아니라 <strong>이 프로젝트의 적합 라이브러리가 jotai라는 신호</strong>.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 최종 결론</strong> 현 시점 이 프로젝트(멀티앱 Next.js + 서버상태는 TanStack Query 분리 + 영속·SSR·동적키 활용)엔
+          <span class="k">jotai가 더 적합</span>하며 <span class="k">마이그레이션은 권장하지 않는다.</span>
+          앞 인사이트의 일반 규칙("값이 어디 사는가")에 비춰도, 우리는 <span class="k">atom=키 / 값은 Provider store에 격리</span> 모델의 이점을 정확히 누리고 있다.
+          <br>→ zustand 학습의 값어치는 <span class="k">마이그레이션이 아니라</span> 남의 코드 읽기 + <span class="k">라이브러리 무관 원리</span>(persist·하이드레이션·지연초기화·경계 설계)를 jotai에 전이하는 것.
+        </div>
+      </article>
+
+      <!-- ── 프로젝트 #2 : 병렬·가로채기 라우팅 모달 도입 판단 ──── -->
+      <article class="entry project" id="project-routing-modal"
+               data-section="project"
+               data-title="병렬·가로채기 라우팅 모달, 우리 프로젝트에 도입할까? (useNextQueryState)"
+               data-tags="병렬 라우팅, 가로채기 라우팅, 모달, useNextQueryState, Pages Router, 앱스택, zaritalk-front, 의사결정">
+        <header class="entry-head">
+          <h2>병렬·가로채기 라우팅 모달 — 도입 판단</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-21</span>
+            <span class="chip">실측</span><span class="chip">라우팅 모달</span><span class="chip">useNextQueryState</span><span class="chip">의사결정</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 20강의 병렬(<code>@slot</code>)·가로채기(<code>(.)folder</code>) 라우팅 모달을 우리 프로젝트에 도입할 가치가 있나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🪟</span>
+          <span><b>결론: 도입 불필요.</b> 두 패턴의 본질 가치는 딱 하나 — <b>"모달 상태를 URL로 만든다"</b>. 그런데 이 프로젝트는 <b>이미 <code>useNextQueryState</code>로 URL 연동 모달을 광범위하게 구현</b>해 그 4대 이점을 다 누리고 있다. 갈아타면 얻을 게 거의 없고 <b>Pages Router 전면 마이그레이션 + 네이티브 앱스택 히스토리 충돌</b> 비용만 든다.</span>
+        </div>
+
+        <h3>1. 두 패턴의 본질 가치 = "모달을 URL로"</h3>
+        <p>병렬·가로채기 라우팅 모달이 주는 건 결국 4가지로 수렴:</p>
+        <ul>
+          <li><strong>공유·북마크 가능한 모달</strong> — 링크 보내면 상대도 모달 열린 채로 봄(사진/게시물 모달)</li>
+          <li><strong>뒤로가기로 자연스럽게 닫힘</strong> — 수동 처리 제거</li>
+          <li><strong>새로고침 폴백</strong> — 가로채기 라우트는 닫히고 진짜 페이지로</li>
+          <li><strong>SEO/딥링크</strong> — 모달 콘텐츠가 실제 라우트</li>
+        </ul>
+        <div class="note">→ <strong>"콘텐츠가 그 자체로 URL을 가질 가치가 있는 모달"</strong>(상품 상세·게시물·사진)일 때만 빛난다.</div>
+
+        <h3>2. 이미 갖춰진 것 — <code>useNextQueryState</code></h3>
+        <p>핵심 훅은 <code>libs/shared/.../useNextQueryState.ts</code>. 패턴:</p>
+<pre><code><span class="c-com">// 열기</span>
+router.push(appendQueryParamsToPath(asPath, { key: <span class="c-str">'true'</span> }), { shallow: <span class="c-key">true</span> });
+<span class="c-com">// 읽기</span>
+<span class="c-key">const</span> [isOpen] = useNextQueryState(<span class="c-str">'key'</span>, { parse, defaultValue });
+<span class="c-com">// 닫기</span>
+router.back();  <span class="c-com">// 또는 deleteQueryState()</span></code></pre>
+        <table>
+          <thead><tr><th>병렬/가로채기 라우팅 이점</th><th>useNextQueryState로 이미 달성</th></tr></thead>
+          <tbody>
+            <tr><td>공유·북마크 가능한 모달 URL</td><td>✅ <code>?reviewImageZoom=true</code> 등</td></tr>
+            <tr><td>뒤로가기로 닫힘</td><td>✅ <code>router.back()</code>(history 기반)</td></tr>
+            <tr><td>새로고침 시 상태 유지</td><td>✅ URL 쿼리에서 다시 읽음</td></tr>
+            <tr><td>딥링크로 모달 열린 채 진입</td><td>✅ airbridge router의 <code>modalTarget</code> 등</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3. 가로채기 라우팅만의 유일한 실질 차이</h3>
+        <div class="note">
+          <strong>"같은 URL을 진입 맥락에 따라 모달로도 / 풀페이지로도"</strong> — <code>(.)</code>로 클릭하면 모달, 그 URL을 새로고침·직접 진입하면 <strong>동일 콘텐츠가 풀페이지</strong>로.
+        </div>
+        <p>현 <code>useNextQueryState</code>는 <code>?imageZoom=true</code> 새로고침 시 <strong>풀페이지가 아니라 피드 위 모달로 복원</strong>. 대부분은 이게 자연스럽고, 풀페이지 폴백이 필요하면 이미 <code>pushWithAppStack</code>으로 별도 라우트를 push하면 됨.</p>
+        <div class="principle">→ 가로채기 라우팅 = <span class="k">"쿼리 모달 + 앱스택 라우트 push"</span> 두 도구로 <span class="k">이미 커버</span>.</div>
+
+        <h3>4. 결정적 제약 3가지</h3>
+        <div class="box danger">
+          <h4>❌ 도입 시 충돌</h4>
+          <ul>
+            <li><strong>주력 앱이 Pages Router</strong> — 모달 많은 핵심 앱(lessee/lessor)이 Pages Router → <strong>App Router 전면 마이그레이션 선행</strong>(모달 때문에 감수할 비용 아님).</li>
+            <li><strong>네이티브 앱스택과 이중 관리</strong> — 웹뷰에서 <code>pushWithAppStack/back</code>으로 앱스택·히스토리 동기화 중. 가로채기 라우팅의 <strong>자체 히스토리 조작이 끼면 "뒤로가기가 모달을 닫나 화면을 닫나" 충돌</strong>(<code>changeUrlAfterStackPop</code> 등과 부딪힘).</li>
+            <li><strong>전역 모달과 모델 불일치</strong> — alert/toast/confirm은 어디서든 <strong>명령형 호출</strong>(<code>setAlertState({...})</code> 한 줄). 라우트로 바꾸면 <strong>라우트 정의 + slot + default.tsx</strong>로 무거워짐.</li>
+          </ul>
+        </div>
+
+        <h3>5. 권장 — 도입 대신 현 패턴 정리 (ROI ↑)</h3>
+        <div class="box safe">
+          <h4>✅ 다듬을 것</h4>
+          <ul>
+            <li><strong>열기/닫기 일관성</strong> — <code>push + router.back()</code>와 <code>replace + deleteQueryState()</code> 혼재. <strong>replace로 연 모달은 history에 안 쌓여 뒤로가기로 안 닫힘.</strong> "뒤로가기로 닫을 모달=push / URL 정리용 일시상태=replace" 규칙 명문화.</li>
+            <li><strong>boolean 쿼리 모달 래퍼</strong> — <code>isReservationPaymentCompletePopupOpen</code>, <code>isOpenHidingVacancy…</code> 처럼 <code>=== 'true'</code> 반복 → <code>useBooleanQueryModal(key)</code> 얇은 래퍼로 보일러플레이트 축소(미래 "쿼리=가로채기" 표준 진입점).</li>
+          </ul>
+        </div>
+
+        <div class="principle">
+          <strong>✅ 최종 결론</strong> 판단 기준은 <span class="k">"모달을 URL로 만들 가치가 있나"</span> 하나인데, 이 프로젝트는 <span class="k">이미 그렇게 하고 있고(useNextQueryState) 잘 하고 있다.</span>
+          병렬/가로채기로 갈아타면 <span class="k">얻는 것 거의 없고</span>(본질 가치 이미 확보), <span class="k">Pages 마이그레이션·앱스택 충돌·명령형 전역모달 무거워짐</span>만 떠안는다.
+          → <span class="k">현 패턴 유지 + 정리</span>가 정답. (jotai 판단과 동일 결: 도입이 아니라 적합성)
+        </div>
+      </article>
+
+      <div id="empty">🔍 검색 결과가 없습니다.</div>
+    </main>
+  </div>
+
+  <button id="toTop" title="맨 위로">↑</button>
+
+<!-- =====================================================================
+     📌 새 항목 추가 템플릿  (이 블록을 복사 → <article> 부분만 본문에 붙여넣기)
+
+     ★ data-section 으로 어느 섹터에 들어갈지 결정 (목차 자동 그룹핑)
+        - data-section="summary"  → "강의 요약"
+        - data-section="insight"  → "인사이트"
+     ★ data-title / data-tags / data-date 채우면 목차·검색·태그 자동 반영
+
+     <article class="entry insight" id="고유-id"
+              data-section="insight"
+              data-title="제목"
+              data-tags="태그1, 태그2"
+              data-date="YYYY-MM-DD">
+       <header class="entry-head">
+         <h2>제목</h2>
+         <div class="meta">
+           <span class="date">📅 YYYY-MM-DD</span>
+           <span class="chip">태그1</span><span class="chip">태그2</span>
+         </div>
+       </header>
+
+       <div class="qbox"><strong>Q.</strong> 어떤 질문에서 출발했나</div>
+       <div class="tldr"><span class="ico">💡</span><span>한 줄 핵심 결론</span></div>
+
+       <h3>소제목</h3>
+       <p>설명 문단. 인라인 코드는 <code>...</code>.</p>
+
+       PALETTE ──────────────────────────────────────────────
+       • 코드블록:   <pre><code>...</code></pre>
+                     색: c-com(주석) c-key(키워드) c-str(문자열) c-ok c-bad
+       • 안전/위험:  <div class="box safe|danger|info"><h4>제목</h4><ul>…</ul></div>
+       • 2단 비교:   <div class="grid2"> box 2개 </div>
+       • 콜아웃:     <div class="note">…</div>  /  <div class="note warn">…</div>
+       • 비유:       <div class="analogy"><span class="ico">🏭</span><div>…</div></div>
+       • 표:         <table><thead>…</thead><tbody>…</tbody></table>
+                     셀 강조: class="yes" / class="no" / class="center"
+       • 큰 결론:    <div class="principle">… <span class="k">강조</span> …</div>
+       • 채우기표시: <div class="todo">아직 채울 내용</div>
+       ───────────────────────────────────────────────────────
+     </article>
+===================================================================== -->
+
+<script>
+  const articles = [...document.querySelectorAll('article.entry')];
+  const toc       = document.getElementById('toc');
+  const tagfilter = document.getElementById('tagfilter');
+  const searchEl  = document.getElementById('search');
+  const countEl   = document.getElementById('count');
+  const emptyEl   = document.getElementById('empty');
+  let   activeTag = null;
+
+  const tagsOf = el => el.dataset.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+  /* ---- 목차 자동 생성 (섹터별 그룹핑) ---- */
+  const SECTIONS = [
+    { key: 'summary', label: '1 · 강의 요약' },
+    { key: 'insight', label: '2 · 인사이트' },
+    { key: 'project', label: '3 · 우리 프로젝트' },
+  ];
+  SECTIONS.forEach(sec => {
+    const members = articles.filter(a => (a.dataset.section || 'summary') === sec.key);
+    if (!members.length) return;
+    const head = document.createElement('div');
+    head.className = 'toc-group-head';
+    head.textContent = sec.label;
+    toc.appendChild(head);
+    members.forEach(a => {
+      const link = document.createElement('a');
+      link.href = '#' + a.id;
+      link.className = 'toc-link';
+      link.dataset.target = a.id;
+      link.textContent = a.dataset.title;
+      toc.appendChild(link);
+    });
+  });
+
+  /* ---- 태그 칩 자동 생성 ---- */
+  const allTags = [...new Set(articles.flatMap(tagsOf))].sort();
+  allTags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.textContent = tag;
+    chip.onclick = () => {
+      activeTag = (activeTag === tag) ? null : tag;
+      [...tagfilter.children].forEach(c =>
+        c.classList.toggle('active', c.textContent === activeTag));
+      applyFilter();
+    };
+    tagfilter.appendChild(chip);
+  });
+
+  /* ---- 검색 + 태그 통합 필터 ---- */
+  function applyFilter() {
+    const q = searchEl.value.trim().toLowerCase();
+    let visible = 0;
+    articles.forEach(a => {
+      const haystack = (a.dataset.title + ' ' + a.dataset.tags + ' ' + a.textContent).toLowerCase();
+      const okQ   = !q || haystack.includes(q);
+      const okTag = !activeTag || tagsOf(a).includes(activeTag);
+      const show  = okQ && okTag;
+      a.style.display = show ? '' : 'none';
+      const link = toc.querySelector(`[data-target="${a.id}"]`);
+      if (link) link.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    emptyEl.style.display = visible ? 'none' : 'block';
+    countEl.textContent = visible === articles.length
+      ? `${articles.length}개 항목`
+      : `${visible} / ${articles.length}`;
+  }
+  searchEl.addEventListener('input', applyFilter);
+
+  /* ---- 스크롤 스파이 (현재 섹션 목차 하이라이트) ---- */
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+      const link = toc.querySelector(`[data-target="${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    });
+  }, { rootMargin: '-15% 0px -75% 0px' });
+  articles.forEach(a => spy.observe(a));
+
+  /* ---- 테마 토글 (선택값 기억) ---- */
+  const themeBtn = document.getElementById('themeToggle');
+  function setTheme(dark) {
+    document.body.classList.toggle('dark', dark);
+    themeBtn.textContent = dark ? '☀️' : '🌙';
+    try { localStorage.setItem('devnotes-theme', dark ? 'dark' : 'light'); } catch (_) {}
+  }
+  themeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
+  try { setTheme(localStorage.getItem('devnotes-theme') === 'dark'); } catch (_) {}
+
+  /* ---- 맨 위로 버튼 ---- */
+  const toTop = document.getElementById('toTop');
+  window.addEventListener('scroll', () => toTop.classList.toggle('show', window.scrollY > 400));
+  toTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  applyFilter();
+</script>
+</body>
+</html>
