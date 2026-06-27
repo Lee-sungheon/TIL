@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[섹션 5] 실용적인 폴더 컨벤션과 컴포넌트 분리</title>
+<style>
+  /* =========================================================
+     THEME TOKENS  (라이트 / 다크 공통 변수)
+     ========================================================= */
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #5b6470;
+    --border: #e1e4e8;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --safe-bg: #e7f6ec; --safe-bd: #2da44e; --safe-tx: #1a7f37;
+    --danger-bg: #fdeceb; --danger-bd: #cf222e; --danger-tx: #b3261e;
+    --info-bg: #e8f1fd; --info-bd: #2c7be5; --info-tx: #1a5fb4;
+    --note-bg: #fff8e6; --note-bd: #d4a72c; --note-tx: #9a6700;
+    --chip-bg: #eef0f3; --chip-tx: #444c56;
+    --code-bg: #0d1117; --code-tx: #e6edf3;
+    --inline-bg: #eaecef; --inline-tx: #b3261e;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  body.dark {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --border: #2a313a;
+    --accent: #7c8cff;
+    --accent-soft: #1d2333;
+    --safe-bg: #12261a; --safe-bd: #2da44e; --safe-tx: #6fdc8c;
+    --danger-bg: #2b1416; --danger-bd: #f85149; --danger-tx: #ff938b;
+    --info-bg: #11233b; --info-bd: #2c7be5; --info-tx: #8cc2ff;
+    --note-bg: #2a2410; --note-bd: #d4a72c; --note-tx: #e3c879;
+    --chip-bg: #21262d; --chip-tx: #adbac7;
+    --inline-bg: #21262d; --inline-tx: #ff938b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    transition: background .2s, color .2s;
+  }
+
+  /* =========================================================
+     TOP BAR
+     ========================================================= */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+  .brand span { color: var(--accent); }
+  .search-wrap { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
+  #search {
+    width: 100%; padding: 9px 14px 9px 36px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); font-size: 14px;
+    outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: "🔍"; position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); font-size: 13px; opacity: .6;
+  }
+  .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  #themeToggle {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 16px;
+  }
+
+  /* =========================================================
+     LAYOUT
+     ========================================================= */
+  .layout {
+    display: flex; gap: 32px;
+    max-width: 1180px; margin: 0 auto; padding: 26px 20px 80px;
+  }
+  .sidebar {
+    width: 235px; flex: none;
+    position: sticky; top: 78px; align-self: flex-start;
+    max-height: calc(100vh - 100px); overflow-y: auto;
+  }
+  .content { flex: 1; min-width: 0; }
+
+  /* 페이지 히어로 (전체 제목) */
+  .page-hero { margin-bottom: 26px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .page-hero h1 { margin: 0 0 6px; font-size: 27px; line-height: 1.32; letter-spacing: -0.03em; }
+  .page-hero .sub { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  /* 섹터 구분 헤더 (강의 요약 / 인사이트) */
+  .sector-head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 38px 0 18px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .sector-head:first-of-type { margin-top: 8px; }
+  .sector-head .num {
+    flex: none; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent); color: #fff; font-weight: 800; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sector-head h2 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+  .sector-head .desc { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+
+  /* ---- Sidebar: TOC ---- */
+  .side-head { font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
+  .toc-group-head {
+    font-size: 12px; font-weight: 800; color: var(--accent);
+    margin: 14px 0 4px; padding-left: 4px; letter-spacing: -.01em;
+  }
+  .toc-group-head:first-child { margin-top: 0; }
+  .toc-link {
+    display: block; padding: 6px 10px; margin-bottom: 2px;
+    border-radius: 7px; border-left: 2px solid transparent;
+    color: var(--muted); text-decoration: none; font-size: 13.5px;
+  }
+  .toc-link:hover { background: var(--accent-soft); color: var(--text); }
+  .toc-link.active { background: var(--accent-soft); color: var(--accent);
+    border-left-color: var(--accent); font-weight: 600; }
+
+  /* ---- Sidebar: tag filter ---- */
+  .tagfilter { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chip {
+    font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer;
+    background: var(--chip-bg); color: var(--chip-tx); border: 1px solid transparent;
+    user-select: none;
+  }
+  .tag-chip:hover { border-color: var(--accent); }
+  .tag-chip.active { background: var(--accent); color: #fff; }
+
+  /* =========================================================
+     ENTRY (지식 1개 = 카드 1개)  ← 추가의 기본 단위
+     ========================================================= */
+  .entry {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 28px;
+    margin-bottom: 26px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: 78px;
+  }
+  /* 인사이트 섹터 카드: 왼쪽 액센트 라인으로 시각 구분 */
+  .entry.insight { border-left: 4px solid var(--accent); }
+  /* 프로젝트 섹터 카드: 초록 라인으로 '실측' 구분 */
+  .entry.project { border-left: 4px solid var(--safe-bd); }
+  .entry-head h2 { margin: 0 0 10px; font-size: 23px; letter-spacing: -0.02em; }
+  .entry-head h3.entry-title { margin: 0 0 10px; font-size: 20px; letter-spacing: -0.02em; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .meta .date { font-size: 12.5px; color: var(--muted); }
+  .meta .chip {
+    font-size: 11.5px; padding: 3px 9px; border-radius: 20px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  }
+
+  /* ---- 질문 박스 ---- */
+  .qbox {
+    background: var(--accent-soft); border-radius: 10px;
+    padding: 12px 16px; margin: 14px 0; font-size: 14.5px;
+  }
+  .qbox strong { color: var(--accent); }
+
+  /* ---- 핵심 요약 (TL;DR) ---- */
+  .tldr {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    color: #fff; border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+    font-weight: 600; font-size: 15px;
+  }
+  .tldr .ico { font-size: 18px; line-height: 1.4; }
+
+  /* ---- 채우기 안내 placeholder ---- */
+  .todo {
+    border: 1.5px dashed var(--border); border-radius: 10px;
+    padding: 12px 16px; margin: 12px 0; font-size: 13.5px; color: var(--muted);
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px,
+                rgba(127,127,127,.03) 10px, rgba(127,127,127,.03) 20px);
+  }
+  .todo::before { content: "✍️ 강의 들으며 채우기 — "; font-weight: 700; color: var(--accent); }
+
+  /* =========================================================
+     본문 재사용 컴포넌트 PALETTE
+     ========================================================= */
+  .entry h3 { font-size: 16px; margin: 22px 0 8px; }
+  .entry p { margin: 10px 0; }
+  .entry ul, .entry ol { margin: 10px 0; padding-left: 20px; }
+  .entry li { margin: 4px 0; }
+
+  /* 코드 */
+  pre {
+    background: var(--code-bg); color: var(--code-tx);
+    padding: 15px 18px; border-radius: 10px; overflow-x: auto;
+    font-size: 13.5px; line-height: 1.6; margin: 12px 0;
+    max-width: 100%;
+  }
+  code { font-family: "SF Mono","JetBrains Mono","Fira Code",Menlo,Consolas,monospace; }
+  :not(pre) > code {
+    background: var(--inline-bg); color: var(--inline-tx);
+    padding: 1.5px 6px; border-radius: 5px; font-size: 0.88em;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .c-com { color: #8b949e; } .c-ok { color: #56d364; } .c-bad { color: #f85149; }
+  .c-key { color: #79c0ff; } .c-str { color: #a5d6ff; }
+
+  /* 안전/위험/정보 박스 */
+  .box { border-radius: 10px; padding: 14px 16px; border: 1px solid; font-size: 14px; }
+  .box h4 { margin: 0 0 8px; font-size: 14px; }
+  .box ul { margin: 0; padding-left: 18px; }
+  .box.safe   { background: var(--safe-bg);   border-color: var(--safe-bd);   }
+  .box.safe h4   { color: var(--safe-tx); }
+  .box.danger { background: var(--danger-bg); border-color: var(--danger-bd); }
+  .box.danger h4 { color: var(--danger-tx); }
+  .box.info   { background: var(--info-bg);   border-color: var(--info-bd);   }
+  .box.info h4   { color: var(--info-tx); }
+
+  /* 2단 그리드 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 12px 0; }
+  /* grid/박스 칼럼이 내부 pre(긴 코드)에 밀려 넘치지 않도록 축소 허용 */
+  .grid2 > * { min-width: 0; }
+  .box { min-width: 0; }
+  .box pre { width: 100%; }
+
+  /* 콜아웃 노트 */
+  .note {
+    border-left: 4px solid var(--note-bd); background: var(--note-bg);
+    color: var(--text); padding: 11px 16px; border-radius: 0 8px 8px 0;
+    margin: 14px 0; font-size: 14px;
+  }
+  .note.warn { border-color: var(--danger-bd); background: var(--danger-bg); }
+  .note strong { color: var(--note-tx); }
+  .note.warn strong { color: var(--danger-tx); }
+
+  /* 비유 */
+  .analogy {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--accent-soft); border-radius: 10px;
+    padding: 13px 16px; margin: 14px 0; font-size: 14px;
+  }
+  .analogy .ico { font-size: 20px; }
+
+  /* 표 */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left;
+    word-break: break-word; overflow-wrap: anywhere; }
+  thead th { background: var(--bg); font-weight: 600; }
+  /* 칼럼 많은 표는 가로 스크롤로 감싸 넘침 방지 */
+  .table-scroll { overflow-x: auto; max-width: 100%; margin: 14px 0; }
+  .table-scroll table { margin: 0; }
+  .center { text-align: center; }
+  .yes { color: var(--safe-tx); font-weight: 700; }
+  .no  { color: var(--danger-tx); font-weight: 700; }
+
+  /* 강조 배너 (큰 결론) */
+  .principle {
+    background: var(--code-bg); color: #e6edf3;
+    border-radius: 12px; padding: 18px 22px; margin: 16px 0;
+  }
+  .principle .k { color: #79c0ff; }
+
+  /* =========================================================
+     EMPTY STATE & TO-TOP
+     ========================================================= */
+  #empty { display: none; text-align: center; color: var(--muted); padding: 60px 0; }
+  #toTop {
+    position: fixed; right: 24px; bottom: 24px;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    font-size: 18px; cursor: pointer; opacity: 0; pointer-events: none;
+    transition: opacity .2s; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  #toTop.show { opacity: 1; pointer-events: auto; }
+
+  /* =========================================================
+     RESPONSIVE
+     ========================================================= */
+  @media (max-width: 820px) {
+    .layout { flex-direction: column; }
+    .sidebar { position: static; width: 100%; max-height: none; }
+    .tagfilter { margin-top: 14px; }
+    .brand { display: none; }
+    .sector-head .desc { display: none; }
+  }
+  /* 좁은 화면: 2단 비교를 1단으로 쌓아 코드블록 넘침 방지 */
+  @media (max-width: 680px) {
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============== TOP BAR ============== -->
+  <header class="topbar">
+    <div class="brand">📁 폴더 컨벤션 <span>·</span> 컴포넌트 분리</div>
+    <div class="search-wrap">
+      <input id="search" type="text" placeholder="제목·내용·태그 검색…" autocomplete="off">
+    </div>
+    <span class="count" id="count"></span>
+    <button id="themeToggle" title="테마 전환">🌙</button>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============== SIDEBAR (자동 생성) ============== -->
+    <aside class="sidebar">
+      <div class="side-head">목차</div>
+      <nav id="toc"></nav>
+      <div class="side-head" style="margin-top:22px;">태그</div>
+      <div class="tagfilter" id="tagfilter"></div>
+    </aside>
+
+    <!-- ============== CONTENT ============== -->
+    <main class="content" id="content">
+
+      <div class="page-hero">
+        <h1>[섹션 5] 실용적인 폴더 컨벤션과 컴포넌트 분리</h1>
+        <p class="sub">강의 요약 + 질문하며 쌓는 인사이트 + 우리 프로젝트 적용 노트</p>
+      </div>
+
+      <!-- ╔══════════════════════════════════════════════════════════╗
+           ║  SECTOR 1 — 강의 요약                                      ║
+           ╚══════════════════════════════════════════════════════════╝ -->
+      <div class="sector-head" id="sector-summary">
+        <span class="num">1</span>
+        <h2>강의 요약</h2>
+        <span class="desc">강의에서 다룬 핵심 개념 정리</span>
+      </div>
+
+      <!-- ══════════ 22강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-22"
+               data-section="summary"
+               data-title="22강. 대규모 프로젝트의 뼈대 — App Router 실무 표준 폴더 구조 & 코로케이션"
+               data-tags="폴더 구조, 코로케이션, App Router, PPR, Private 폴더, Route Group, lib vs utils, 모노레포, 코드 응집도"
+               data-date="2026-06-27">
+        <header class="entry-head">
+          <h2>22강. 대규모 프로젝트의 뼈대 세우기</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[폴더 구조] App Router 실무 표준과 코로케이션(Co-location) 전략</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-27 · 섹션 5</span>
+            <span class="chip">코로케이션</span><span class="chip">App Router</span>
+            <span class="chip">PPR</span><span class="chip">Private 폴더</span><span class="chip">모노레포</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">📁</span>
+          <span>App Router는 <b><code>page.tsx</code>·<code>route.ts</code>만 라우팅으로 인정</b>해 <b>코로케이션</b>(관련 파일을 라우트 폴더에 응집)을 가능케 했다. <code>src/</code> 기반 표준 트리(app·components·hooks·lib·utils·types·actions)로 뼈대를 세우되, <b>전역 공통만 루트에, 특정 페이지 전용은 그 라우트 폴더·<code>_private</code> 폴더에</b> 둔다. 핵심 분별: <b>lib(외부 의존·부수효과) vs utils(순수 함수)</b>, <b><code>_폴더</code>(라우팅 제외)</b>. 규모가 더 커지면 <b>모노레포</b>로 점진 확장.</span>
+        </div>
+
+        <!-- 1. 맥락 -->
+        <h3>1. 맥락 — 상태(혈관)를 잡았으니 이제 골격(구조)</h3>
+        <p>섹션 4까지 Server Actions·Zustand로 <strong>데이터(상태)</strong>를 통제했다. 이제 그 혈관들이 엉키지 않게 <strong>튼튼한 골격(폴더 구조)</strong>을 세운다.</p>
+        <div class="note">
+          <strong>당위성</strong> 폴더 구조는 대규모 실무에서 <strong>유지보수의 80%를 결정</strong>. "새로 합류한 동료가 폴더 트리만 보고도 앱의 기능·데이터 흐름을 유추할 수 있다면" 그것만으로 좋은 설계다.
+        </div>
+
+        <!-- 2. 패러다임 변화 -->
+        <h3>2. 패러다임 변화 — Pages Router vs App Router (<strong>코로케이션</strong>)</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>📦 Pages Router (과거)</h4>
+            <ul>
+              <li><code>pages/</code> 안 <strong>모든 파일이 곧 URL</strong></li>
+              <li>전용 컴포넌트·스타일을 <strong>라우팅 폴더 밖 멀리</strong> 둬야 함</li>
+              <li>관련 파일이 흩어짐</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>🍽️ App Router (현재) — 코로케이션</h4>
+            <ul>
+              <li><strong><code>page.tsx</code>·<code>route.ts</code>만</strong> 라우팅으로 인정</li>
+              <li>그 외 파일은 <strong>같은 라우트 폴더에 응집</strong> 가능</li>
+              <li>전용 컴포넌트·테스트·스타일을 한곳에</li>
+            </ul>
+          </div>
+        </div>
+        <div class="analogy">
+          <span class="ico">🧊</span>
+          <div>과거 = 모든 식재료를 <strong>거대한 공용 냉장고(루트)</strong>에 몰아두고 매번 뒤적 ·
+          현재 = <strong>스테이크 전용 냉장고 / 파스타 전용 조리대</strong>처럼 역할별로 재료·도구를 한곳에 응집.</div>
+        </div>
+
+        <!-- 3. PPR 연관 -->
+        <h3>3. 왜 구조가 성능까지 결정하나 — <strong>PPR</strong>과 Suspense 경계</h3>
+        <p>2026년 Next.js 16에선 <strong>PPR(Partial Prerendering, 부분 사전 렌더링)</strong>이 안정화되어 실무 기본. 정적인 부분은 미리 렌더, <strong>동적 데이터만 나중에 스트리밍</strong>한다.</p>
+        <div class="note">
+          <strong>구조 ↔ 성능</strong> 폴더를 잘 나눠 컴포넌트를 분리하면 Next 엔진이 <strong>어디를 먼저 보여주고 어디를 기다리게 할지(Suspense Boundary)</strong>를 더 영리하게 판단 → 각 컴포넌트가 독립 스트리밍 경계를 갖기 쉬워져 성능 극대화.
+        </div>
+
+        <!-- 4. 표준 폴더 트리 -->
+        <h3>4. 실무 표준 폴더 트리 (<code>src/</code> 기반)</h3>
+        <p>전역 공통 재료들의 근원지는 <strong><code>src/</code></strong>(source). 규모가 커져도 흔들리지 않는 뼈대.</p>
+<pre><code>src/
+├─ <span class="c-key">app/</span>          <span class="c-com">// 앱의 심장 · 라우팅 중심</span>
+│  ├─ (auth)/      <span class="c-com">// Route Group: URL에 안 드러나는 논리적 묶음</span>
+│  ├─ _components/ <span class="c-com">// Private: 라우팅에서 제외된 내부 전용</span>
+│  ├─ layout.tsx
+│  └─ page.tsx
+├─ <span class="c-key">components/</span>   <span class="c-com">// 범용 공통 UI (Button/Modal/Input) — "단순"</span>
+├─ <span class="c-key">hooks/</span>        <span class="c-com">// 커스텀 훅 (useWindowSize, useOutsideClick)</span>
+├─ <span class="c-key">lib/</span>          <span class="c-com">// 서드파티 설정·인스턴스 (axios/zustand/prisma)</span>
+├─ <span class="c-key">utils/</span>        <span class="c-com">// 순수 함수 (formatDate, formatCurrency)</span>
+├─ <span class="c-key">types/</span>        <span class="c-com">// 전역 TS 타입 (User, Product)</span>
+└─ <span class="c-key">actions/</span>      <span class="c-com">// Server Actions (loginAction, addToCart)</span></code></pre>
+
+        <table>
+          <thead><tr><th>폴더</th><th>의미 · 무엇을 두나</th><th>핵심 성격</th></tr></thead>
+          <tbody>
+            <tr><td><code>app/</code></td><td>라우팅 중심. Route Group <code>(auth)</code>, Private <code>_folder</code>, <code>layout</code>/<code>page</code></td><td>탐색 여정 결정</td></tr>
+            <tr><td><code>components/</code></td><td>앱 전체 재사용 범용 UI(버튼·모달·인풋)</td><td><strong>Dumb</strong> — props로만 그림</td></tr>
+            <tr><td><code>hooks/</code></td><td>상태·생명주기 낚아채는 커스텀 훅</td><td>로직 분리·재사용</td></tr>
+            <tr><td><code>lib/</code></td><td>axios·zustand store·prisma 등 외부 인스턴스</td><td><strong>외부 의존·부수효과</strong></td></tr>
+            <tr><td><code>utils/</code></td><td>날짜·통화 포맷 등</td><td><strong>순수 함수</strong>(같은 입력→같은 출력)</td></tr>
+            <tr><td><code>types/</code></td><td>전역 인터페이스(User·Product)</td><td>규격 통일·자동완성</td></tr>
+            <tr><td><code>actions/</code></td><td>로그인·장바구니 등 서버 로직</td><td>FE↔BE 경계 매끄럽게</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <strong>components의 "단순"은 칭찬</strong> 서버 데이터를 직접 부르거나 비즈니스 로직을 판단하지 않고, <strong>오직 부모가 준 props로 화면만 예쁘게</strong> 그린다는 긍정적 의미.
+        </div>
+        <div class="note">
+          <strong>actions 응집 팁</strong> 공통 액션은 <code>src/actions/</code>, <strong>특정 기능 전용 액션은 그 페이지 폴더 안</strong>에 둬 응집도를 극대화. API 라우트 없이 폼·버튼에서 직접 호출.
+        </div>
+
+        <!-- 5. 실무 분별 3가지 -->
+        <h3>5. 실무 분별 3대 포인트 (가장 많이 헷갈리는 곳)</h3>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">① components 딜레마 — 무지성 루트 수집은 안티패턴</h4>
+        <p>루트 <code>components/</code>엔 <strong>디자인 시스템급 범용 공통 UI만</strong>. "장바구니 페이지 전용 카트 요약 보드" 같은 건 <strong>그 라우트 폴더 안 또는 <code>_components</code></strong>에 둔다.</p>
+        <div class="note"><strong>이유</strong> 기능 수정·삭제 시 흩어진 파일을 찾을 필요 없이 <strong>그 폴더만 관리</strong>하면 끝.</div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">② lib vs utils — 외부 의존 여부로 가른다</h4>
+        <div class="grid2">
+          <div class="box safe">
+            <h4>🧮 utils — 순수 로직</h4>
+            <ul>
+              <li>외부 의존 X, 부수효과 X</li>
+              <li>같은 입력 → <strong>항상 같은 출력</strong></li>
+              <li>테스트 쉬움 · 서버/클라 어디서든 안전</li>
+              <li>예: <code>formatDate</code>, <code>formatCurrency</code></li>
+            </ul>
+          </div>
+          <div class="box info">
+            <h4>🔌 lib — 외부 브릿지</h4>
+            <ul>
+              <li>외부 시스템/라이브러리에 <strong>의존</strong></li>
+              <li>무겁고 <strong>부수효과 있는 설정</strong></li>
+              <li>외부 생태계 ↔ 우리 앱 연결</li>
+              <li>예: <code>axios</code> 설정, zustand store, <code>prisma</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="note"><strong>유지보수 이점</strong> 외부 의존 설정을 <code>lib/</code>에 중앙집중 → 라이브러리 교체·버전업 시 <strong>이 폴더만 수정</strong>.</div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">③ Private 폴더 <code>_folderName</code> — 라우팅 은닉화</h4>
+        <p>폴더명 앞에 <strong>언더스코어(<code>_</code>)</strong>를 붙이면 Next 라우터가 <strong>투명인간 취급</strong>해 라우팅에서 완전히 제외.</p>
+        <ul>
+          <li>실수로 <code>page.tsx</code>를 만들어도 <strong>원치 않는 경로 노출 사고를 원천 봉쇄</strong>(보안)</li>
+          <li>대시보드 전용 차트·위젯을 <code>_components</code>로 묶으면 <strong>글로벌 오염 없이 도메인 내 응집</strong></li>
+        </ul>
+        <div class="principle">→ 이는 <span class="k">마이크로서비스 / 기능 분할(feature-sliced) 설계 철학</span>과 맞닿은 모던 프론트엔드 핵심 기법.</div>
+
+        <!-- 6. 모노레포 -->
+        <h3>6. 더 커지면 — <strong>모노레포</strong>로 점진 확장</h3>
+        <p>기업 규모로 거대해지면 단일 앱을 넘어 <strong>모노레포(단일 저장소)</strong> 고려. 관리자 웹·사용자 웹·공통 UI 라이브러리를 <strong>한 GitHub 저장소</strong>에서 관리.</p>
+        <div class="grid2">
+          <div class="box safe">
+            <h4>✅ 장점</h4>
+            <ul>
+              <li>공용 컴포넌트·유틸 <strong>여러 앱에서 공유</strong></li>
+              <li>패키지 의존성 일괄 관리</li>
+              <li>대규모 리팩토링 유리</li>
+            </ul>
+          </div>
+          <div class="box danger">
+            <h4>⚠️ 단점</h4>
+            <ul>
+              <li>Turborepo·Yarn Workspaces 등 <strong>초기 구축 까다로움</strong></li>
+              <li>학습 곡선 가파름</li>
+              <li>빌드 속도·배포 파이프라인 부담 ↑</li>
+            </ul>
+          </div>
+        </div>
+        <div class="principle">
+          <strong>✅ 실무 전략</strong> 처음부터 무리하지 말고 <span class="k">단일 앱 표준 구조로 시작</span> → 팀 규모·복잡도에 따라 <span class="k">모노레포로 점진 확장</span>.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · App Router = <span class="k">page/route만 라우팅</span> → <span class="k">코로케이션</span>으로 관련 파일 응집<br>
+          · 표준 트리: <span class="k">app·components·hooks·lib·utils·types·actions</span> (src 기반)<br>
+          · 전역 공통만 루트, <span class="k">전용은 라우트 폴더·<code>_private</code></span>로<br>
+          · <span class="k">lib=외부 의존, utils=순수</span> · <span class="k"><code>_폴더</code>=라우팅 제외(보안·응집)</span><br>
+          · 단일 앱 → 필요 시 <span class="k">모노레포</span> 점진 확장
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (23강)</strong> 지저분한 상대 경로를 없애는 <strong>절대 경로(path alias) 설정법</strong>과 팀 소통을 돕는 <strong>네이밍 컨벤션</strong>.
+        </div>
+      </article>
+
+      <!-- ══════════ 23강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-23"
+               data-section="summary"
+               data-title="23강. 코드의 질서 — 절대 경로(@·#)와 kebab/Pascal/camel 네이밍 컨벤션"
+               data-tags="절대 경로, path alias, tsconfig, baseUrl, paths, Subpath Imports, 네이밍 컨벤션, kebab-case, PascalCase, camelCase, index.ts">
+        <header class="entry-head">
+          <h2>23강. 코드의 질서를 만드는 마법</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[생산성] 절대 경로 설정(@)과 케밥-파스칼-카멜 케이스 네이밍 컨벤션</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-27 · 섹션 5</span>
+            <span class="chip">절대 경로</span><span class="chip">tsconfig paths</span>
+            <span class="chip">Subpath Imports</span><span class="chip">네이밍 컨벤션</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🧭</span>
+          <span>끝없는 상대 경로(<code>../../../</code>)는 가독성·유지보수의 악몽. <b><code>tsconfig.json</code>의 <code>baseUrl</code>+<code>paths</code></b>로 <b><code>@/*</code> → <code>src/*</code></b> 절대 경로를 깐다(우편번호 부여). 네이밍은 <b>폴더=kebab-case</b>(URL·OS 안전), <b>컴포넌트=PascalCase</b>(JS/HTML과 구분), <b>훅·유틸=camelCase</b>(순수 로직 표시). 마지막 핵심 팁: <b><code>index.ts</code> 남용 금지</b> — 파일명을 명확히 써 검색·식별성을 높인다.</span>
+        </div>
+
+        <!-- 1. 맥락 -->
+        <h3>1. 맥락 — 뼈대(22강)를 세웠으니 길(경로)·이름(컨벤션)을 정비</h3>
+        <p>22강에서 폴더 뼈대를 세웠다면, 이번엔 그 폴더들을 코드에서 <strong>불러올 때의 경로</strong>와 <strong>이름 짓는 규칙</strong>을 정한다. 둘 다 "팀원이 같은 문법으로 소통하기 위한 약속".</p>
+
+        <!-- 2. 상대 경로 문제 -->
+        <h3>2. 상대 경로의 두 가지 악몽</h3>
+        <div class="box danger">
+          <h4>❌ <code>../../../</code> 의 문제</h4>
+          <ul>
+            <li><strong>가독성 저하</strong> — 점·슬래시가 이어져 경로 파악이 힘듦</li>
+            <li><strong>유지보수 악몽</strong> — 파일을 다른 폴더로 옮기면 <strong>연결된 경로가 전부 깨짐</strong></li>
+          </ul>
+        </div>
+
+        <!-- 3. 절대 경로 -->
+        <h3>3. 해결 — <code>tsconfig.json</code> 절대 경로 (단 두 줄)</h3>
+        <p>프로젝트 최상단 <code>tsconfig.json</code>의 <code>compilerOptions</code>에 <strong><code>baseUrl</code>(기준점)</strong>과 <strong><code>paths</code>(별칭 매핑)</strong>를 추가.</p>
+<pre><code><span class="c-com">// tsconfig.json</span>
+{
+  <span class="c-str">"compilerOptions"</span>: {
+    <span class="c-str">"baseUrl"</span>: <span class="c-str">"."</span>,            <span class="c-com">// 루트를 기준점으로</span>
+    <span class="c-str">"paths"</span>: {
+      <span class="c-str">"@/*"</span>: [<span class="c-str">"src/*"</span>]       <span class="c-com">// @ → src 하위 전체</span>
+    }
+  }
+}</code></pre>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>❌ 상대 경로</h4>
+<pre><code><span class="c-key">import</span> { Button } <span class="c-key">from</span>
+  <span class="c-str">'../../../components/common/Button'</span>;</code></pre>
+          </div>
+          <div class="box safe">
+            <h4>✅ 절대 경로</h4>
+<pre><code><span class="c-key">import</span> { Button } <span class="c-key">from</span>
+  <span class="c-str">'@/components/common/Button'</span>;</code></pre>
+          </div>
+        </div>
+        <div class="analogy">
+          <span class="ico">📮</span>
+          <div>복잡한 골목길 주소(상대 경로) 대신 <strong>명확한 우편번호(@)</strong> 부여 → 어느 주방장이든 파일 위치를 한눈에 파악하고 즉시 가져온다.</div>
+        </div>
+
+        <!-- 4. Subpath Imports -->
+        <h3>4. [2026 실무 팁] <code>package.json</code> Subpath Imports (<code>#</code>)</h3>
+        <p>Next.js 16에선 <code>tsconfig</code> 외에 <strong><code>package.json</code>의 <code>imports</code></strong>로도 별칭을 줄 수 있다. <strong>샵(<code>#</code>)</strong>으로 "내부 모듈"임을 명시.</p>
+<pre><code><span class="c-com">// package.json</span>
+{
+  <span class="c-str">"imports"</span>: {
+    <span class="c-str">"#*"</span>: <span class="c-str">"./src/*"</span>
+  }
+}
+<span class="c-com">// 사용</span>
+<span class="c-key">import</span> { authService } <span class="c-key">from</span> <span class="c-str">'#services/auth'</span>;</code></pre>
+        <div class="note">
+          <strong>왜 표준이 되어가나</strong> 별도 빌드 도구 설정 없이 <strong>Node.js 표준</strong>을 따르므로, 라이브러리 개발·대규모 엔터프라이즈에서 점차 표준으로 자리잡는 중. (런타임 성능도 미세 최적화)
+        </div>
+
+        <!-- 5. 네이밍 컨벤션 -->
+        <h3>5. 네이밍 컨벤션 — 대상에 따라 3가지</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>대상</th><th>케이스</th><th>예시</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>폴더</td><td><strong>kebab-case</strong></td><td><code>user-profile/</code></td><td>URL과 일치 · OS 대소문자 라우팅 오류 차단</td></tr>
+            <tr><td>컴포넌트 파일</td><td><strong>PascalCase</strong></td><td><code>UserProfileCard.tsx</code></td><td>JS 함수·HTML 태그와 시각적 구분</td></tr>
+            <tr><td>훅·유틸 파일</td><td><strong>camelCase</strong></td><td><code>useWindowSize.ts</code> · <code>formatDate.ts</code></td><td>"컴포넌트 아닌 순수 로직"임을 파일명으로 표시</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <ul>
+          <li><strong>폴더(kebab)</strong> — 라우트 그룹 <code>(auth)</code>·프라이빗 <code>_internal-logic</code>도 소문자 기반</li>
+          <li><strong>컴포넌트(Pascal)</strong> — 스타일·테스트를 묶을 땐 <strong>폴더명=파일명</strong> 선호 (<code>UserProfileCard/UserProfileCard.tsx</code>)</li>
+          <li><strong>훅·유틸(camel)</strong> — 파일명만 보고도 "화면이 아니라 로직"임을 즉시 유추</li>
+        </ul>
+
+        <!-- 6. index.ts -->
+        <h3>6. [가장 중요한 팁] <code>index.ts</code> 남용 금지</h3>
+        <p>과거엔 import 경로를 줄이려 폴더마다 <code>index.ts</code>를 뒀지만, 에디터 탭에 <strong><code>index</code> 파일만 잔뜩 열려 "지금 뭘 수정 중인지" 헷갈린다.</strong></p>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>❌ index 파일명</h4>
+<pre><code><span class="c-key">import</span> UserProfileCard <span class="c-key">from</span>
+  <span class="c-str">'@/components/UserProfileCard'</span>;
+<span class="c-com">// 실제 파일은 index.tsx → 탭에서 식별 어려움</span></code></pre>
+          </div>
+          <div class="box safe">
+            <h4>✅ 명확한 파일명</h4>
+<pre><code><span class="c-key">import</span> UserProfileCard <span class="c-key">from</span>
+  <span class="c-str">'@/components/UserProfileCard/UserProfileCard'</span>;
+<span class="c-com">// 검색·가독성·유지보수 ↑</span></code></pre>
+          </div>
+        </div>
+        <div class="note">→ <strong>명확한 컴포넌트 이름을 파일명으로 직접</strong> 사용해 검색·유지보수 효율을 극대화.</div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · 절대 경로: <span class="k"><code>tsconfig</code> baseUrl+paths로 <code>@/* → src/*</code></span> (상대 경로 악몽 제거)<br>
+          · 2026 팁: <span class="k"><code>package.json</code> Subpath Imports <code>#</code></span> (Node 표준)<br>
+          · 네이밍: <span class="k">폴더=kebab · 컴포넌트=Pascal · 훅/유틸=camel</span><br>
+          · <span class="k"><code>index.ts</code> 남용 금지</span> — 파일명을 명확히
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (24강)</strong> 이 뼈대 위에서 Next.js의 꽃 <strong>서버 컴포넌트 vs 클라이언트 컴포넌트</strong>를 어떻게 효율적으로 분리·배치할지.
+        </div>
+      </article>
+
+      <!-- ══════════ 24강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-24"
+               data-section="summary"
+               data-title="24강. 서버·클라이언트 공존 — 뿌리/열매 전략, 합성 패턴, server-only"
+               data-tags="서버 컴포넌트, 클라이언트 컴포넌트, use client, Thin Client, 합성 패턴, composition, children, server-only, use cache, taint, 관심사 분리">
+        <header class="entry-head">
+          <h2>24강. 서버와 클라이언트의 공존</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[컴포넌트 설계] 뿌리(Server)·열매(Client) 전략과 합성(Composition) 패턴</p>
+          <div class="meta">
+            <span class="date">📅 2026-06-27 · 섹션 5</span>
+            <span class="chip">서버 컴포넌트</span><span class="chip">Thin Client</span>
+            <span class="chip">합성 패턴</span><span class="chip">server-only</span><span class="chip">use cache</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🌳</span>
+          <span>App Router에선 <b>기본이 서버 컴포넌트(뿌리·줄기)</b> — 데이터·SEO·보안이 필요하면 무조건 여기서 시작. <code>'use client'</code>는 <b>상호작용이 일어나는 말단(열매)에만 최소화</b>(Thin Client). 클라이언트가 서버를 감싸야 할 땐 직접 import 말고 <b><code>children</code> 슬롯으로 끼워 넣는 합성 패턴</b>으로 서버 이점을 보존. 민감 로직엔 <b><code>import 'server-only'</code></b>로 브라우저 유출을 빌드 단계에서 차단.</span>
+        </div>
+
+        <!-- 1. 대전제 -->
+        <h3>1. 대전제 — 기본은 서버 컴포넌트 (뿌리·줄기)</h3>
+        <p>App Router에선 <code>'use client'</code> 선언이 없으면 <strong>모든 컴포넌트가 서버 컴포넌트</strong>. 땅속에서 데이터를 길어 올리고 뼈대를 세우는 역할.</p>
+        <div class="box info">
+          <h4>🌳 서버 컴포넌트가 좋은 이유</h4>
+          <ul>
+            <li><strong>속도</strong> — 서버 내부망에서 초고속으로 데이터를 가져와 <strong>완성된 HTML</strong>을 던짐(브라우저 로딩 대기 X)</li>
+            <li><strong>PPR</strong> — 정적 요소는 즉시, 동적 데이터만 나중에 채워 체감 성능 ↑</li>
+            <li><strong>보안</strong> — 민감 API 접근 로직이 브라우저에 노출 안 됨</li>
+            <li><strong>무게</strong> — 무거운 이미지·계산이 서버에서 처리되어 전송</li>
+          </ul>
+        </div>
+        <div class="principle"><strong>🔥 제1원칙</strong> <span class="k">데이터가 필요하거나 SEO가 중요하면 → 무조건 서버(뿌리)에서 시작</span>.</div>
+
+        <!-- 2. Thin Client -->
+        <h3>2. 클라이언트는 "열매"로 최소화 — <strong>Thin Client</strong></h3>
+        <p>버튼 클릭·타이핑 등 <strong>상호작용 순간에만</strong> <code>'use client'</code>. 핵심은 <strong>클라이언트 경계를 나무 끝 열매로 밀어내기</strong>.</p>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>❌ Fat Client</h4>
+<pre><code><span class="c-str">'use client'</span>;
+<span class="c-key">export default function</span> ProductListPage() {
+  <span class="c-key">const</span> [filter, setFilter] = useState(<span class="c-str">'all'</span>);
+  <span class="c-key">return</span> (&lt;div&gt;
+    &lt;select onChange={...} /&gt;
+    &lt;ProductList filter={filter} /&gt;  <span class="c-bad">// 같이 끌려감</span>
+  &lt;/div&gt;);
+}</code></pre>
+            <p style="margin:8px 0 0;font-size:13px;">filter 상태 하나 때문에 <strong>페이지 전체 + 무거운 ProductList까지 JS 덩어리</strong>로 전송. "전등 하나 켜려고 집 벽을 다 뜯기".</p>
+          </div>
+          <div class="box safe">
+            <h4>✅ Thin Client</h4>
+<pre><code><span class="c-com">// 서버 컴포넌트 유지</span>
+<span class="c-key">import</span> FilterSelect <span class="c-key">from</span> <span class="c-str">'...'</span>; <span class="c-com">// 작은 열매(use client)</span>
+<span class="c-key">import</span> ProductList <span class="c-key">from</span> <span class="c-str">'...'</span>;  <span class="c-com">// 서버 유지</span>
+<span class="c-key">export default function</span> ProductListPage() {
+  <span class="c-key">return</span> (&lt;div&gt;
+    &lt;FilterSelect /&gt;
+    &lt;ProductList /&gt;
+  &lt;/div&gt;);
+}</code></pre>
+            <p style="margin:8px 0 0;font-size:13px;">브라우저는 <strong>스위치(FilterSelect)용 작은 JS만</strong> 실행, 무거운 리스트는 서버에서.</p>
+          </div>
+        </div>
+
+        <!-- 3. 합성 패턴 -->
+        <h3>3. 합성 패턴 — 클라이언트가 서버를 감쌀 때 (<code>children</code> 슬롯)</h3>
+        <p>다크모드 <code>ThemeProvider</code>처럼 <strong>클라이언트 껍질이 서버 알맹이를 감싸야</strong> 하는 상황은 반드시 온다.</p>
+        <div class="note warn">
+          <strong>⚠️ 대참사</strong> 서버 컴포넌트를 <strong>클라이언트 파일 안에서 직접 import</strong>하면 그 자식들까지 <strong>강제로 클라이언트화</strong>된다.
+        </div>
+<pre><code><span class="c-com">// ThemeProvider.tsx — 클라이언트</span>
+<span class="c-str">'use client'</span>;
+<span class="c-key">export default function</span> ThemeProvider({ children }) {
+  <span class="c-com">// 자식이 서버인지 뭔지 전혀 모름. 빈 슬롯에 끼워 전달만.</span>
+  <span class="c-key">return</span> &lt;div className=<span class="c-str">"theme-wrapper"</span>&gt;{children}&lt;/div&gt;;
+}
+
+<span class="c-com">// layout.tsx — 서버</span>
+<span class="c-key">export default function</span> RootLayout({ children }) {
+  <span class="c-key">return</span> &lt;ThemeProvider&gt;{children}&lt;/ThemeProvider&gt;;  <span class="c-ok">// children은 서버로 유지</span>
+}</code></pre>
+        <div class="analogy">
+          <span class="ico">🧩</span>
+          <div>부모(클라이언트)는 <strong>자식이 누군지 모른 채 비어 있는 슬롯에 끼워 전달만</strong> 한다 → 서버 컴포넌트는 클라이언트 외벽 아래서도 <strong>성능 이점을 온전히 유지</strong>. ("import"가 아니라 "prop으로 받기"가 핵심)</div>
+        </div>
+
+        <!-- 4. 데이터 패칭 -->
+        <h3>4. 데이터 패칭 — 쓰는 곳에서 바로 (관심사 분리)</h3>
+        <p>서버 컴포넌트에서 <code>async/await</code>로 가져오면, <strong>클라이언트는 <code>useEffect</code>·로딩 상태 관리에서 해방</strong>되어 "받은 데이터를 그리는 화가" 역할만.</p>
+<pre><code><span class="c-com">// services/user.ts</span>
+<span class="c-key">export async function</span> getUserProfile(userId) {
+  <span class="c-str">'use cache'</span>;  <span class="c-com">// Next.js 16: 함수 단위 캐싱 제어</span>
+  <span class="c-key">const</span> res = <span class="c-key">await</span> fetch(`.../user/${userId}`, {
+    next: { revalidate: <span class="c-key">3600</span> }  <span class="c-com">// 1시간 서버 캐시 → API 부하 ↓</span>
+  });
+  <span class="c-key">return</span> res.json();
+}</code></pre>
+
+        <!-- 5. server-only -->
+        <h3>5. 보안 — <code>server-only</code>로 민감 로직 유출 차단</h3>
+        <p>JS 모듈은 기본적으로 서버·클라 양쪽에서 공유 가능. DB 비번·API 키가 실수로 클라 코드에 섞이면 <strong>개발자 도구만 열어도 노출</strong>.</p>
+<pre><code><span class="c-com">// utils/db-private.ts</span>
+<span class="c-key">import</span> <span class="c-str">'server-only'</span>;  <span class="c-com">// "이 파일은 서버에서만"</span>
+
+<span class="c-key">export const</span> dbKey = process.env.DB_PASSWORD;
+<span class="c-key">export const</span> connectToDatabase = () =&gt; { <span class="c-com">/* 민감 로직 */</span> };</code></pre>
+        <ul>
+          <li>누군가 <code>'use client'</code> 파일에서 이 모듈을 import하면 <strong>Next 빌드 단계에서 즉시 에러</strong> → 보안 사고 원천 봉쇄</li>
+          <li><strong>Next.js 16 추가</strong>: <code>experimental_taintObjectReference</code>로 데이터 객체가 클라이언트로 넘어가는 것을 엔진 수준에서 한 번 더 차단</li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · 기본=서버(뿌리) · <span class="k">데이터·SEO·보안이면 서버에서 시작</span><br>
+          · <code>'use client'</code>는 <span class="k">상호작용 말단(열매)에만</span> — Thin Client<br>
+          · 클라가 서버를 감쌀 땐 <span class="k">직접 import ✗ → <code>children</code> 슬롯(합성 패턴) ✓</span><br>
+          · 서버에서 <code>async/await</code> 패칭 → 클라는 <span class="k">그리기에만 집중</span><br>
+          · 민감 로직엔 <span class="k"><code>import 'server-only'</code></span> (+ taint)
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (25강)</strong> 이 컴포넌트 구조 위에서 빌드 속도·캐시 효율을 극대화하는 <strong>Turbopack 빌드 환경 + Next.js 기본 캐싱 시스템</strong>.
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════════════╗
+           ║  SECTOR 2 — 인사이트 (질문 및 추가학습)                     ║
+           ╚══════════════════════════════════════════════════════════╝ -->
+      <div class="sector-head" id="sector-insight">
+        <span class="num">2</span>
+        <h2>인사이트</h2>
+        <span class="desc">질문에서 출발한 팩트체크·심화 학습</span>
+      </div>
+
+      <!-- ══════════ 24강 팩트체크 인사이트 카드 ══════════ -->
+      <article class="entry insight" id="insight-factcheck-24"
+               data-section="insight"
+               data-title="24강 팩트체크 — 서버/클라 경계, 합성 패턴, use cache, PPR, server-only"
+               data-tags="팩트체크, 서버 컴포넌트, use client, 합성 패턴, use cache, revalidate, PPR, server-only, taint">
+        <header class="entry-head">
+          <h2>24강 팩트체크 — 어디까지 맞고, 무엇을 더 정확히?</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-27</span>
+            <span class="chip">팩트체크</span><span class="chip">use cache</span><span class="chip">PPR</span><span class="chip">server-only</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 24강의 핵심 주장(기본 서버 컴포넌트·Thin Client·합성 패턴·<code>use cache</code>·<code>server-only</code>)에 틀리거나 과장된 부분은 없나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔍</span>
+          <span><b>전반적으로 정확하고 실무 정설에 부합.</b> 다만 3곳은 보정 필요: ① <code>'use cache'</code>는 <b>오랫동안 experimental(dynamicIO)</b>이었고, 예제처럼 <b><code>fetch</code>의 <code>next:{revalidate}</code>와 섞으면 캐싱 모델이 충돌</b>(use cache는 <code>cacheLife/cacheTag</code>로 제어). ② "PPR 완전 안정화"는 <b>미래 시점 가정</b> — 실제로 오래 experimental이었다. ③ "감싸면 자식이 클라가 된다"의 진짜 원인은 <b>"감쌈"이 아니라 "클라 파일에서 import"</b>다.</span>
+        </div>
+
+        <h3>검증 요약표</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>강의 주장</th><th>판정</th><th>코멘트</th></tr></thead>
+          <tbody>
+            <tr><td>App Router는 기본이 서버 컴포넌트</td><td class="center yes">정확</td><td><code>'use client'</code> 없으면 RSC. (단 <code>pages/</code>엔 RSC 없음)</td></tr>
+            <tr><td>클라 경계를 말단(열매)으로 최소화</td><td class="center yes">정확</td><td>번들·하이드레이션 비용 절감의 정설</td></tr>
+            <tr><td>클라가 서버를 감싸려면 <code>children</code> 합성 패턴</td><td class="center yes">정확</td><td>표준 해법. 단 원인 설명은 보정 필요(아래 1번)</td></tr>
+            <tr><td><code>server-only</code>로 빌드 단계 차단</td><td class="center yes">정확</td><td>실제 Vercel 패키지. 정확한 동작</td></tr>
+            <tr><td><code>'use cache'</code> + <code>next:{revalidate}</code> 예제</td><td class="center" style="color:var(--note-tx);font-weight:700;">주의</td><td><code>cacheComponents:true</code> opt-in 전제 · 두 캐싱 레이어 중복(충돌·에러는 아님, 아래 2번)</td></tr>
+            <tr><td>"PPR 완전 안정화(2026 기본)"</td><td class="center no">틀림</td><td>"안정화"는 Cache Components로 흡수(맞음), "<strong>기본</strong>"은 아님 — opt-in(아래 3번, 공식 문서 검증)</td></tr>
+            <tr><td><code>experimental_taintObjectReference</code></td><td class="center" style="color:var(--note-tx);font-weight:700;">주의</td><td>실재하나 React/Next <strong>experimental</strong> 기능</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- 1 -->
+        <h3>1. "감싸면 클라가 된다" → 정확히는 "<strong>클라 파일에서 import하면</strong>"</h3>
+        <p>강의 결론(합성 패턴)은 옳지만, <strong>원인</strong>을 "감싸서"로 설명하면 오해가 생긴다. 진짜 규칙:</p>
+        <div class="box info">
+          <h4>📐 경계 전파 규칙</h4>
+          <ul>
+            <li><code>'use client'</code>가 붙은 모듈이 <strong>import하는 모든 컴포넌트는 클라이언트 번들</strong>에 들어간다 → 그 컴포넌트는 더 이상 async 서버 패칭·<code>server-only</code> import 불가.</li>
+            <li>반대로 <strong><code>children</code>/props로 "전달"받은 것</strong>은 부모의 클라 여부와 무관 — <strong>호출(렌더)한 곳(부모의 부모=서버)</strong>에서 이미 RSC로 렌더돼 결과만 흘러든다.</li>
+          </ul>
+        </div>
+
+        <h4 style="margin:16px 0 6px;font-size:14px;">두 방향은 완전히 <strong>비대칭</strong>이다</h4>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>관계</th><th>결과</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>서버가 클라를 <code>import</code></td><td class="center yes">✅ 정상 (표준 패턴)</td><td>렌더가 서버→클라로 흐름. 경계에서 "구멍"만 남기고 props 직렬화해 전달</td></tr>
+            <tr><td>클라가 서버를 <code>import</code></td><td class="center no">⚠️ 서버 → 클라로 강등</td><td>클라 번들에 포함됨. 서버 전용 일(async·server-only·시크릿)을 하면 빌드/런타임 에러</td></tr>
+            <tr><td>클라가 서버를 <code>{children}</code>/props로 받음</td><td class="center yes">✅ 서버 유지 (합성 패턴)</td><td>import가 아니라 "전달". 상위 서버에서 이미 RSC로 렌더됨</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="grid2">
+          <div class="box safe">
+            <h4>✅ 서버 → 클라 import (정석)</h4>
+<pre><code><span class="c-com">// page.tsx (서버)</span>
+<span class="c-key">import</span> FilterSelect <span class="c-key">from</span> <span class="c-str">'./FilterSelect'</span>; <span class="c-com">// 'use client'</span>
+<span class="c-key">export default async function</span> Page() {
+  <span class="c-key">const</span> data = <span class="c-key">await</span> getData();   <span class="c-ok">// 서버 패칭 OK</span>
+  <span class="c-key">return</span> &lt;FilterSelect data={data} /&gt;; <span class="c-ok">// 클라 렌더 OK</span>
+}</code></pre>
+          </div>
+          <div class="box danger">
+            <h4>⚠️ 클라 → 서버 import (강등)</h4>
+<pre><code><span class="c-str">'use client'</span>;
+<span class="c-key">import</span> ServerComp <span class="c-key">from</span> <span class="c-str">'./ServerComp'</span>;
+<span class="c-com">// ServerComp가 클라 번들에 포함 → 강등</span>
+<span class="c-com">// 그 안에서 await 패칭/server-only 쓰면</span>
+<span class="c-bad">// ❌ 빌드 에러</span></code></pre>
+          </div>
+        </div>
+
+        <div class="note">
+          <strong>주의: "강등"이지 곧 "에러"는 아님</strong> 클라가 서버를 import해도, 그 컴포넌트가 <strong>props로 그리기만</strong> 하면 <strong>조용히 클라로 바뀌어 동작</strong>은 한다(번들↑·하이드레이션 비용↑). <strong>서버 전용 일을 할 때만</strong> 에러. → "에러 안 나니 괜찮다"가 아니라 <strong>서버 이점을 손해 보는 것</strong>이 진짜 비용.
+        </div>
+        <div class="note"><strong>한 줄 정리</strong> 클라/서버 경계는 <strong>"JSX 중첩"이 아니라 "import 그래프"</strong>로 갈린다. 그래서 클라가 서버를 넣고 싶을 땐 <code>import ServerComp</code>(✗) 대신 <code>{children}</code>(✓). 처음부터 클라가 서버를 감쌀 일이 없으면 이 고민 자체가 없다.</div>
+
+        <!-- 2 -->
+        <h3>2. <code>'use cache'</code> 예제 — opt-in 전제 + 두 캐싱 레이어 혼용</h3>
+        <div class="note">
+          <strong>🔎 출처</strong> Next.js 공식 <code>use cache</code> 지시어 문서 &amp; "Migrating to Cache Components" 가이드(v16.2.9). 아래는 문서 확인 사실.
+        </div>
+        <div class="box danger">
+          <h4>⚠️ 무엇을 짚어야 하나</h4>
+          <ul>
+            <li><strong>설정 전제(검증됨)</strong> — <code>'use cache'</code>는 <strong>Cache Components</strong> 기능으로, <code>next.config.ts</code>에 <strong><code>cacheComponents: true</code></strong>를 켜야 동작한다(과거 <code>experimental.dynamicIO</code>/<code>useCache</code>를 Next 16이 이 이름으로 대체). "지시어 한 줄로 끝"이 아니라 <strong>opt-in 설정이 선행</strong>. Next 16 기본은 <strong>모든 동적 코드가 요청 시 실행(캐싱은 전부 opt-in)</strong>.</li>
+            <li><strong>제어 일원화 권장</strong> — <code>'use cache'</code> 함수의 수명은 <strong><code>cacheLife()</code></strong>(미설정 시 default 프로필: stale 5분 / revalidate 15분), 무효화는 <strong><code>cacheTag()</code></strong>로 한다. 공식 마이그레이션 가이드는 fetch의 <strong><code>revalidate</code>·<code>tags</code>를 <code>cacheLife</code>·<code>cacheTag</code>로 옮기라</strong>고 명시.</li>
+            <li><strong>"충돌"은 아님 — "중복"이 정확</strong> — 가이드 원문: <em>"기존 <code>fetch</code> 캐싱은 <strong>별도 레이어로 계속 동작한다</strong>." </em> 따라서 <code>use cache</code> 안에 <code>next:{revalidate}</code>를 둬도 <strong>에러는 아니다.</strong> 다만 캐시 수명을 <strong>두 곳(fetch Data Cache + use cache 스코프)에서 이중으로</strong> 거는 셈이라 <strong>비관용적이고 의도가 모호</strong>하다.</li>
+          </ul>
+        </div>
+<pre><code><span class="c-com">// 강의 예제 (두 레이어 중복 — 에러는 아니지만 비권장)</span>
+<span class="c-key">async function</span> getUser(id) {
+  <span class="c-str">'use cache'</span>;
+  <span class="c-key">await</span> fetch(url, { next: { revalidate: <span class="c-key">3600</span> } }); <span class="c-bad">// fetch 레이어와 중복</span>
+}
+
+<span class="c-com">// 권장 — use cache 스코프로 일원화 (cacheComponents:true)</span>
+<span class="c-key">import</span> { cacheLife, cacheTag } <span class="c-key">from</span> <span class="c-str">'next/cache'</span>;
+<span class="c-key">async function</span> getUser(id) {
+  <span class="c-str">'use cache'</span>;
+  cacheLife(<span class="c-str">'hours'</span>);   <span class="c-ok">// 수명 ← fetch revalidate 대체</span>
+  cacheTag(<span class="c-str">'user'</span>);     <span class="c-ok">// 태그 ← fetch tags 대체</span>
+  <span class="c-key">await</span> fetch(url);
+}</code></pre>
+        <div class="note">
+          <strong>저장소 차이도 알아둘 것</strong> <code>fetch</code> Data Cache는 <strong>배포·서버리스 인스턴스를 넘어 지속</strong>되지만, <code>use cache</code>는 기본 <strong>in-memory</strong>라 인스턴스 종료 시 사라진다(지속하려면 <code>use cache: remote</code>/커스텀 핸들러). 또 Next 16에선 <code>revalidateTag()</code>가 <code>cacheLife</code> 프로필 인자를 요구하도록 바뀜.
+        </div>
+        <div class="note">→ 개념 학습용으론 OK지만 <strong>"이대로 복붙하면 안 됨"</strong>. 프로젝트의 Next 버전·<code>cacheComponents</code> 설정을 먼저 확인.</div>
+
+        <!-- 3 -->
+        <h3>3. "PPR 완전 안정화·실무 기본" — <strong>공식 문서로 검증한 결과</strong></h3>
+        <div class="note">
+          <strong>🔎 출처</strong> Next.js 16 공식 릴리스 블로그(2025-10-21). 아래는 추정이 아니라 <strong>문서 확인 사실</strong>.
+        </div>
+        <p>강의는 "PPR이 완전히 안정화되어 <strong>실무에 기본</strong>이 되었다"고 단정한다. 검증 결과 <strong>"안정화"는 형태가 다르고, "기본"은 틀렸다.</strong></p>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>강의 서술</th><th>실제(검증)</th></tr></thead>
+          <tbody>
+            <tr><td>PPR이 오래 실험 단계였다(암묵)</td><td class="yes">맞음 — 2023 도입 후 Next 16 전까지 <code>experimental.ppr</code> 플래그로만 제공</td></tr>
+            <tr><td>"완전히 안정화됨"</td><td>부분적 — Next 16에서 <code>experimental.ppr</code>·<code>experimental_ppr</code>는 <strong>제거</strong>되고, PPR이 <strong>Cache Components</strong> 모델로 흡수됨(<code>"use cache"</code> 중심)</td></tr>
+            <tr><td>"실무에 <strong>기본</strong>이 되었다"</td><td class="no">아님 — Cache Components는 <strong>전적으로 opt-in</strong>(<code>cacheComponents: true</code>). 기본은 "모든 동적 코드가 요청 시 실행". 게다가 2025-10 출시로 갓 나온 최신 기능</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="box info">
+          <h4>📐 정리</h4>
+          <ul>
+            <li><strong>설계 원칙은 유효</strong> — "정적은 즉시, 동적만 스트리밍 → 컴포넌트를 잘게 나눠 Suspense 경계 확보"는 PPR/Cache Components 어느 쪽이든 그대로 통용.</li>
+            <li><strong>"기본값" 서술은 받아들이지 말 것</strong> — 실제론 <code>cacheComponents: true</code> opt-in. 적용 전 <strong>Next 버전·설정 확인이 선행</strong>.</li>
+            <li><strong>네이밍 변화</strong> — 과거 <code>experimental.dynamicIO</code> → Next 16에서 <code>cacheComponents</code>로 개명·승격. (18강 PPR 팩트체크와 동일 결.)</li>
+          </ul>
+        </div>
+
+        <!-- 4 보강 -->
+        <h3>4. 사소하지만 보강할 점</h3>
+        <ul>
+          <li><strong>"서버 내부망에서 초고속"</strong> — DB/API가 서버와 가까울 때의 얘기. 외부 서드파티 API를 호출하면 서버에서도 네트워크 지연은 존재(그래도 클라 왕복+번들은 줄어듦).</li>
+          <li><strong><code>server-only</code>의 짝</strong> — 클라 전용 보호엔 <code>client-only</code> 패키지가 대칭으로 존재(브라우저 전용 모듈을 서버에서 import 시 에러).</li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 결론</strong> 24강의 <span class="k">멘탈 모델(뿌리=서버 / 열매=클라 / 합성 패턴 / server-only)은 정확하고 실무에서 그대로 통용</span>.
+          보정 포인트는 셋: <span class="k">경계는 "감쌈"이 아니라 "import"로 갈린다</span> · <span class="k"><code>use cache</code>는 <code>cacheComponents:true</code> opt-in이고 수명은 <code>cacheLife</code>로 일원화(fetch <code>revalidate</code> 중복은 비권장, 단 충돌·에러는 아님)</span> · <span class="k">PPR은 Next 16에서 Cache Components로 흡수됐으나 "기본"이 아니라 opt-in</span>(공식 문서 검증).
+        </div>
+      </article>
+
+      <!-- ╔══════════════════════════════════════════════════════════╗
+           ║  SECTOR 3 — 우리 프로젝트 (zaritalk-front 적용)            ║
+           ╚══════════════════════════════════════════════════════════╝ -->
+      <div class="sector-head" id="sector-project">
+        <span class="num">3</span>
+        <h2>우리 프로젝트</h2>
+        <span class="desc">zaritalk-front 실제 구조에 비춘 판단</span>
+      </div>
+
+      <!-- ══════════ 22강 연계 — zaritalk-front 폴더 구조 진단 ══════════ -->
+      <article class="entry project" id="project-folder-structure"
+               data-section="project"
+               data-title="zaritalk-front 폴더 구조 진단 — 강의 표준 vs 실제 (모노레포·코로케이션·lib/utils)"
+               data-tags="zaritalk-front, 폴더 구조, 모노레포, Turborepo, libs, 코로케이션, Private 폴더, 라우터 혼용, 실측">
+        <header class="entry-head">
+          <h2>zaritalk-front 폴더 구조 — 강의 표준에 비춰 보기</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-27</span>
+            <span class="chip">실측</span><span class="chip">모노레포</span><span class="chip">libs</span><span class="chip">코로케이션</span><span class="chip">라우터 혼용</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 22강의 "App Router 단일 앱 <code>src/</code> 표준 구조"를 기준으로 볼 때, 우리 프로젝트는 지금 어디쯤 있고 무엇이 같고 다른가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🏢</span>
+          <span>우리는 강의가 마지막에 "더 커지면 가라"고 한 <b>모노레포(Turborepo + pnpm workspaces)</b> 단계에 <b>이미 가 있다.</b> 강의의 단일 앱 <code>src/</code> 트리가 우리에겐 <b><code>libs/*</code> 패키지 + <code>libs/domain/*</code> 도메인 분할</b>로 진화해 있다. 코로케이션(<code>*Client.tsx</code>)·Route Group은 쓰지만, <b>Server Actions 미사용(React Query+axios)</b>·<b>Private <code>_folder</code> 미사용</b>·<b>주력 앱은 아직 Pages Router</b>라는 게 표준과의 핵심 차이.</span>
+        </div>
+
+        <!-- 1. 우리 위치 -->
+        <h3>1. 우리는 강의의 "마지막 장"에서 시작한다 — 모노레포</h3>
+        <p>22강은 "단일 앱 <code>src/</code> 표준으로 시작 → 커지면 모노레포로 확장"을 권한다. zaritalk-front는 <strong>이미 모노레포</strong>다.</p>
+        <ul>
+          <li><strong>도구</strong>: Turborepo + pnpm workspaces (루트 <code>turbo.json</code>, <code>pnpm-workspace.yaml</code>). 워크스페이스 = <code>apps/*</code>, <code>libs/*</code></li>
+          <li><strong>앱 묶음</strong>: <code>apps/</code> 아래 realtor·admin·lessee·lessor·estimate-master 등 여러 독립 앱을 한 저장소에서 관리</li>
+          <li><strong>공유 코드</strong>: <code>libs/</code>에 UI·훅·유틸·타입·API를 패키지로 분리해 모든 앱이 공유</li>
+        </ul>
+        <div class="note">→ 강의가 말한 모노레포의 장점(공용 컴포넌트·유틸 공유, 의존성 일괄 관리, 대규모 리팩토링 유리)을 <strong>이미 누리는 중</strong>. 대신 강의가 경고한 단점(초기 구축·학습 곡선·빌드 파이프라인 부담)도 우리가 감당하고 있는 비용.</div>
+
+        <!-- 2. 매핑 표 -->
+        <h3>2. 강의 단일 앱 <code>src/</code> ↔ 우리 <code>libs/</code> 매핑</h3>
+        <p>강의의 7개 폴더가 우리에겐 "앱 안 폴더"가 아니라 "공유 패키지"로 흩어져 있다.</p>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>강의 표준 (단일 앱)</th><th>역할</th><th>zaritalk-front 대응</th></tr></thead>
+          <tbody>
+            <tr><td><code>app/</code></td><td>라우팅 중심</td><td><code>apps/{realtor,admin,…}/app/</code> 또는 <code>/pages/</code></td></tr>
+            <tr><td><code>components/</code></td><td>범용 공통 UI</td><td><code>libs/shared/ui-components/</code> (≈92개)</td></tr>
+            <tr><td><code>hooks/</code></td><td>커스텀 훅</td><td><code>libs/shared/hooks/</code> (≈71개)</td></tr>
+            <tr><td><code>lib/</code></td><td>외부 의존·API</td><td><code>libs/api/</code> (React Query+axios, <code>patchWithToken</code> 등)</td></tr>
+            <tr><td><code>utils/</code></td><td>순수 함수</td><td><code>libs/shared/utils/</code> (<code>date.ts</code>·<code>array.ts</code>·<code>validation.ts</code>)</td></tr>
+            <tr><td><code>types/</code></td><td>전역 타입</td><td><code>libs/types/</code> (≈45개 도메인별 타입)</td></tr>
+            <tr><td><code>actions/</code></td><td>Server Actions</td><td><span class="no">없음</span> — Server Actions 미사용</td></tr>
+            <tr><td>(추가)</td><td>전역 상태</td><td><code>libs/global-state/</code> (Jotai), <code>libs/domain/*</code>, <code>libs/features/*</code></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="note">
+          <strong>도메인 분할이 핵심 진화</strong> 강의가 끝에 언급한 <strong>"기능 분할(feature-sliced) 설계 철학"</strong>을, 우리는 <code>libs/domain/*</code>(common·auth·contract·realtor 등 ~27개 도메인)로 <strong>패키지 레벨에서</strong> 구현. 각 도메인이 자체 <code>components/ hooks/ utils/ type.ts</code>를 가진다 → 강의의 응집 원칙을 더 큰 단위로 확장.
+        </div>
+
+        <!-- 3. 같은 점 -->
+        <h3>3. 강의 표준과 같은 점 ✅</h3>
+        <div class="box safe">
+          <h4>잘 따르고 있는 원칙</h4>
+          <ul>
+            <li><strong>코로케이션</strong> — App Router 앱(realtor)에서 <code>page.tsx</code> 옆에 <code>*Client.tsx</code>·<code>loading.tsx</code>를 같이 둠 (예: <code>vacancy/list/VacancyListPageClient.tsx</code>)</li>
+            <li><strong>Route Group</strong> — <code>(admin)</code>·<code>(protected)</code>·<code>(require-profile)</code>로 URL에 안 드러나는 논리적 묶음 + 접근 제어 계층화</li>
+            <li><strong>전역 공통은 공유, 전용은 가까이</strong> — 범용은 <code>libs/shared</code>, 도메인 전용은 <code>libs/domain/*</code>, 페이지 전용은 라우트 폴더에 코로케이션</li>
+            <li><strong>lib vs utils 분리</strong> — 외부 의존(<code>libs/api</code>) vs 순수 함수(<code>libs/shared/utils</code>)가 실제로 갈라져 있음</li>
+          </ul>
+        </div>
+
+        <!-- 4. 다른 점 -->
+        <h3>4. 강의 표준과 다른 점 ⚠️ (옳고 그름이 아니라 선택)</h3>
+        <div class="box danger">
+          <h4>표준과의 갭</h4>
+          <ul>
+            <li><strong>Server Actions 미사용</strong> — 강의는 <code>actions/</code>로 FE↔BE를 잇지만, 우리는 <strong>React Query(useQuery/useMutation) + axios</strong> 전통 패턴. App Router 앱조차 클라이언트단에서 API 호출. (섹션4 낙관적 업데이트 판단과 동일 맥락)</li>
+            <li><strong>Private <code>_folder</code> 미사용</strong> — 강의가 강조한 언더스코어 은닉 폴더 컨벤션은 안 씀. 라우트 그룹 <code>()</code>로 묶을 뿐, "라우팅 제외 전용 폴더"는 공유 패키지(<code>libs/domain</code>)로 대체. → <em>도메인 전용 컴포넌트를 라우트 안에 둘 땐 <code>_components</code> 도입 검토 여지.</em></li>
+            <li><strong>주력 앱은 아직 Pages Router</strong> — realtor·admin은 App Router지만 <strong>lessee·lessor 등은 Pages Router</strong>. 강의의 코로케이션/PPR 이점은 App Router 앱에서만 적용됨.</li>
+            <li><strong>앱 루트 <code>components/</code> 잔존</strong> — <code>apps/realtor/components/</code>처럼 코로케이션과 앱-루트 컴포넌트 폴더가 혼용. 정리 시 "전역=libs, 페이지전용=라우트 폴더" 규칙으로 수렴 여지.</li>
+          </ul>
+        </div>
+
+        <!-- 5. 결론 -->
+        <div class="principle">
+          <strong>✅ 진단</strong> zaritalk-front는 강의의 <span class="k">단일 앱 표준을 "졸업"하고 모노레포 + 도메인 분할</span>로 진화한 형태다.
+          코로케이션·Route Group·lib/utils 분리 같은 <span class="k">핵심 원칙은 충족</span>하고, 차이점(Server Actions·<code>_folder</code> 미사용, Pages Router 잔존)은 <span class="k">틀린 게 아니라 우리 환경(네이티브 웹뷰·점진 마이그레이션)에 맞춘 선택</span>.
+          22강의 진짜 교훈("동료가 트리만 보고 흐름을 유추할 수 있나")으로 보면 — <span class="k">libs/domain 분할 덕에 그 기준은 잘 지켜지는 편</span>.
+        </div>
+      </article>
+
+      <!-- ══════════ 23강 연계 — zaritalk-front 경로별칭·네이밍·배럴 진단 ══════════ -->
+      <article class="entry project" id="project-alias-naming"
+               data-section="project"
+               data-title="zaritalk-front 경로 별칭·네이밍·배럴 진단 — @zaritalk 패키지 별칭과 index.ts 679개"
+               data-tags="zaritalk-front, 경로 별칭, path alias, tsconfig, 네이밍 컨벤션, 배럴 파일, index.ts, 모노레포, 실측">
+        <header class="entry-head">
+          <h2>zaritalk-front 경로 별칭·네이밍·배럴 — 강의 23강에 비춰 보기</h2>
+          <div class="meta">
+            <span class="date">📅 2026-06-27</span>
+            <span class="chip">실측</span><span class="chip">@zaritalk 별칭</span><span class="chip">배럴 파일</span><span class="chip">네이밍</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 23강의 "<code>@/* → src/*</code> 절대 경로 + 네이밍 + <code>index.ts</code> 남용 금지" 기준으로 보면, 우리 프로젝트의 별칭/네이밍/배럴 전략은 어떤가?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🧭</span>
+          <span>별칭·네이밍은 강의보다 <b>더 엄격·체계적</b>이다. 강의의 단순 <code>@/*</code> 대신 <b>패키지 단위 별칭 <code>@zaritalk/{패키지}</code></b>로 의존성 방향을 강제한다. 네이밍(폴더 kebab·컴포넌트 Pascal·훅/유틸 camel)도 정확히 일치. <b>단 하나 정반대</b>: 강의는 <code>index.ts</code> 남용을 말렸지만 우리는 <b>배럴 파일 679개</b>를 의도적으로 쓴다 — 이건 "남용"이 아니라 <b>패키지 공개 API(진입점) 통제</b>라는 다른 목적의 선택.</span>
+        </div>
+
+        <!-- 1. 별칭 -->
+        <h3>1. 경로 별칭 — <code>@/*</code>가 아니라 <code>@zaritalk/{패키지}</code></h3>
+        <p>강의는 단일 앱 기준 <code>@/* → src/*</code>. 우리는 모노레포라 <strong><code>tsconfig.base.json</code>의 <code>paths</code></strong>에 <strong>패키지 단위 별칭</strong>을 깐다.</p>
+<pre><code><span class="c-com">// tsconfig.base.json (발췌)</span>
+<span class="c-str">"@zaritalk/api"</span>:            [<span class="c-str">"libs/api/src/index.ts"</span>],
+<span class="c-str">"@zaritalk/constants"</span>:      [<span class="c-str">"libs/constants/src/index.ts"</span>],
+<span class="c-str">"@zaritalk/domain/common"</span>:  [<span class="c-str">"libs/domain/common/src/index.ts"</span>],
+<span class="c-str">"@zaritalk/hooks/*"</span>:        [<span class="c-str">"libs/shared/hooks/src/*"</span>],
+<span class="c-str">"@zaritalk/ui-components/*"</span>: [<span class="c-str">"libs/shared/ui-components/src/*"</span>],
+<span class="c-str">"@zaritalk/utils/*"</span>:        [<span class="c-str">"libs/shared/utils/src/*"</span>]</code></pre>
+        <ul>
+          <li><strong>패키지 진입점 매핑</strong>(<code>.../src/index.ts</code>) + <strong>와일드카드</strong>(<code>/*</code>로 내부 깊은 파일 직접 접근) 혼용</li>
+          <li><strong>도메인 간/공유는 별칭 강제, 도메인 내부는 상대경로</strong> — realtor 앱 실측 별칭 import 164 vs 상대경로 3. 의존성 방향을 별칭으로 통제.</li>
+          <li><strong>Subpath Imports(<code>#</code>)는 미사용</strong> — 강의의 2026 팁(<code>package.json imports</code>)은 우리 프로젝트엔 없음. <code>tsconfig paths</code>만 사용.</li>
+        </ul>
+        <div class="note">→ 강의의 "우편번호" 비유를 <strong>패키지 레벨</strong>로 확장한 형태. <code>@/</code>가 "이 앱 안"이라면 <code>@zaritalk/</code>는 "이 회사의 어느 패키지".</div>
+
+        <!-- 2. 네이밍 -->
+        <h3>2. 네이밍 컨벤션 — 강의와 정확히 일치 ✅</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>대상</th><th>강의 권장</th><th>우리 실제</th><th>예시</th></tr></thead>
+          <tbody>
+            <tr><td>폴더</td><td>kebab-case</td><td class="yes">일치</td><td><code>anonymous-talk</code>, <code>real-estate-map</code>, <code>ui-components</code></td></tr>
+            <tr><td>라우트 폴더</td><td>괄호+kebab</td><td class="yes">일치</td><td><code>(admin)</code>, <code>(protected)</code>, <code>(require-profile)</code></td></tr>
+            <tr><td>컴포넌트 파일</td><td>PascalCase</td><td class="yes">일치</td><td><code>MainIntro.tsx</code>, <code>BottomNav.tsx</code>, <code>PhoneNumAuthPopup.tsx</code></td></tr>
+            <tr><td>훅·유틸 파일</td><td>camelCase</td><td class="yes">일치</td><td><code>useDebounce.ts</code>, <code>useClickOutside.ts</code>, <code>formatAreaAmount.ts</code></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="note">
+          <strong>차이 1곳</strong> 강의는 컴포넌트를 <strong>"폴더명=파일명"</strong> 구조(<code>UserProfileCard/UserProfileCard.tsx</code>)로 권하지만, 우리는 대체로 <strong>평면 <code>.tsx</code> 파일</strong>(기능별 서브폴더로 묶음). 일부 폴더(<code>kakaoSync</code>)만 camelCase로 컨벤션에서 살짝 벗어남.
+        </div>
+
+        <!-- 3. 배럴 -->
+        <h3>3. 핵심 충돌 — <code>index.ts</code> 배럴 파일 <strong>679개</strong> (강의는 "지양")</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>📕 강의 입장 — 남용 금지</h4>
+            <ul>
+              <li>에디터 탭이 <code>index</code>로 도배 → 식별 어려움</li>
+              <li>파일명을 명확히 직접 import 권장</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>📗 우리 입장 — 공개 API 통제</h4>
+            <ul>
+              <li>패키지 <strong>진입점(<code>src/index.ts</code>)을 단일화</strong></li>
+              <li>외부엔 <code>index</code>가 export한 것만 공개</li>
+              <li>내부 파일 구조 리팩토링이 소비자에게 안 새어나감</li>
+            </ul>
+          </div>
+        </div>
+<pre><code><span class="c-com">// 명시적 index import (흔함)</span>
+<span class="c-key">import</span> { Button, Layout } <span class="c-key">from</span> <span class="c-str">'@zaritalk/ui-components/index'</span>;
+<span class="c-com">// 암시적 index (paths가 자동 매핑)</span>
+<span class="c-key">import</span> { AlertLayer } <span class="c-key">from</span> <span class="c-str">'@zaritalk/domain/common'</span>;
+<span class="c-com">// index 우회 — 깊은 파일 직접 접근(와일드카드 별칭)</span>
+<span class="c-key">import</span> { useSearchParams } <span class="c-key">from</span> <span class="c-str">'@zaritalk/hooks/lib/navigation'</span>;</code></pre>
+        <div class="note warn">
+          <strong>트레이드오프 인지</strong> 배럴은 <strong>트리쉐이킹 약화·순환참조·초기 번들/빌드 부담</strong> 위험이 있다. 그래서 우리도 <strong>무거운 깊은 모듈은 <code>@zaritalk/hooks/lib/navigation</code>처럼 index를 우회</strong>해 직접 import하는 절충을 이미 쓴다. → 강의의 경고는 "앱 내부 컴포넌트 배럴"에 유효하고, 우리의 배럴은 "패키지 경계 API"라 목적이 다르다.
+        </div>
+
+        <!-- 4. 결론 -->
+        <div class="principle">
+          <strong>✅ 진단</strong> 별칭·네이밍은 강의 기준을 <span class="k">넘어서 더 체계적</span>(패키지 별칭으로 의존성 방향까지 통제).
+          <code>index.ts</code>만 강의와 <span class="k">정반대로 적극 사용</span>하는데, 이는 단일 앱 관점의 "남용"이 아니라 <span class="k">모노레포 패키지의 공개 API 경계 설정</span>이라는 의도된 선택.
+          개선 여지는 <span class="k">배럴 우회 규칙 명문화(무거운 모듈은 깊은 경로 직접 import)</span>와 <span class="k">예외 폴더(<code>kakaoSync</code> 등) kebab 정리</span> 정도.
+        </div>
+      </article>
+
+      <div id="empty">🔍 검색 결과가 없습니다.</div>
+    </main>
+  </div>
+
+  <button id="toTop" title="맨 위로">↑</button>
+
+<!-- =====================================================================
+     📌 새 항목 추가 템플릿  (이 블록을 복사 → <article> 부분만 본문에 붙여넣기)
+
+     ★ data-section 으로 어느 섹터에 들어갈지 결정 (목차 자동 그룹핑)
+        - data-section="summary"  → "강의 요약"
+        - data-section="insight"  → "인사이트"
+        - data-section="project"  → "우리 프로젝트"
+     ★ data-title / data-tags / data-date 채우면 목차·검색·태그 자동 반영
+
+     <article class="entry insight" id="고유-id"
+              data-section="insight"
+              data-title="제목"
+              data-tags="태그1, 태그2"
+              data-date="YYYY-MM-DD">
+       <header class="entry-head">
+         <h2>제목</h2>
+         <div class="meta">
+           <span class="date">📅 YYYY-MM-DD</span>
+           <span class="chip">태그1</span><span class="chip">태그2</span>
+         </div>
+       </header>
+
+       <div class="qbox"><strong>Q.</strong> 어떤 질문에서 출발했나</div>
+       <div class="tldr"><span class="ico">💡</span><span>한 줄 핵심 결론</span></div>
+
+       <h3>소제목</h3>
+       <p>설명 문단. 인라인 코드는 <code>...</code>.</p>
+
+       PALETTE ──────────────────────────────────────────────
+       • 코드블록:   <pre><code>...</code></pre>
+                     색: c-com(주석) c-key(키워드) c-str(문자열) c-ok c-bad
+       • 안전/위험:  <div class="box safe|danger|info"><h4>제목</h4><ul>…</ul></div>
+       • 2단 비교:   <div class="grid2"> box 2개 </div>
+       • 콜아웃:     <div class="note">…</div>  /  <div class="note warn">…</div>
+       • 비유:       <div class="analogy"><span class="ico">🏭</span><div>…</div></div>
+       • 표:         <table><thead>…</thead><tbody>…</tbody></table>
+                     셀 강조: class="yes" / class="no" / class="center"
+       • 큰 결론:    <div class="principle">… <span class="k">강조</span> …</div>
+       • 채우기표시: <div class="todo">아직 채울 내용</div>
+       ───────────────────────────────────────────────────────
+     </article>
+===================================================================== -->
+
+<script>
+  const articles = [...document.querySelectorAll('article.entry')];
+  const toc       = document.getElementById('toc');
+  const tagfilter = document.getElementById('tagfilter');
+  const searchEl  = document.getElementById('search');
+  const countEl   = document.getElementById('count');
+  const emptyEl   = document.getElementById('empty');
+  let   activeTag = null;
+
+  const tagsOf = el => el.dataset.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+  /* ---- 목차 자동 생성 (섹터별 그룹핑) ---- */
+  const SECTIONS = [
+    { key: 'summary', label: '1 · 강의 요약' },
+    { key: 'insight', label: '2 · 인사이트' },
+    { key: 'project', label: '3 · 우리 프로젝트' },
+  ];
+  SECTIONS.forEach(sec => {
+    const members = articles.filter(a => (a.dataset.section || 'summary') === sec.key);
+    if (!members.length) return;
+    const head = document.createElement('div');
+    head.className = 'toc-group-head';
+    head.textContent = sec.label;
+    toc.appendChild(head);
+    members.forEach(a => {
+      const link = document.createElement('a');
+      link.href = '#' + a.id;
+      link.className = 'toc-link';
+      link.dataset.target = a.id;
+      link.textContent = a.dataset.title;
+      toc.appendChild(link);
+    });
+  });
+
+  /* ---- 태그 칩 자동 생성 ---- */
+  const allTags = [...new Set(articles.flatMap(tagsOf))].sort();
+  allTags.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.textContent = tag;
+    chip.onclick = () => {
+      activeTag = (activeTag === tag) ? null : tag;
+      [...tagfilter.children].forEach(c =>
+        c.classList.toggle('active', c.textContent === activeTag));
+      applyFilter();
+    };
+    tagfilter.appendChild(chip);
+  });
+
+  /* ---- 검색 + 태그 통합 필터 ---- */
+  function applyFilter() {
+    const q = searchEl.value.trim().toLowerCase();
+    let visible = 0;
+    articles.forEach(a => {
+      const haystack = (a.dataset.title + ' ' + a.dataset.tags + ' ' + a.textContent).toLowerCase();
+      const okQ   = !q || haystack.includes(q);
+      const okTag = !activeTag || tagsOf(a).includes(activeTag);
+      const show  = okQ && okTag;
+      a.style.display = show ? '' : 'none';
+      const link = toc.querySelector(`[data-target="${a.id}"]`);
+      if (link) link.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    emptyEl.style.display = visible ? 'none' : 'block';
+    countEl.textContent = visible === articles.length
+      ? `${articles.length}개 항목`
+      : `${visible} / ${articles.length}`;
+  }
+  searchEl.addEventListener('input', applyFilter);
+
+  /* ---- 스크롤 스파이 (현재 섹션 목차 하이라이트) ---- */
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+      const link = toc.querySelector(`[data-target="${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    });
+  }, { rootMargin: '-15% 0px -75% 0px' });
+  articles.forEach(a => spy.observe(a));
+
+  /* ---- 테마 토글 (선택값 기억) ---- */
+  const themeBtn = document.getElementById('themeToggle');
+  function setTheme(dark) {
+    document.body.classList.toggle('dark', dark);
+    themeBtn.textContent = dark ? '☀️' : '🌙';
+    try { localStorage.setItem('devnotes-theme', dark ? 'dark' : 'light'); } catch (_) {}
+  }
+  themeBtn.onclick = () => setTheme(!document.body.classList.contains('dark'));
+  try { setTheme(localStorage.getItem('devnotes-theme') === 'dark'); } catch (_) {}
+
+  /* ---- 맨 위로 버튼 ---- */
+  const toTop = document.getElementById('toTop');
+  window.addEventListener('scroll', () => toTop.classList.toggle('show', window.scrollY > 400));
+  toTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  applyFilter();
+</script>
+</body>
+</html>
