@@ -343,20 +343,322 @@
         <span class="desc">강의에서 다룬 핵심 개념 정리</span>
       </div>
 
-      <!-- ══════════ 강의 요약 placeholder — 강의 정리 요청 시 카드로 교체 ══════════ -->
-      <article class="entry summary" id="lec-placeholder"
+      <!-- ══════════ 25강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-25"
                data-section="summary"
-               data-title="(예정) 섹션 6 강의 요약 — 성능 최적화 · 고급 SEO"
-               data-tags="성능 최적화, SEO"
+               data-title="25강. 속도의 신세계 — Turbopack 점진적 연산 & Next.js 4단계 캐싱 아키텍처"
+               data-tags="Turbopack, Rust, 번들링, 점진적 연산, 캐싱, Request Memoization, Data Cache, Full Route Cache, Router Cache, use cache"
                data-date="2026-07-03">
         <header class="entry-head">
-          <h2>섹션 6 강의 요약 (예정)</h2>
+          <h2>25강. 속도의 신세계</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[빌드&캐시] Turbopack의 점진적 연산과 Next.js 4단계 캐싱 아키텍처</p>
           <div class="meta">
             <span class="date">📅 2026-07-03 · 섹션 6</span>
-            <span class="chip">성능 최적화</span><span class="chip">SEO</span>
+            <span class="chip">Turbopack</span><span class="chip">점진적 연산</span>
+            <span class="chip">4단계 캐싱</span><span class="chip">use cache</span>
           </div>
         </header>
-        <div class="todo">강의(트랜스크립트 + 강의 노트)를 전달하면 강별로 요약 카드가 하나씩 이 자리에 추가됩니다.</div>
+
+        <div class="tldr">
+          <span class="ico">⚡</span>
+          <span>속도는 두 축으로 나뉜다. <b>개발 속도는 Turbopack</b> — Rust 기반(기계어 컴파일·GC 없음·멀티스레딩)에 <b>점진적 연산</b>("한 번 계산한 건 다시 계산하지 않는다")으로 변경분만 갱신. <b>운영 속도는 4단계 캐싱</b> — 대전제는 <b>"기본적으로 캐시하지 않는다"</b>(Next 15), 필요할 때만 ① Request Memoization(한 렌더링 내 중복 fetch 제거) ② Data Cache(서버 창고, <code>revalidate</code>) ③ Full Route Cache(페이지 통째 굽기) ④ Router Cache(브라우저 메모리, 뒤로 가기 즉시 복원)를 연다. Next 16에선 <b><code>'use cache'</code> 한 줄</b>로 이를 우아하게 제어 — <b>"변화가 적고 무거운 연산에 붙인다"</b>.</span>
+        </div>
+
+        <!-- 1. 맥락 -->
+        <h3>1. 맥락 — 뼈대(24강) 위에 "속도"라는 날개</h3>
+        <p>섹션 5에서 서버/클라 컴포넌트 구조(골격)를 잡았다. 이제 그 위에 성능을 얹는다. 속도는 <strong>두 개의 엔진</strong>이 책임진다.</p>
+        <div class="grid2">
+          <div class="box info">
+            <h4>🛠️ 개발 속도 — Turbopack</h4>
+            <ul><li>코드 수정 → 화면 반영까지의 <strong>빌드 대기 시간</strong>을 없앤다</li></ul>
+          </div>
+          <div class="box info">
+            <h4>🚀 운영 속도 — 4단계 캐싱</h4>
+            <ul><li>실제 사용자가 접속했을 때의 <strong>응답 속도</strong>를 결정한다</li></ul>
+          </div>
+        </div>
+
+        <!-- 2. 번들링과 Webpack -->
+        <h3>2. 번들링 — 왜 Webpack은 느려졌나</h3>
+        <p>React 컴포넌트·JS·CSS·이미지는 그대로 브라우저에서 실행될 수 없다. 브라우저가 이해할 <strong>하나의 최적화된 결과물로 묶고 변환</strong>하는 작업이 <strong>번들링</strong>. 오랫동안 JavaScript 기반 <strong>Webpack</strong>이 맡았지만, 프로젝트가 거대해질수록 JS의 태생적 한계로 빌드 시간이 길어졌다.</p>
+
+        <!-- 3. 왜 Rust -->
+        <h3>3. 왜 Rust인가 — Turbopack이 빠른 근본 이유</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>🐢 JavaScript</h4>
+            <ul>
+              <li>한 줄씩 읽으며 <strong>해석(인터프리트)</strong>하는 과정 필요</li>
+              <li><strong>가비지 컬렉터</strong>(청소부)가 주기적으로 개입 → 실행 흐름 정지</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>🦀 Rust</h4>
+            <ul>
+              <li>하드웨어가 직접 이해하는 <strong>기계어로 미리 컴파일</strong> (로우 레벨)</li>
+              <li>GC 없이 메모리를 <strong>안전·효율적으로</strong> 관리</li>
+              <li>모든 CPU 코어를 동시 활용하는 <strong>멀티스레딩</strong> 최적화</li>
+            </ul>
+          </div>
+        </div>
+        <div class="analogy">
+          <span class="ico">🏭</span>
+          <div>JavaScript = <strong>혼자서 일일이 서류를 번역·정리하는 직원</strong> · Rust = <strong>수십 명의 전문가가 기계로 동시에 서류를 찍어내는 공장</strong>.</div>
+        </div>
+
+        <!-- 4. 점진적 연산 -->
+        <h3>4. 핵심 원리 — <strong>점진적 연산</strong> (Incremental Computation)</h3>
+        <p>철학 한 줄: <strong>"한 번 계산한 것은 절대 다시 계산하지 않는다."</strong></p>
+        <ul>
+          <li><strong>함수 단위</strong>로 모든 작업 결과를 <strong>메모리에 캐시</strong></li>
+          <li>파일 간 <strong>의존성 지도</strong>를 완벽히 파악 → 변경 시 <strong>영향받는 부분만 정확히 찾아 갱신</strong></li>
+        </ul>
+        <div class="analogy">
+          <span class="ico">🧱</span>
+          <div>거대한 레고 성에서 <strong>꼭대기 깃발 색 하나</strong>를 바꿨을 때 — 기존 번들러는 <strong>성벽 상당 부분을 허물고 재조립</strong>, Turbopack은 <strong>깃발과 그 깃발이 꽂힌 블록 하나만</strong> 업데이트.</div>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">사용법 — 허무할 정도로 간단</h4>
+<pre><code><span class="c-com">// package.json (Next.js 15)</span>
+<span class="c-str">"scripts"</span>: {
+  <span class="c-str">"dev"</span>: <span class="c-str">"next dev --turbo"</span>   <span class="c-com">// 플래그 하나로 끝</span>
+}</code></pre>
+
+        <!-- 5. 캐싱 대전제 -->
+        <h3>5. 캐싱 대전제 — <strong>"기본적으로 캐시하지 않는다"</strong></h3>
+        <p>캐싱 = 무겁게 가져온 데이터를 <strong>임시 창고에 저장</strong>해두고 다음 요청 때 바로 꺼내주는 기술. Next.js 15 캐싱의 출발점은 공식 문서의 대전제다.</p>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>📦 과거 버전</h4>
+            <ul>
+              <li>데이터를 가져오면 <strong>프레임워크가 알아서 캐시</strong></li>
+              <li>DB를 수정해도 화면이 안 바뀌는 <strong>대혼란</strong></li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>✅ Next.js 15</h4>
+            <ul>
+              <li>개발자가 <strong>명시적으로 허락하지 않는 한 캐시 안 함</strong></li>
+              <li>항상 최신 데이터 — <strong>안전한 기본값</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 6. 4단계 캐싱 -->
+        <h3>6. 4단계 캐싱 아키텍처</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>계층</th><th>위치</th><th>수명·범위</th><th>실무 대표 예</th></tr></thead>
+          <tbody>
+            <tr><td>① Request Memoization</td><td>서버 (React 기능)</td><td><strong>한 번의 렌더링</strong> 동안</td><td>내비바·사이드바·본문이 각자 유저 정보 fetch</td></tr>
+            <tr><td>② Data Cache</td><td>서버</td><td>지속 (배포·<code>revalidate</code>까지)</td><td>쇼핑몰 상품 목록·블로그 글 (1시간 캐시)</td></tr>
+            <tr><td>③ Full Route Cache</td><td>서버</td><td>빌드 산출물 (HTML+RSC Payload)</td><td>회사 소개·이용약관·마케팅 랜딩</td></tr>
+            <tr><td>④ Router Cache</td><td><strong>브라우저 메모리</strong></td><td>세션 내 페이지 이동</td><td>목록→상세→뒤로 가기 즉시 복원</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">① Request Memoization — 찰나의 기억 (React 고유 기능)</h4>
+        <p>렌더링 시작~끝의 짧은 생명 주기 안에서 <strong>동일한 URL·옵션의 fetch</strong>가 여러 번 발생하면, 실제 네트워크 요청은 <strong>단 한 번</strong>. 나머지는 첫 응답을 재사용.</p>
+        <div class="note"><strong>실무 효용</strong> 최상단 부모에서 불러와 props로 내려주는 복잡한 과정 없이, <strong>데이터가 필요한 컴포넌트마다 독립적으로 fetch를 호출해도</strong> 성능 저하 걱정이 없다.</div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">② Data Cache — 서버의 데이터 창고</h4>
+<pre><code><span class="c-com">// 기본은 캐시 OFF — 옵션으로 창고 문을 연다</span>
+fetch(url, { cache: <span class="c-str">'force-cache'</span> });          <span class="c-com">// 다음 배포까지 영구 저장</span>
+fetch(url, { next: { revalidate: <span class="c-key">3600</span> } });   <span class="c-com">// 1시간마다 백그라운드 교체</span></code></pre>
+        <div class="note"><strong>비용 임팩트</strong> 1시간 캐시면 그동안 수십만 명이 접속해도 <strong>DB 쿼리는 단 한 번</strong> → 서버 비용 대폭 절감. 사용자는 빠른 응답 + 비교적 최신 데이터.</div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">③ Full Route Cache — 완성된 페이지를 통째로 굽기</h4>
+        <p>데이터로 만든 <strong>HTML + RSC Payload</strong>(UI 결과물)를 서버에 통째로 저장. 정적 페이지는 전 세계 어디서든 CDN으로 즉시 제공 — <strong>가장 빠른 캐싱 단계</strong>.</p>
+        <div class="analogy">
+          <span class="ico">🍽️</span>
+          <div>주문마다 요리하는 게 아니라 <strong>잘 팔리는 메뉴를 미리 조리해두고 주문 즉시 내어주는 식당</strong>.</div>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">④ Router Cache — 유일한 클라이언트 캐시</h4>
+        <p>앞의 셋은 서버, 이것만 <strong>브라우저 메모리</strong>. 사이트 내 이동 시 방문한 페이지 결과물을 임시 기억 → <strong>뒤로 가기·재방문 시 서버 요청 없이 즉시 복원</strong>. 목록→상세→뒤로 가기에서 로딩 스피너 없이 스크롤 위치 그대로 나타나는 1등 공신.</p>
+
+        <!-- 7. use cache -->
+        <h3>7. Next.js 16 — <code>'use cache'</code>로 우아하게 제어</h3>
+        <p>과거엔 fetch 옵션에 복잡하게 설정을 넣었지만, 이제 <strong>함수/컴포넌트 최상단에 지시어 한 줄</strong>이면 결과를 Data Cache에 저장하고 Full Route Cache까지 최적 연동한다. 외부 API뿐 아니라 <strong>직접 연결한 DB 쿼리·무거운 데이터 가공 로직</strong>에도 적용.</p>
+        <div class="principle"><strong>🔥 원칙 한 줄</strong> — <span class="k">변화가 적고 무거운 연산에는 <code>'use cache'</code>를 붙인다</span>.</div>
+        <div class="note">
+          <strong>⚠️ 섹션 5 팩트체크 연결</strong> <code>'use cache'</code>는 <strong>Cache Components 기능으로 <code>cacheComponents: true</code> opt-in이 선행</strong>되어야 동작한다(24강 팩트체크에서 공식 문서 검증). "지시어 한 줄로 끝"은 설정 전제가 생략된 서술.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · 개발 속도 = <span class="k">Turbopack</span> (Rust: 기계어·GC 없음·멀티스레딩 + <span class="k">점진적 연산</span>)<br>
+          · 운영 속도 = <span class="k">4단계 캐싱</span>, 대전제는 <span class="k">"기본 캐시 안 함"</span> (Next 15)<br>
+          · <span class="k">① Memoization(한 렌더링) → ② Data Cache(서버 창고) → ③ Full Route(페이지 굽기) → ④ Router(브라우저)</span><br>
+          · Next 16 제어법 = <span class="k"><code>'use cache'</code></span> — 변화 적고 무거운 연산에<br>
+          · 본질은 <span class="k">"중복 작업을 피하고, 미리 준비해 둔다"</span>는 프로그래밍의 기본 진리
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (26강)</strong> 최적화되어 빌드된 결과물이 실제로 얼마나 무거운지 — <strong><code>@next/bundle-analyzer</code>로 번들 사이즈를 시각화</strong>하는 분석 기법.
+        </div>
+      </article>
+
+      <!-- ══════════ 26강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-26"
+               data-section="summary"
+               data-title="26강. 코드의 무게를 재다 — 번들 분석기(experimental-analyze)와 100KB 마지노선"
+               data-tags="번들 분석, experimental-analyze, 번들 사이즈, 100KB, TBT, 트리 쉐이킹, optimizePackageImports, serverExternalPackages, moment, date-fns, shiki, Treemap"
+               data-date="2026-07-03">
+        <header class="entry-head">
+          <h2>26강. 코드의 무게를 재다</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[번들 분석] 번들 분석기(experimental-analyze)를 활용한 100KB 마지노선 사수하기</p>
+          <div class="meta">
+            <span class="date">📅 2026-07-03 · 섹션 6</span>
+            <span class="chip">번들 분석</span><span class="chip">100KB 마지노선</span>
+            <span class="chip">TBT</span><span class="chip">트리 쉐이킹</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">⚖️</span>
+          <span>번들은 사용자가 <b>전부 내려받아 파싱·컴파일·실행</b>해야 하는 실제 무게다. 기준은 <b>First Load JS 100KB 미만</b>(100~200KB 황색, 200KB+ 적색) — 압축 170KB ≈ 해제 1MB ≈ 중저사양 폰에서 메인 스레드 <b>1~2초 블로킹(TBT)</b>이기 때문. Next 16.1+ Turbopack에선 설치 없이 <b><code>npx next experimental-analyze</code></b> 한 줄로 트리맵 시각화(과거 <code>ANALYZE=true</code>는 Webpack용이라 무효). 다이어트 처방 3가지: ① <b><code>optimizePackageImports</code></b>(거대 패키지 트리 쉐이킹) ② <b>무거운 렌더링은 서버 컴포넌트로</b>(prism→shiki, moment→date-fns) ③ <b><code>serverExternalPackages</code></b>(서버 전용 모듈 번들링 제외).</span>
+        </div>
+
+        <!-- 1. 맥락 -->
+        <h3>1. 맥락 — 엔진(25강)을 달았으니 이제 "무게"를 잰다</h3>
+        <p>Turbopack·캐싱으로 개발/서버 속도를 잡았다면, 이번엔 <strong>사용자에게 전달되는 실제 무게</strong>를 과학적으로 점검할 차례. 번들 = 우리가 쓴 JS + 외부 라이브러리가 빌드를 거쳐 브라우저가 읽기 좋게 합쳐진 결과물.</p>
+        <div class="note">
+          <strong>왜 무게가 생존 문제인가</strong> 브라우저 V8 엔진은 코드를 다운로드한 뒤 <strong>파싱 → 컴파일 → 실행</strong>이라는 무거운 연산을 거친다. 파일이 무거우면 해석·실행 시간도 <strong>정비례</strong>로 늘고, 특히 <strong>저사양 모바일</strong>에선 번들 사이즈가 곧 이탈률(Bounce Rate)로 직결된다.
+        </div>
+
+        <!-- 2. 100KB 기준 -->
+        <h3>2. 기준 정립 — <strong>100KB 마지노선</strong>과 TBT</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>First Load JS (페이지당)</th><th>신호</th><th>행동</th></tr></thead>
+          <tbody>
+            <tr><td>&lt; 100KB</td><td class="center yes">🟢 녹색</td><td>매우 훌륭 — 유지</td></tr>
+            <tr><td>100 ~ 200KB</td><td class="center" style="color:var(--note-tx);font-weight:700;">🟡 황색</td><td>최적화 고민 시작</td></tr>
+            <tr><td>&gt; 200KB</td><td class="center no">🔴 적색</td><td>반드시 무거운 로직 제거</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>이 기준의 뿌리는 <strong>Lighthouse·Core Web Vitals 권고</strong>. 수치의 근거:</p>
+        <ul>
+          <li>압축 JS <strong>170KB</strong> ≈ 압축 해제 시 <strong>약 1MB</strong></li>
+          <li>중저사양 폰에서 1MB를 읽고 실행하는 데 <strong>1~2초</strong> — 이 동안 <strong>메인 스레드가 꽉 막힘</strong></li>
+          <li>이 지연이 <strong>TBT(Total Blocking Time, 총 차단 시간)</strong> — 브라우저 메인 스레드는 <strong>싱글 스레드</strong>라 JS 실행 중엔 버튼을 눌러도 무반응·애니메이션 정지(렌더링 블로킹)</li>
+        </ul>
+        <div class="principle">→ 100KB는 단순 용량이 아니라 <span class="k">사용자가 느끼는 상호작용의 쾌적함을 지키는 마지노선</span>.</div>
+
+        <!-- 3. 분석기 -->
+        <h3>3. 엑스레이 장비 — <code>npx next experimental-analyze</code></h3>
+        <p>Next.js <strong>16.1+ & Turbopack</strong> 환경이면 <strong>패키지 설치조차 불필요</strong>. 명령어 하나로 브라우저에 대화형 UI가 열린다.</p>
+<pre><code><span class="c-com"># 대화형 분석 (트리맵 UI)</span>
+npx next experimental-analyze
+
+<span class="c-com"># 정적 리포트로 저장 → 최적화 전후 비교용</span>
+npx next experimental-analyze <span class="c-key">--output</span>   <span class="c-com"># .next/diagnostics/analyze 에 저장</span>
+cp -r .next/diagnostics/analyze ./analyze-before-refactor   <span class="c-com"># 통째로 백업</span></code></pre>
+        <ul>
+          <li><strong>트리맵 시각화</strong> — 모듈 크기를 <strong>사각형 면적</strong>으로 표시 (클수록 비중 큼)</li>
+          <li><strong>필터·검색</strong> — 라우트 경로 / 클라이언트·서버 환경 / JS·CSS 파일 타입별, 파일명 검색</li>
+          <li><strong>임포트 체인 추적</strong> — 사각형 클릭 시 정확한 용량 + <strong>어디서 이 모듈을 쓰는지</strong> 끝까지 추적</li>
+        </ul>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">왜 <code>ANALYZE=true npm run build</code>는 안 되나</h4>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>📦 과거 — Webpack 시절</h4>
+            <ul>
+              <li><code>ANALYZE=true</code>는 <code>@next/bundle-analyzer</code> <strong>플러그인을 깨우는 신호탄</strong></li>
+              <li>패키지 별도 설치 + <strong>전체 빌드</strong> 필요 (느림)</li>
+              <li>정적 HTML <strong>탭 3개</strong>가 열리는 방식</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>⚡ 현재 — Turbopack (Next 16.1+)</h4>
+            <ul>
+              <li>Rust 기반 Turbopack은 <strong>구형 신호탄을 못 알아듣고</strong>, Webpack 전용 플러그인과 <strong>기술적 충돌</strong>(리포트 생성 무시)</li>
+              <li>설치·설정 없이 <strong>명령어 하나</strong></li>
+              <li><strong>분석용 스캔만</strong> 수행해 빠름 + 대화형 UI</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 4. 3가지 처방 -->
+        <h3>4. 무거운 번들 다이어트 — 3가지 처방</h3>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">① 거대 패키지 → <code>optimizePackageImports</code> (트리 쉐이킹)</h4>
+        <p>아이콘·유틸리티처럼 <strong>수백 개 모듈을 내보내는 거대 패키지</strong>는 편하게 통째로 import해도, 빌드 시점에 <strong>실제 사용한 모듈만 골라</strong> 로드하게 만든다.</p>
+<pre><code><span class="c-com">// next.config.mjs</span>
+<span class="c-key">const</span> nextConfig = {
+  experimental: {
+    optimizePackageImports: [<span class="c-str">'lucide-react'</span>, <span class="c-str">'lodash'</span>],
+  },
+};</code></pre>
+        <div class="note"><strong>트리 쉐이킹(Tree-shaking)</strong> 나무를 흔들어 죽은 잎을 떨어뜨리듯, 컴파일러가 AST(추상 구문 트리)를 분석해 <strong>안 쓰는 코드를 빌드 결과물에서 도려내는</strong> 기법. Next.js가 인기 라이브러리 다수는 <strong>이미 자동 최적화</strong>하므로, 자동 지원 목록에 없는 거대 패키지에만 명시하면 된다.</div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">② 무거운 렌더링 → 서버 컴포넌트로 이동</h4>
+        <p>구문 강조·차트·마크다운 파싱처럼 <strong>데이터를 UI로 변환만 하는</strong> 라이브러리가 클라이언트에 있으면, 결과물은 단순 HTML인데 <strong>방대한 파싱 라이브러리를 통째로 다운로드·실행</strong>하게 된다.</p>
+        <div class="principle">🔥 판별 기준 — <span class="k">브라우저 전용 API나 사용자 상호작용이 필요 없다면 → 서버 컴포넌트로 옮기는 게 정답</span>.</div>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>❌ 최적화 전 (클라이언트)</h4>
+<pre><code><span class="c-str">'use client'</span>
+<span class="c-key">import</span> moment <span class="c-key">from</span> <span class="c-str">'moment'</span>;
+<span class="c-key">import</span> Highlight <span class="c-key">from</span>
+  <span class="c-str">'prism-react-renderer'</span>;
+<span class="c-com">// 전부 브라우저로 전송 → 번들 폭발</span></code></pre>
+            <ul style="font-size:13px;">
+              <li><code>moment</code>: OOP 구조로 전 세계 언어팩이 한 덩어리 → <strong>트리 쉐이킹 불가</strong>, 함수 하나 써도 통째로 끌려옴</li>
+              <li><code>prism</code>: 사용자 기기 CPU로 실시간 파싱·토큰화</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>✅ 최적화 후 (서버)</h4>
+<pre><code><span class="c-com">// 'use client' 제거 → RSC</span>
+<span class="c-key">import</span> { format } <span class="c-key">from</span> <span class="c-str">'date-fns'</span>;
+<span class="c-key">import</span> { codeToHtml } <span class="c-key">from</span> <span class="c-str">'shiki'</span>;
+
+<span class="c-key">const</span> html = <span class="c-key">await</span> codeToHtml(code, {...});
+<span class="c-com">// 클라엔 완성된 마크업만 전달</span></code></pre>
+            <ul style="font-size:13px;">
+              <li><code>date-fns</code>: 순수 함수 기반 → <strong>완벽한 트리 쉐이킹</strong></li>
+              <li><code>shiki</code>: 서버에서만 실행 → 클라 번들 <strong>0KB</strong></li>
+              <li><code>dangerouslySetInnerHTML</code>로 완성 HTML 주입 → <strong>제로 JS 렌더링</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">③ 서버 전용 패키지 → <code>serverExternalPackages</code> (번들링 제외)</h4>
+        <p>Next.js는 서버 컴포넌트·라우트 핸들러에서 import한 패키지도 <strong>자동 번들링</strong>한다. Node 내장 모듈(<code>os</code>·<code>fs</code>)이나 네이티브(C++) 모듈처럼 번들에 묶이면 안 되는 것들은 <strong>외부 모듈로 남겨둔다</strong>.</p>
+<pre><code><span class="c-com">// next.config.mjs</span>
+<span class="c-key">const</span> nextConfig = {
+  serverExternalPackages: [<span class="c-str">'os'</span>],  <span class="c-com">// "건드리지 말고 서버 원본 그대로 실행"</span>
+};</code></pre>
+
+        <!-- 5. 실습 결과 -->
+        <h3>5. 핸즈온 결과 — 전후 비교</h3>
+        <ul>
+          <li><strong>Before</strong>: <code>moment</code>가 트리맵을 꽉 채운 거대 사각형 + <code>prism-react-renderer</code>도 상당 → First Load JS <strong>100KB 훌쩍 초과</strong></li>
+          <li><strong>After</strong>: <code>moment</code> 박스 소멸 → 작은 <code>date-fns</code> 조각만, <code>shiki</code>는 클라이언트 맵에 <strong>아예 없음(0KB)</strong> → First Load JS <strong>100KB 미만</strong> 진입</li>
+        </ul>
+        <div class="analogy">
+          <span class="ico">⚖️</span>
+          <div>번들 사이즈 관리는 <strong>다이어트</strong>다 — 한 번 뺀다고 끝이 아니라, <strong>새 라이브러리를 추가할 때마다 분석기라는 체중계에 올라</strong> 정기적으로 재며 가볍게 유지해야 한다.</div>
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · 기준: <span class="k">First Load JS 100KB 미만</span> (근거 = 압축 170KB ≈ 1MB ≈ 메인 스레드 1~2초 블록 = <span class="k">TBT</span>)<br>
+          · 측정: <span class="k"><code>npx next experimental-analyze</code></span> (Next 16.1+ Turbopack 내장 · <code>ANALYZE=true</code>는 Webpack 유물)<br>
+          · 처방 ①: <span class="k"><code>optimizePackageImports</code></span> — 거대 패키지 트리 쉐이킹<br>
+          · 처방 ②: <span class="k">변환만 하는 무거운 렌더링은 서버 컴포넌트로</span> (moment→date-fns · prism→shiki)<br>
+          · 처방 ③: <span class="k"><code>serverExternalPackages</code></span> — 서버 전용 모듈은 번들링 제외<br>
+          · 관리: <span class="k">라이브러리 추가 때마다 정기 측정</span> (다이어트)
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (27강)</strong> 상호작용이 일어나는 시점까지 스크립트 로딩을 정교하게 미루는 핵심 기술 — <strong>다이나믹 임포트(Dynamic Import)</strong>.
+        </div>
       </article>
 
       <!-- ╔══════════════════════════════════════════════════════════╗
@@ -379,7 +681,134 @@
         <span class="desc">zaritalk-front 실제 구조에 비춘 판단</span>
       </div>
 
-      <!-- 우리 프로젝트 카드는 강의 내용과 zaritalk-front 실측을 연결할 때 추가 -->
+      <!-- ══════════ 26강 연계 — zaritalk-front 번들 분석·최적화 실태 진단 ══════════ -->
+      <article class="entry project" id="project-bundle-analysis"
+               data-section="project"
+               data-title="zaritalk-front 번들 다이어트 실전 — 실측 → 범인 3건(Lottie·Hackle·아이콘 배럴) 처리 A/B (lessee·lessor)"
+               data-tags="zaritalk-front, 번들 분석, experimental-analyze, refactor, Lottie, Hackle, 아이콘 배럴, optimizePackageImports, dynamic import, dayjs, Pages Router, 실측">
+        <header class="entry-head">
+          <h2>zaritalk-front 번들 다이어트 실전 — 실측부터 범인 처리까지 (lessee·lessor)</h2>
+          <div class="meta">
+            <span class="date">📅 2026-07-03</span>
+            <span class="chip">실측</span><span class="chip">bundle-analyzer</span><span class="chip">dayjs</span><span class="chip">dynamic import</span><span class="chip">아이콘 배럴</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 26강의 측정 장비(<code>experimental-analyze</code>)·100KB 기준·3가지 처방을 우리 lessee/lessor에 대입하면 — 뭘 이미 하고 있고, 뭐가 비어 있나?
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🏢</span>
+          <span>측정 장비 세대교체(<code>experimental-analyze</code>) → 실측 → <b>범인 3건 처리(<code>refactor/bundle-size</code>)까지 완주</b>. 그래프 총량 lessee 1,398→<b>1,299</b> · lessor 1,652→<b>1,553 KB gz</b>, 주요 페이지 <b>-8~10%</b>, 페이지뷰 대다수에서 <b>Lottie 435KB 전송 제거</b>. 범인: ① Lottie JSON 인라인(446KB→팝업 오픈 시 lazy) ② Hackle SDK 이중 번들(158→79KB) ③ 아이콘 배럴(159KB — config론 -10KB 한계, 딥 임포트가 후속 과제). 라이브러리 위생(dayjs·no-lodash·자체 SVG)과 dynamic import 142건은 원래부터 우등생.</span>
+        </div>
+
+        <!-- 1. 측정 장비 -->
+        <h3>1. 측정 장비 요점 <span style="font-size:12px;color:var(--muted);">(공식 문서 + 소스 검증)</span></h3>
+        <ul>
+          <li>Next.js <code>16.2.6</code> — <strong>dev·build 모두 Turbopack</strong>(Next 16 기본값). 기존 <code>pnpm analyze:*</code>(<code>ANALYZE=true</code> + <code>@next/bundle-analyzer</code>)는 Turbopack 빌드에서 <strong>경고만 찍는 no-op</strong> → 측정 장비는 <code>pnpm --filter {app} exec next experimental-analyze [--output]</code>으로 세대교체.</li>
+          <li>Next 16은 build 출력의 <strong>First Load JS 지표를 제거</strong>(RSC 구조에서 부정확) → 초기 전송량은 <code>build-manifest.json</code>의 페이지별 스크립트를 gzip 합산해 자체 측정, 체감은 Lighthouse.</li>
+        </ul>
+
+        <!-- 2. 라이브러리 진단 -->
+        <h3>2. 무거운 라이브러리 진단 — 강의의 "함정"은 대부분 피해 있다</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>강의의 함정</th><th>우리 실태 (lessee·lessor)</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td><code>moment</code> (트리 쉐이킹 불가)</td><td>미사용 — <strong>dayjs 단일 채택</strong>(import 73건), 플러그인·로케일 <strong>개별 import</strong>(<code>dayjs/plugin/utc</code> 등)</td><td class="center yes">우등생</td></tr>
+            <tr><td><code>lodash</code> 통째 import</td><td>의존성 자체가 없음 (0건)</td><td class="center yes">리스크 없음</td></tr>
+            <tr><td>아이콘 거대 패키지</td><td>서드파티 없음 — <strong>자체 SVG 컴포넌트 ~269개</strong> (<code>libs/shared/ui-components/src/Icon/</code>)</td><td class="center" style="color:var(--note-tx);font-weight:700;">단, 배럴 주의</td></tr>
+            <tr><td>구문 강조 (prism류)</td><td><code>prismjs</code> 존재 — NotionRenderer 전용 (<code>libs/shared/ui-components</code>)</td><td class="center" style="color:var(--note-tx);font-weight:700;">유입 확인 필요</td></tr>
+            <tr><td>차트 등 렌더링 전용</td><td><code>recharts</code>는 <code>libs/domain/real-estate-map</code>에서만 사용 — 앱에선 <strong>dynamic import로 지연 로드</strong></td><td class="center yes">격리됨</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="note">그 외 무거운 후보들: <code>notion-client</code>+<code>react-notion-x</code>, <code>jspdf</code>(자리페이 납부증명 PDF), <code>framer-motion</code>, <code>swiper</code>. 전부 libs 경유라 <strong>실제 청크 유입량은 <code>pnpm analyze:*</code> 리포트로 실측</strong>해야 확정된다.</div>
+
+        <!-- 3. 처방 3가지 대입 -->
+        <h3>3. 강의 처방 3가지 대입 (요약)</h3>
+        <ul>
+          <li><strong>① <code>optimizePackageImports</code></strong> — 당시 미사용이 최대 공백 → <strong>이번 refactor에서 도입</strong> (아래 5번).</li>
+          <li><strong>② 서버 컴포넌트 이동</strong> — Pages Router라 불가. 대신 <code>next/dynamic</code> <strong>142건</strong>(lessee 66 + lessor 76)으로 같은 목표 달성 중 — 지도·차트 도메인 통째 분리, _app 레이어 lazy, 페이지 단위 스플리팅. (27강 내용을 이미 대규모 실전 운용)</li>
+          <li><strong>③ <code>serverExternalPackages</code></strong> — 클라 패칭(React Query) 구조라 쓸 자리 없음.</li>
+        </ul>
+
+        <!-- 4. 실측 결과 -->
+        <h3>4. 실측 결과 — <code>experimental-analyze</code>를 실제로 돌렸다 <span style="font-size:12px;color:var(--muted);">(2026-07-03, APP_ENV=production)</span></h3>
+        <p>양쪽 앱 분석에 각 <strong>약 39초/37초</strong>(빌드 산출물 없이 스캔만 — 강의 설명 그대로). <code>.next/diagnostics/analyze/data/</code>의 라우트별 <code>analyze.data</code>(길이 프리픽스 + JSON: sources/chunk_parts/output_files)를 직접 파싱해 집계했다.</p>
+        <div class="note">
+          <strong>⚠️ 지표 정의 주의</strong> 아래 수치는 <strong>"라우트가 참조하는 클라이언트 JS 전체(gz)"</strong> — dynamic import로 쪼개진 <strong>지연 청크까지 포함</strong>한 도달 가능 그래프 총량이다. 과거 First Load JS(초기 로드만)보다 넓은 지표이므로 절대값을 100KB 기준과 직접 비교하면 안 되고, <strong>라우트 간 비교·회귀 감지·범인 추적용</strong>으로 읽어야 한다.
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">헤드라인 수치</h4>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th></th><th>lessee (세입자)</th><th>lessor (임대인)</th></tr></thead>
+          <tbody>
+            <tr><td>분석 라우트 수</td><td>256개</td><td>193개</td></tr>
+            <tr><td><code>_app</code> 공통 베이스라인 (모든 페이지 공유)</td><td><strong>1,398 KB gz</strong> (3.4MB raw)</td><td><strong>1,652 KB gz</strong> (4.1MB raw)</td></tr>
+            <tr><td>최대 라우트</td><td><code>/bill/multi/new</code> 3,512 KB gz</td><td><code>/host</code> 3,405 KB gz</td></tr>
+            <tr><td>상위권 공통 패턴</td><td colspan="2">지도·차트·리뷰 라우트(<code>real-estate-map</code>·<code>vacancy</code>·<code>short-term-vacancy</code>)가 3MB gz대</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">범인 목록 — 베이스라인(_app) 기준</h4>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>발견</th><th>크기 (gz)</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><strong>Lottie JSON이 JS 모듈로 번들</strong> — <code>benefit_point_lottie.json</code> 단일 파일 435KB, 합계 446KB. <code>libs/domain/common</code>의 lottie 배럴이 export → <code>AppInstallInducePopup</code>에서 사용</td><td class="no">446 KB</td><td>베이스라인의 <strong>~32%</strong>. JSON을 정적 자산으로 빼고 <code>fetch</code>/lazy 전환 시 통째로 제거 가능</td></tr>
+            <tr><td>2</td><td><strong>아이콘 배럴 실증</strong> — <code>ui-components/src/Icon</code> SVG 컴포넌트들이 모든 페이지 그래프에 유입</td><td class="no">159 KB</td><td>섹션 5에서 "잠재 리스크"라 했던 <code>export *</code> 배럴 269개의 <strong>실측 확인</strong>. <code>optimizePackageImports</code> 또는 깊은 경로 import 후보</td></tr>
+            <tr><td>3</td><td><strong>Hackle SDK 이중 번들</strong> — <code>index.browser.min.js</code>(79.5KB) + <code>index.browser.es.js</code>(78.7KB) <strong>같은 SDK가 두 포맷으로</strong></td><td class="no">158 KB</td><td>import 방식 혼재/exports 매핑 문제로 추정. 한 포맷으로 정리 시 ~79KB 절감</td></tr>
+            <tr><td>4</td><td><strong>lessor: mock 스택이 프로덕션 그래프에</strong> — msw(23)+@mswjs/interceptors(28)+graphql(61)+@xmldom(22)</td><td class="no">~133 KB</td><td><code>_app.tsx</code>의 <code>import('@zaritalk/mock')</code>(조건부 dynamic). 청크는 생성됨 — 런타임 가드로 전송은 안 될 수 있으나 <strong>프로덕션 빌드 제외가 정석</strong></td></tr>
+            <tr><td>5</td><td>lottie-web 플레이어 75KB + framer-motion 57~60KB</td><td class="center" style="color:var(--note-tx);font-weight:700;">~135 KB</td><td>1번과 세트. 애니메이션 스택 자체의 상시 탑재 여부 검토</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p><strong>라우트별 유입(지연 포함)</strong> — heic2any 332KB×70라우트(이미 <code>await import()</code>, 모범 사례) · jspdf 206KB×3(<code>/pay</code>, lazy 전환 후보) · recharts 90KB·swiper 53KB·emoji-picker 60KB(분산, 후순위).</p>
+
+        <!-- 5. 범인 3건 처리 — refactor/bundle-size 실전 A/B -->
+        <h3>5. 범인 3건 처리 — <code>refactor/bundle-size</code> 실전 A/B <span style="font-size:12px;color:var(--muted);">(2026-07-03, 커밋 3개, 재빌드·재분석으로 검증)</span></h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>범인</th><th>실제 처방 (시행착오 포함)</th><th>실측 결과</th></tr></thead>
+          <tbody>
+            <tr><td>① Lottie JSON<br>(435KB gz)</td><td>팝업이 <strong>열리는 순간에만</strong> JSON을 <code>import()</code> + 배럴 export 제거. 고정 크기 래퍼로 레이아웃 점프 방지</td><td class="yes">단독 청크 분리 확인 — <strong>페이지뷰 대다수에서 435KB 전송 제거</strong> (앱설치 유도 팝업은 조건부·일 1회)</td></tr>
+            <tr><td>② Hackle 이중 번들<br>(158KB gz)</td><td><code>resolveAlias</code>는 <strong>실패</strong>(exports map이 서브패스 차단). 진짜 원인은 <strong>devtools 정적 import</strong> — CJS devtools가 SDK CJS 사본까지 견인. 빌드 타임 인라인 env 조건 뒤 <code>require</code>로 전환</td><td class="yes">es.js <strong>단일화</strong> — 전 라우트 <strong>-83KB</strong> (두 앱 모두 확인)</td></tr>
+            <tr><td>③ 아이콘 배럴<br>(159KB gz)</td><td><code>optimizePackageImports: ['@zaritalk/ui-components']</code> 도입. <code>turbopackTreeShaking: true</code>는 <strong>Turbopack 내부 패닉으로 빌드 실패 → 탈락</strong></td><td class="center" style="color:var(--note-tx);font-weight:700;">Icon 자체는 -10.6KB 한계(<code>export * as</code> 구조). 대신 <strong>페이지 라우트에서 미사용 배럴 멤버 ~200KB 탈락</strong>. 근본 해결=딥 임포트 규칙화(후속)</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">Before → After (gz)</h4>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>지표</th><th>Before</th><th>After</th><th>변화</th></tr></thead>
+          <tbody>
+            <tr><td>lessee <code>_app</code> 그래프</td><td>1,398 KB</td><td>1,299 KB</td><td class="yes">-99 KB (-7.1%)</td></tr>
+            <tr><td>lessor <code>_app</code> 그래프</td><td>1,652 KB</td><td>1,553 KB</td><td class="yes">-99 KB (-6.0%)</td></tr>
+            <tr><td>주요 페이지 그래프 (<code>/vacancy</code>·<code>/host</code>·<code>/pay/complete</code> 등)</td><td>2,854~3,512 KB</td><td>2,575~3,222 KB</td><td class="yes">-279~-305 KB (-8~-10%)</td></tr>
+            <tr><td>초기 전송 JS (베이스라인/중앙값)</td><td>455 / 510 KB</td><td>455 / 510 KB</td><td class="center">변화 없음 — 범인들이 초기 청크 밖(하이드레이션 이후 로드)</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <div class="note">
+          <strong>교훈 3가지</strong> ① <strong>지표를 구분하라</strong> — 그래프 총량(도달 가능 전체) / 초기 전송(First Load 후계) / 런타임 조건부 전송은 서로 다른 것을 잰다. Lottie 개선은 그래프·초기 지표엔 안 보이고 런타임 전송에서만 드러났다. ② <strong>실험 플래그는 반드시 빌드로 검증</strong> — <code>turbopackTreeShaking</code>은 이 규모에서 크래시. ③ <strong>중복 번들은 alias보다 import 구조가 원인</strong> — 정적 import 한 줄이 CJS/ESM 두 세계를 모두 소환할 수 있다.
+        </div>
+        <div class="note warn">
+          <strong>QA 포인트</strong> dev/stage에서 Hackle devtools 정상 동작 · 앱설치 유도 팝업(비앱+FCM 미보유, 홈/혜택)에서 로띠 재생 확인.
+        </div>
+
+        <!-- 6. 결론 -->
+        <div class="principle">
+          <strong>✅ 최종</strong> 실측 → 처방 → 재실측 사이클 완주: 전 페이지 <span class="k">상시 -90KB gz</span> + 페이지 그래프 <span class="k">-8~10%</span> + 페이지뷰 대다수에서 <span class="k">Lottie 435KB 전송 제거</span>.
+          남은 과제는 <span class="k">아이콘 딥 임포트 규칙화(149KB)</span> · <span class="k">_app 초기 455KB 구성 분석</span> · <span class="k">analyze 스냅숏 diff의 CI 도입</span> · <span class="k">lessor mock 스택 프로덕션 제외(~133KB)</span>.
+        </div>
+      </article>
 
       <div id="empty">🔍 검색 결과가 없습니다.</div>
     </main>
