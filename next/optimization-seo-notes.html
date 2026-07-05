@@ -661,6 +661,243 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor   <span class="c-com">
         </div>
       </article>
 
+      <!-- ══════════ 27강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-27"
+               data-section="summary"
+               data-title="27강. 필요한 순간에만 소환하기 — next/dynamic 동적 임포트와 CLS 방지 스켈레톤 전략"
+               data-tags="next/dynamic, 동적 임포트, 지연 로딩, 코드 스플리팅, 청크, CLS, 스켈레톤, ssr false, 프리로드, onMouseEnter, React.lazy, fuse.js"
+               data-date="2026-07-05">
+        <header class="entry-head">
+          <h2>27강. 필요한 순간에만 소환하기</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[지연 로딩] next/dynamic 동적 임포트와 CLS를 방지하는 스켈레톤 전략</p>
+          <div class="meta">
+            <span class="date">📅 2026-07-05 · 섹션 6</span>
+            <span class="chip">next/dynamic</span><span class="chip">청크 분리</span>
+            <span class="chip">CLS 방어</span><span class="chip">프리로드</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🗡️</span>
+          <span>26강이 진단(분석기)이었다면 27강은 <b>수술칼</b> — 무거운 컴포넌트를 초기 번들에서 도려내 <b>필요한 순간에만 청크로 소환</b>한다. 도구는 <b><code>next/dynamic</code></b>(= <code>React.lazy</code>+<code>Suspense</code> 복합체, Pages/App 라우터 공용). 실무 3대 포인트: ① <b><code>loading</code> 스켈레톤</b>으로 CLS 방어 ② <b><code>ssr: false</code></b>로 <code>window</code> 의존 라이브러리의 서버 렌더 에러 차단 ③ <b>조건부 로딩 + <code>onMouseEnter</code> 프리로드</b>로 클릭 시 지연 0. 단, <b>서버 컴포넌트는 이미 자동 스플리팅</b>이라 대상이 아니다 — <b>'use client' + 무거운 서드파티</b>일 때만 칼을 꺼낸다.</span>
+        </div>
+
+        <!-- 1. 맥락 -->
+        <h3>1. 맥락 — 진단(26강) 다음은 수술</h3>
+        <p>분석기로 확인한 "거대한 돌덩이"(에디터·차트 등 500KB~1MB급)를 정적 import하면, 대시보드만 보러 온 사용자도 <strong>보이지도 않는 에디터 코드를 통째로 다운로드·파싱</strong>해야 한다 — 자원 낭비이자 이탈률 직격탄.</p>
+        <div class="note">
+          <strong>청크(Chunk)란</strong> 빌드 도구(Webpack/Turbopack)가 코드를 <strong>"첫 화면에 당장 필요한 메인 덩어리"와 "나중에 불러도 되는 서브 덩어리들"로 물리적으로 분리</strong>한 파일 조각. 동적 임포트는 특정 시점에 <strong>그 청크 파일만 쏙</strong> 네트워크로 가져오는 기술이다.
+        </div>
+        <p>지연 로딩 구현법은 공식적으로 둘: <strong><code>next/dynamic</code></strong>(오늘의 주인공)과 <code>React.lazy</code>+<code>Suspense</code> 직접 사용. <code>next/dynamic</code>은 둘을 결합한 복합체로, <strong>Pages·App 라우터 양쪽에서 동일 동작</strong> → 점진적 마이그레이션에도 유용.</p>
+
+        <!-- 2. 실무 포인트 3가지 -->
+        <h3>2. 실무 3대 포인트</h3>
+<pre><code><span class="c-key">const</span> HeavyEditor = dynamic(() =&gt; <span class="c-key">import</span>(<span class="c-str">'@/components/HeavyStudyLogEditor'</span>), {
+  loading: () =&gt; &lt;EditorSkeleton /&gt;,  <span class="c-com">// ① CLS 방어</span>
+  ssr: <span class="c-key">false</span>,                         <span class="c-com">// ② window 의존 → 서버 렌더 스킵</span>
+});
+<span class="c-key">const</span> AdvancedChart = dynamic(() =&gt; <span class="c-key">import</span>(<span class="c-str">'@/components/AdvancedChart'</span>));
+...
+&lt;button
+  onMouseEnter={() =&gt; <span class="c-key">import</span>(<span class="c-str">'@/components/AdvancedChart'</span>)}  <span class="c-com">// ③ 프리로드</span>
+  onClick={() =&gt; setShowChart(!showChart)}
+&gt;
+{showChart &amp;&amp; &lt;AdvancedChart /&gt;}  <span class="c-com">// ③ 조건부 — 클릭 순간에만 청크 다운로드</span></code></pre>
+        <ul>
+          <li><strong>① <code>loading</code> 스켈레톤 — CLS 방어</strong>: 청크 다운로드 지연 동안 화면이 비었다가 에디터가 튀어나오면 레이아웃이 밀린다 = <strong>CLS(누적 레이아웃 이동)</strong>, SEO 큰 감점. <strong>실제 컴포넌트와 동일한 크기</strong>의 스켈레톤을 넣어 방어.</li>
+          <li><strong>② <code>ssr: false</code></strong>: <code>React.lazy</code>/<code>Suspense</code>는 클라 컴포넌트도 기본적으로 <strong>서버에서 사전 렌더링을 시도</strong> → <code>window</code>를 만지는 에디터·차트는 런타임 에러. 이 옵션으로 "클라이언트에서만 로드" 지시. <strong>클라이언트 컴포넌트 안에서만 동작</strong>.</li>
+          <li><strong>③ 조건부 로딩 + 프리로드</strong>: 상태가 true 되는 순간 온디맨드 로드하되, 클릭 후 다운로드 딜레이가 남는다 → <strong><code>onMouseEnter</code>에서 <code>import()</code>를 미리 호출</strong>해 클릭 직전 찰나에 백그라운드 다운로드 → 클릭 시 지연 0.</li>
+        </ul>
+
+        <!-- 3. 고급 문법 -->
+        <h3>3. 고급 문법 2가지</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>📦 Named export 가져오기</h4>
+<pre><code><span class="c-key">const</span> ClientHello = dynamic(() =&gt;
+  <span class="c-key">import</span>(<span class="c-str">'../components/hello'</span>)
+    .then((mod) =&gt; mod.Hello)
+);</code></pre>
+            <p style="margin:8px 0 0;font-size:13px;"><code>export const Hello</code> 형태는 Promise의 <code>.then</code>으로 모듈에서 꺼내 연결.</p>
+          </div>
+          <div class="box info">
+            <h4>🔧 순수 JS 라이브러리</h4>
+<pre><code>onChange={<span class="c-key">async</span> (e) =&gt; {
+  <span class="c-key">const</span> Fuse =
+    (<span class="c-key">await import</span>(<span class="c-str">'fuse.js'</span>)).default;
+  <span class="c-key">const</span> fuse = <span class="c-key">new</span> Fuse(names);
+}}</code></pre>
+            <p style="margin:8px 0 0;font-size:13px;">타이핑 시작 순간에만 검색 엔진 로드. 검색 안 하면 <strong>평생 다운로드 안 됨</strong>. <code>.default</code> 필수.</p>
+          </div>
+        </div>
+
+        <!-- 4. RSC 주의사항 -->
+        <h3>4. 서버 컴포넌트와의 관계 — "전부 dynamic으로?"는 오답</h3>
+        <div class="box danger">
+          <h4>⚠️ RSC 예외 상황</h4>
+          <ul>
+            <li><strong>서버 컴포넌트는 애초에 대상이 아니다</strong> — 프레임워크가 <strong>자동 코드 스플리팅 + 스트리밍</strong>을 적용하고 클라 번들에 포함되지도 않는다. 지연 로딩의 타겟은 <strong>클라이언트 컴포넌트</strong>.</li>
+            <li>서버 컴포넌트 <strong>안에서</strong> 클라 컴포넌트를 dynamic → 강의는 "정상 스플리팅"이라 했으나 <strong>공식 문서는 "currently not supported"로 정반대</strong> — 팩트체크 카드 1번 참조 ⚠️</li>
+            <li>서버 컴포넌트 <strong>자체를</strong> dynamic → 그 컴포넌트가 아니라 <strong>자식 클라 컴포넌트들만</strong> 지연 로딩됨 (CSS 등 정적 자산 프리로드 정도의 의미)</li>
+            <li><code>ssr: false</code>를 <strong>서버 컴포넌트에서 쓰면 에러</strong> — 반드시 클라 컴포넌트 내부로</li>
+          </ul>
+        </div>
+        <div class="principle">🔥 판단 기준 — <span class="k"><code>'use client'</code> 컴포넌트이면서 무거운 서드파티를 품고 있을 때만</span> <code>next/dynamic</code>의 칼을 꺼낸다.</div>
+
+        <!-- 5. 트러블슈팅 -->
+        <h3>5. 트러블슈팅 — 수정했는데 분석기 결과가 그대로일 때</h3>
+        <ul>
+          <li><strong>① 정적 import 잔존 (최다 빈도)</strong> — 상단에 기존 <code>import Heavy...</code>가 한 줄이라도 남아 있으면 빌드 도구는 스플리팅을 포기하고 메인 번들에 합침</li>
+          <li><strong>② <code>.next</code> 캐시</strong> — <code>rm -rf .next</code> 후 재빌드</li>
+          <li><strong>③ 임포트 누수</strong> — 다른 파일(layout·공통 컴포넌트)이 같은 라이브러리를 정적 import 중이면 도로 아미타불. 전역 검색으로 누수 지점 색출</li>
+        </ul>
+
+        <div class="note">
+          <strong>🔗 우리 프로젝트 연결</strong> 이 강의 내용은 섹터 3에서 <strong>이미 실전으로 검증</strong>했다 — lessee/lessor의 <code>next/dynamic</code> 142건, heic2any의 <code>await import()</code>(모범 사례), Lottie JSON의 "팝업 오픈 시" 조건부 로드, QATools dynamic 전환. 특히 트러블슈팅 ①·③은 우리의 Lottie(배럴 정적 export가 누수 지점)·QATools(정적 import 잔존) 사례와 정확히 같은 패턴.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · <span class="k"><code>next/dynamic</code> = React.lazy + Suspense 복합체</span> (Pages/App 공용)<br>
+          · <span class="k">① loading 스켈레톤(CLS 방어) ② ssr:false(window 의존) ③ 조건부 + onMouseEnter 프리로드</span><br>
+          · named export는 <span class="k"><code>.then(mod =&gt; mod.X)</code></span> · 순수 JS는 <span class="k"><code>(await import()).default</code></span><br>
+          · <span class="k">서버 컴포넌트는 자동 스플리팅 — 타겟은 'use client' + 무거운 서드파티</span><br>
+          · 안 줄면: <span class="k">정적 import 잔존 · .next 캐시 · 임포트 누수</span> 순으로 의심
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (28강)</strong> 화면 성능 최적화의 꽃 — <strong><code>next/image</code>와 WebP·AVIF를 활용한 미디어 최적화</strong>. 가장 용량이 큰 이미지를 똑똑하게 서빙하는 법.
+        </div>
+      </article>
+
+      <!-- ══════════ 28강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-28"
+               data-section="summary"
+               data-title="28강. 웹 이미지의 종착역 — next/image와 차세대 포맷 AVIF로 구현하는 시각적 안정성"
+               data-tags="next/image, AVIF, WebP, 이미지 최적화, remotePatterns, fill, sizes, priority, blurDataURL, placeholder, LCP, CLS, 이미지 CDN"
+               data-date="2026-07-05">
+        <header class="entry-head">
+          <h2>28강. 웹 이미지의 종착역</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[미디어 최적화] next/image와 차세대 포맷 AVIF로 구현하는 시각적 안정성</p>
+          <div class="meta">
+            <span class="date">📅 2026-07-05 · 섹션 6</span>
+            <span class="chip">next/image</span><span class="chip">AVIF</span>
+            <span class="chip">fill + sizes</span><span class="chip">priority</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🖼️</span>
+          <span>웹 트래픽 최대 항목은 이미지 — 날것의 <code>&lt;img&gt;</code>는 손톱만한 프로필 칸에 <b>5MB 원본을 통째로</b> 내려받는 직무유기다. <b><code>next/image</code>의 4대 최적화</b>: ① 기기별 사이즈 + 최신 포맷 자동 변환 ② 공간 선확보로 <b>CLS 자동 방지</b> ③ 네이티브 지연 로딩 ④ 원격 이미지 온디맨드 리사이징. 포맷은 <b>JPEG(레거시) → WebP(과도기, -25~35%) → AVIF(실무 표준, WebP보다 +20% 압축·JPEG 대비 절반 이하·HDR)</b>. 실무 4종 세트: <b><code>remotePatterns</code> 핀셋 보안 · <code>fill</code>+<code>sizes</code>(생략 시 100vw 낭비) · <code>placeholder="blur"</code> · LCP 이미지엔 <code>priority</code></b>. 트래픽이 커지면 최적화를 <b>외부 이미지 CDN에 위임</b>이 다음 스텝.</span>
+        </div>
+
+        <!-- 1. 맥락 + 4대 최적화 -->
+        <h3>1. 맥락 — <code>&lt;img&gt;</code> 날것 사용은 직무유기</h3>
+        <p>4K·5MB JPEG를 모바일의 손톱만한 프로필 칸에 띄우려고 <strong>5MB 전부를 다운로드</strong>하는 것이 일반 <code>&lt;img&gt;</code>의 현실 — 데이터 낭비 + 버벅임의 원인. <code>next/image</code>는 <code>&lt;img&gt;</code>를 내부 확장해 4가지를 자동화한다:</p>
+        <ul>
+          <li><strong>① 사이즈 최적화</strong> — 기기에 맞는 정확한 크기 + WebP/AVIF 자동 변환 서빙</li>
+          <li><strong>② 시각적 안정성</strong> — 이미지가 차지할 <strong>공간을 미리 확보</strong>해 로딩 지연에도 레이아웃 밀림(CLS) 차단</li>
+          <li><strong>③ 빠른 페이지 로드</strong> — 브라우저 네이티브 지연 로딩</li>
+          <li><strong>④ 자산 유연성</strong> — 원격 서버 이미지까지 온디맨드 리사이징</li>
+        </ul>
+
+        <!-- 2. 포맷 발전사 -->
+        <h3>2. 포맷 발전사 — JPEG → WebP → AVIF</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>포맷</th><th>위상</th><th>특징</th></tr></thead>
+          <tbody>
+            <tr><td>JPEG / PNG</td><td>레거시 표준</td><td>압축 효율 낮음 — 고해상도일수록 용량 기하급수 증가</td></tr>
+            <tr><td>WebP (구글)</td><td>과도기 표준</td><td>JPEG 대비 <strong>-25~35%</strong> + 투명도·애니메이션 지원. 구형 브라우저용 폴백</td></tr>
+            <tr><td><strong>AVIF</strong> (넷플릭스·구글 주도)</td><td class="yes">실무 표준</td><td>WebP보다 <strong>압축률 +20%</strong>, JPEG 대비 화질 손상 없이 <strong>용량 절반 이하</strong>, HDR 표현력 우수</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- 3. 로컬 이미지 -->
+        <h3>3. 로컬 이미지 — 정적 임포트가 정답</h3>
+        <div class="grid2">
+          <div class="box info">
+            <h4>📁 public 경로 방식</h4>
+<pre><code>&lt;Image src=<span class="c-str">"/profile.png"</span>
+  width={<span class="c-key">500</span>} height={<span class="c-key">500</span>} /&gt;
+<span class="c-com">// 수동으로 너비·높이 명시 필요</span></code></pre>
+          </div>
+          <div class="box safe">
+            <h4>✅ 정적 임포트 (강력)</h4>
+<pre><code><span class="c-key">import</span> ProfileImage <span class="c-key">from</span> <span class="c-str">'./profile.png'</span>;
+&lt;Image src={ProfileImage}
+  placeholder=<span class="c-str">"blur"</span> /&gt;
+<span class="c-com">// 빌드 시 width·height·blurDataURL 자동</span></code></pre>
+          </div>
+        </div>
+        <div class="note"><strong>왜 강력한가</strong> 빌드 시점에 원본 픽셀을 분석해 크기를 자동 할당 → 사이즈를 안 적어도 CLS 방지. 블러 썸네일(blurDataURL)까지 자동 생성.</div>
+
+        <!-- 4. 원격 이미지 -->
+        <h3>4. 원격 이미지 — 보안 설정이 선행 조건</h3>
+        <p>S3 같은 원격 이미지는 <strong>빌드 시점에 크기를 알 수 없다</strong> → 수동 width/height(+blurDataURL) 또는 <code>fill</code>. 그리고 최적화 API 악용(해커가 8K 이미지를 우리 서버로 압축시켜 <strong>CPU·과금 폭탄</strong>)을 막기 위해 허용 목록이 필수:</p>
+<pre><code><span class="c-com">// next.config.mjs</span>
+images: {
+  formats: [<span class="c-str">'image/avif'</span>, <span class="c-str">'image/webp'</span>],  <span class="c-com">// 배열 "순서"가 핵심 — Accept 헤더 보고 앞에서부터 분기</span>
+  remotePatterns: [{
+    protocol: <span class="c-str">'https'</span>,                       <span class="c-com">// 암호화 통신만</span>
+    hostname: <span class="c-str">'study-planner.s3.…amazonaws.com'</span>, <span class="c-com">// 정확한 버킷만</span>
+    pathname: <span class="c-str">'/uploads/**'</span>,                 <span class="c-com">// 특정 폴더 하위만</span>
+    search: <span class="c-str">''</span>,                              <span class="c-com">// 쿼리까지 통제</span>
+  }],
+}</code></pre>
+        <div class="note"><strong>formats 분기</strong> AVIF 지원 브라우저 → AVIF, 아니면 WebP, 둘 다 모르면 원본(JPEG/PNG) — 한 줄로 자동 처리. <code>remotePatterns</code>는 구식 <code>domains</code>를 대체하는 핀셋 보안.</div>
+
+        <!-- 5. fill + sizes -->
+        <h3>5. <code>fill</code> + <code>sizes</code> — 반응형 원격 이미지의 핵심 콤보</h3>
+<pre><code>&lt;article className=<span class="c-str">"relative w-full h-64 …"</span>&gt;  <span class="c-com">// 부모에 relative/absolute 필수!</span>
+  &lt;Image
+    src={imageUrl} alt={altText}
+    <span class="c-key">fill</span>                                      <span class="c-com">// 부모 크기에 꽉 차게</span>
+    sizes=<span class="c-str">"(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"</span>
+    className=<span class="c-str">"object-cover"</span>                <span class="c-com">// 비율 안 맞을 때 크롭</span>
+    priority                                  <span class="c-com">// LCP 이미지면 최우선 다운로드</span>
+    placeholder=<span class="c-str">"blur"</span> blurDataURL=<span class="c-str">"data:image/png;base64,…"</span>  <span class="c-com">// 원격은 수동</span>
+  /&gt;
+&lt;/article&gt;</code></pre>
+        <ul>
+          <li><strong><code>sizes</code> 생략 = 100vw 기본값</strong> — 3열 그리드의 작은 카드에도 <strong>화면 전체 너비 기준 거대 이미지</strong>를 받는 대역폭 낭비. "모바일 100vw·태블릿 50vw·데스크탑 33vw"처럼 브라우저에 지시해야 실무 최적화</li>
+          <li><strong><code>priority</code></strong> — 상단 배너처럼 <strong>LCP에 영향 주는 이미지</strong>는 기본 지연 로딩이 오히려 감점 → 최우선 다운로드 지시</li>
+          <li><strong>원격의 blur</strong> — 정적 임포트와 달리 자동 생성이 없으므로 <code>blurDataURL</code>에 초소형 Base64를 수동 주입</li>
+        </ul>
+
+        <!-- 6. 규모 확장 -->
+        <h3>6. 실무 주의 — 서버가 깎는 비용</h3>
+        <div class="note warn">
+          <strong>대규모 트래픽의 함정</strong> Next.js 서버가 직접 AVIF로 압축하는 건 <strong>CPU를 꽤 소모</strong>한다. 하루 수십만 장 업로드 규모라면 <strong>Cloudinary·imgix·CloudFront 등 전문 이미지 CDN에 최적화를 위임</strong>하는 것이 다음 스텝.
+        </div>
+
+        <!-- 7. 트러블슈팅 -->
+        <h3>7. 트러블슈팅 3종</h3>
+        <ul>
+          <li><strong>"Unconfigured Host" 에러(엑스박스)</strong> — 100% <code>remotePatterns</code> 미등록. 의도된 보안 차단이니 도메인 추가</li>
+          <li><strong>이미지가 화면을 덮거나 사라짐</strong> — <code>fill</code>의 부모에 포지션(relative 등)·명시적 높이가 없어서. fill은 "부모 울타리" 기준으로 뻗는다</li>
+          <li><strong>콘솔의 LCP priority 경고(노란 글씨)</strong> — 상단 큰 이미지에 지연 로딩이 걸려 있다는 신호. <code>priority</code> 반영으로 성능 점수 사수</li>
+        </ul>
+
+        <div class="note">
+          <strong>⚠️ Next 16 기본값 변화 (이 세션에서 검증한 사실 연결)</strong> 강의는 Next 14 기준 서술이 섞여 있는데, Next 16 업그레이드 가이드 기준으로 이미지 기본값이 여럿 바뀌었다 — <code>images.qualities</code> 기본 <code>[75]</code>로 제한, <code>minimumCacheTTL</code> 60초→4시간, 로컬 이미지 쿼리스트링은 <code>localPatterns.search</code> 필요, 리다이렉트 최대 3회, <code>domains</code> 공식 deprecated. 실무 적용 전 버전별 기본값 확인 필수.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · <code>next/image</code> 4대 자동화: <span class="k">사이즈+포맷 변환 · CLS 방지(공간 선확보) · 지연 로딩 · 원격 리사이징</span><br>
+          · 포맷: <span class="k">AVIF가 실무 표준</span> (formats 배열 순서로 avif→webp→원본 분기)<br>
+          · 로컬은 <span class="k">정적 임포트</span>(크기·blur 자동) · 원격은 <span class="k">remotePatterns 핀셋 보안 + fill/sizes</span><br>
+          · <span class="k">sizes 생략 = 100vw 낭비</span> · LCP 이미지 = <span class="k">priority</span> · 원격 blur는 수동<br>
+          · 규모가 커지면 <span class="k">이미지 CDN 위임</span>이 시니어의 다음 스텝
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (29강)</strong> 가벼워진 데이터를 더 빠르게 전달하는 기술 — <strong>진화된 Data Cache와 Route Handler 캐싱 전략</strong>.
+        </div>
+      </article>
+
       <!-- ╔══════════════════════════════════════════════════════════╗
            ║  SECTOR 2 — 인사이트 (질문 및 추가학습)                     ║
            ╚══════════════════════════════════════════════════════════╝ -->
@@ -670,7 +907,125 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor   <span class="c-com">
         <span class="desc">질문에서 출발한 팩트체크·심화 학습</span>
       </div>
 
-      <!-- 인사이트 카드는 질문·팩트체크 요청이 생길 때 추가 -->
+      <!-- ══════════ 27강 팩트체크 인사이트 카드 ══════════ -->
+      <article class="entry insight" id="insight-factcheck-27"
+               data-section="insight"
+               data-title="27강 팩트체크 — 서버→클라 dynamic 스플리팅은 공식 문서와 정반대, CLS·프리로드·도구 서술 보정"
+               data-tags="팩트체크, next/dynamic, 코드 스플리팅, 서버 컴포넌트, ssr false, CLS, SEO, 프리로드, onMouseEnter, experimental-analyze">
+        <header class="entry-head">
+          <h2>27강 팩트체크 — 어디까지 맞고, 무엇을 더 정확히?</h2>
+          <div class="meta">
+            <span class="date">📅 2026-07-05</span>
+            <span class="chip">팩트체크</span><span class="chip">next/dynamic</span><span class="chip">RSC</span><span class="chip">프리로드</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 27강의 핵심 주장들(next/dynamic 동작·ssr:false·RSC 예외·프리로드·CLS)에 틀리거나 과장된 부분은 없나?
+        </div>
+        <div class="note">
+          <strong>🔎 출처</strong> Next.js 공식 <a href="https://nextjs.org/docs/app/guides/lazy-loading" target="_blank" rel="noopener">"Lazy Loading" 가이드</a>(v16.2.10, 2026-03-10 갱신). 아래 판정은 전부 문서 원문 대조 결과 — 전체 레퍼런스는 카드 하단.
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔍</span>
+          <span><b>핵심 문법·원리 서술은 문서와 자구까지 일치</b>할 정도로 정확하다(복합체·자동 스플리팅·ssr:false 에러·named export·fuse.js 예제). 하지만 <b>결정적 오류 1건</b>: "서버 컴포넌트 안에서 클라 컴포넌트를 dynamic하면 정상 스플리팅"은 <b>공식 문서가 정반대로 "currently not supported"라 명시</b>. 그 외 보정 3건: CLS의 "SEO 큰 감점"은 과장(본질은 UX), <code>onMouseEnter</code> 프리로드는 <b>모바일·웹뷰에선 hover가 없어 번역 필요</b>, 실습 가이드의 도구 서술(빌드 선행 필수·First Load JS/Parsed Size 표기)은 구세대 분석기 워크플로와 혼용.</span>
+        </div>
+
+        <h3>검증 요약표</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>강의 주장</th><th>판정</th><th>코멘트</th></tr></thead>
+          <tbody>
+            <tr><td><code>next/dynamic</code> = React.lazy+Suspense 복합체, Pages/App 공용</td><td class="center yes">정확</td><td>문서 원문 그대로: "a composite of React.lazy() and Suspense… behaves the same way in the app and pages directories"</td></tr>
+            <tr><td>서버 컴포넌트는 자동 코드 스플리팅+스트리밍, 지연 로딩 타겟은 클라</td><td class="center yes">정확</td><td>"Server Components are automatically code split… Lazy loading applies to Client Components"</td></tr>
+            <tr><td>React.lazy/Suspense는 클라 컴포넌트도 기본 SSR 사전 렌더</td><td class="center yes">정확</td><td>문서 명시</td></tr>
+            <tr><td><code>ssr:false</code>는 클라 컴포넌트 전용, 서버 컴포넌트에선 에러</td><td class="center yes">정확</td><td>"You will see an error if you try to use it in Server Components"</td></tr>
+            <tr><td>서버 컴포넌트 자체를 dynamic → 자식 클라만 지연 + CSS 프리로드</td><td class="center yes">정확</td><td>문서 그대로</td></tr>
+            <tr><td>named export <code>.then(mod=&gt;mod.X)</code> · <code>(await import('fuse.js')).default</code></td><td class="center yes">정확</td><td>문서 예제와 동일</td></tr>
+            <tr><td>정적 import 잔존 시 스플리팅 무효 (트러블슈팅 ①)</td><td class="center yes">정확</td><td>우리 QATools 사례로도 실측 검증됨</td></tr>
+            <tr><td><strong>"서버 컴포넌트 안에서 클라 컴포넌트를 dynamic → 정상 스플리팅"</strong></td><td class="center no">틀림</td><td>문서: <em>"currently <strong>not</strong> supported"</em> — 정반대 (아래 1번)</td></tr>
+            <tr><td>CLS가 "SEO에서 큰 감점"</td><td class="center" style="color:var(--note-tx);font-weight:700;">과장</td><td>CWV는 랭킹 신호 중 하나일 뿐 — 본질은 UX 비용 (아래 2번)</td></tr>
+            <tr><td><code>onMouseEnter</code> 프리로드</td><td class="center" style="color:var(--note-tx);font-weight:700;">맥락 주의</td><td>기법은 유효하나 <strong>모바일/웹뷰엔 hover가 없다</strong> (아래 3번)</td></tr>
+            <tr><td>실습 도구 서술 (빌드 선행 필수, First Load JS/Parsed Size 표기)</td><td class="center" style="color:var(--note-tx);font-weight:700;">혼용</td><td>구세대 분석기 워크플로가 섞임 (아래 4번)</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- 1 -->
+        <h3>1. 결정적 오류 — "서버 → 클라 dynamic은 정상 스플리팅" ✗</h3>
+        <p>강의는 RSC 예외 상황 첫째로 <em>"서버 컴포넌트 내부에서 클라이언트 컴포넌트를 <code>next/dynamic</code>으로 가져올 경우 해당 클라이언트 컴포넌트와 그 종속성들은 <strong>정상적으로 코드 스플리팅이 이루어집니다</strong>"</em>라고 단정한다. 공식 문서의 현행 서술은 정반대다:</p>
+        <div class="box danger">
+          <h4>📄 문서 원문 (v16.2.10)</h4>
+          <p style="margin:6px 0;"><em>"When a Server Component dynamically imports a Client Component, automatic code splitting is currently <strong>not</strong> supported."</em></p>
+        </div>
+        <ul>
+          <li>즉 서버 컴포넌트에서 <code>dynamic()</code>으로 클라 컴포넌트를 불러도 <strong>지연 로딩 효과가 없다</strong>(정적 import처럼 번들에 포함) — 현재 알려진 제약.</li>
+          <li><strong>실무 귀결</strong>: 스플리팅이 목적이라면 dynamic 호출을 <strong>클라이언트 컴포넌트 내부로</strong> 옮겨야 한다. <code>ssr:false</code>를 클라로 옮기라는 문서 노트("move it into Client Components <strong>ensure the client code-splitting working properly</strong>")도 같은 맥락.</li>
+          <li>과거 문서엔 "동작한다"고 쓰여 있던 시기가 있어 강의가 낡은 서술을 참조했을 가능성 — 버전 명시 없는 단정의 위험 사례.</li>
+        </ul>
+
+        <!-- 2 -->
+        <h3>2. CLS "SEO 큰 감점" — 과장</h3>
+        <p>CLS 정의(레이아웃 밀림)와 스켈레톤 처방은 정확하다. 다만 CLS는 Core Web Vitals의 하나로 <strong>랭킹 신호에 포함되지만, 구글 공식 입장은 "콘텐츠 관련성이 우선이고 CWV는 여러 신호 중 하나"</strong>다. "큰 감점"보다 정확한 프레임: <strong>CLS의 진짜 비용은 UX</strong>(누르려던 버튼이 밀려 오조작·이탈)이고 SEO는 부차 효과.</p>
+
+        <!-- 3 -->
+        <h3>3. <code>onMouseEnter</code> 프리로드 — 기법은 진짜, 우리 환경엔 번역 필요</h3>
+        <ul>
+          <li><strong>원리 검증</strong>: <code>import()</code>는 모듈 캐시를 공유하므로 프리로드로 한 번, 렌더에서 또 한 번 호출해도 <strong>중복 다운로드 없음</strong> — 안전한 패턴.</li>
+          <li><strong>⚠️ 맥락</strong>: 자리톡처럼 <strong>모바일 웹뷰 중심 서비스엔 hover 이벤트가 없다</strong>. 같은 목적의 번역판: <strong>뷰포트 진입 시 프리로드(IntersectionObserver)</strong>, <code>onTouchStart</code>(클릭 확정 ~수십ms 전), 또는 라우트 프리페치. 데스크톱 전용 기법을 그대로 쓰면 무의미.</li>
+        </ul>
+
+        <!-- 4 -->
+        <h3>4. 도구 서술 혼용 — 26강 회고와 실습 가이드</h3>
+        <ul>
+          <li><strong>26강 회고 불일치</strong> — "26강에서 <code>@next/bundle-analyzer</code>라는 X-ray 장비로 시각화했다"고 회고하지만, 26강의 장비는 <code>experimental-analyze</code>였고 bundle-analyzer는 그 강의 스스로 "구형 신호탄"이라 했다.</li>
+          <li><strong>"반드시 <code>npm run build</code> 후 분석기 실행"</strong> — <code>experimental-analyze</code>는 자체 스캔을 수행하므로 <strong>사전 빌드가 필요 없다</strong>(문서: "Does not produce build artifacts" · 우리 실측: 빌드 없이 단독 25~39초 동작). 빌드 산출물을 읽던 구세대(webpack-bundle-analyzer) 워크플로의 잔재.</li>
+          <li><strong>"First Load JS 용량 표기"·"Parsed Size"</strong> — First Load JS는 Next 16에서 제거된 빌드 출력 지표명이고, Parsed Size는 webpack-bundle-analyzer의 UI 용어. 새 분석기(트리맵·임포트 체인) 서술에 구세대 UI 용어가 섞여 있다.</li>
+        </ul>
+
+        <!-- 5. 레퍼런스 -->
+        <h3>5. 레퍼런스</h3>
+        <ul style="font-size:13.5px;">
+          <li><strong>핵심 출처 (판정 근거)</strong>
+            <ul>
+              <li><a href="https://nextjs.org/docs/app/guides/lazy-loading" target="_blank" rel="noopener">Next.js — Lazy Loading 가이드 (App Router)</a> — "composite of React.lazy() and Suspense" · <em>"automatic code splitting is currently <strong>not</strong> supported"</em> · <code>ssr:false</code> 에러 · named export · fuse.js 예제의 원문</li>
+              <li><a href="https://nextjs.org/docs/pages/guides/lazy-loading" target="_blank" rel="noopener">Next.js — Lazy Loading 가이드 (Pages Router)</a> — 우리 lessee/lessor(Pages Router)에 해당하는 버전</li>
+              <li><a href="https://nextjs.org/docs/app/api-reference/cli/next" target="_blank" rel="noopener">Next.js — CLI 레퍼런스</a> — <code>experimental-analyze</code>: "Does not produce build artifacts"(빌드 선행 불필요의 근거), v16.0.0에서 First Load JS 지표 제거 이력</li>
+            </ul>
+          </li>
+          <li><strong>React 원 API</strong>
+            <ul>
+              <li><a href="https://react.dev/reference/react/lazy" target="_blank" rel="noopener">React — lazy()</a> · <a href="https://react.dev/reference/react/Suspense" target="_blank" rel="noopener">React — Suspense</a> — next/dynamic이 감싸는 두 원재료</li>
+            </ul>
+          </li>
+          <li><strong>CLS · Core Web Vitals (2번 판정 근거)</strong>
+            <ul>
+              <li><a href="https://web.dev/articles/cls" target="_blank" rel="noopener">web.dev — Cumulative Layout Shift</a> — CLS 정의·측정·"공간 예약" 처방(스켈레톤의 근거)</li>
+              <li><a href="https://developers.google.com/search/docs/appearance/page-experience" target="_blank" rel="noopener">Google Search Central — 페이지 경험</a> — CWV는 랭킹에 쓰이는 여러 신호 중 하나("큰 감점" 과장 판정의 근거)</li>
+            </ul>
+          </li>
+          <li><strong>프리로드 기법 (3번 판정 근거)</strong>
+            <ul>
+              <li><a href="https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/import" target="_blank" rel="noopener">MDN — dynamic import()</a> — 모듈 캐시 공유(중복 호출 안전)의 근거</li>
+              <li><a href="https://developer.mozilla.org/docs/Web/API/Intersection_Observer_API" target="_blank" rel="noopener">MDN — IntersectionObserver</a> — 모바일/웹뷰용 뷰포트 진입 프리로드 번역판</li>
+            </ul>
+          </li>
+          <li><strong>우리 실측 (교차 검증)</strong>
+            <ul>
+              <li>섹터 3 <a href="#project-bundle-analysis">번들 다이어트 실전 카드</a> — 정적 import 잔존(QATools)·임포트 누수(Lottie 배럴) 실측 사례, experimental-analyze 단독 실행(25~39초) 확인</li>
+            </ul>
+          </li>
+        </ul>
+
+        <div class="principle">
+          <strong>✅ 결론</strong> 27강의 <span class="k">문법·원리·트러블슈팅은 공식 문서와 자구 수준으로 일치</span>하는 좋은 강의다. 교정 포인트는 넷:
+          <span class="k">서버→클라 dynamic 스플리팅은 "정상 동작"이 아니라 공식적으로 미지원(스플리팅 원하면 클라 내부에서 dynamic)</span> ·
+          <span class="k">CLS는 SEO 감점보다 UX 비용으로 이해</span> ·
+          <span class="k">hover 프리로드는 모바일에선 IntersectionObserver/터치로 번역</span> ·
+          <span class="k">분석기 실습 서술은 구세대 도구 워크플로와 혼용(빌드 선행 불필요)</span>.
+        </div>
+      </article>
 
       <!-- ╔══════════════════════════════════════════════════════════╗
            ║  SECTOR 3 — 우리 프로젝트 (zaritalk-front 적용)            ║
@@ -700,7 +1055,7 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor   <span class="c-com">
 
         <div class="tldr">
           <span class="ico">🏢</span>
-          <span>측정 장비 세대교체(<code>experimental-analyze</code>) → 실측 → <b>범인 3건 처리(<code>refactor/bundle-size</code>)까지 완주</b>. 그래프 총량 lessee 1,398→<b>1,299</b> · lessor 1,652→<b>1,553 KB gz</b>, 주요 페이지 <b>-8~10%</b>, 페이지뷰 대다수에서 <b>Lottie 435KB 전송 제거</b>. 범인: ① Lottie JSON 인라인(446KB→팝업 오픈 시 lazy) ② Hackle SDK 이중 번들(158→79KB) ③ 아이콘 배럴(159KB — config론 -10KB 한계, 딥 임포트가 후속 과제). 라이브러리 위생(dayjs·no-lodash·자체 SVG)과 dynamic import 142건은 원래부터 우등생.</span>
+          <span>측정 장비 세대교체(<code>experimental-analyze</code>) → 실측 → <b>1차(범인 3건) + 2차(QA도구·버튼 애니) 처방 완주</b>. <b>첫 로드 베이스라인 455→299 KB gz(-34%, 두 앱 공통)</b> — 목표 300KB 달성. 홈 591→463KB(-22%), Lottie 435KB는 팝업 오픈 시에만, Hackle 이중 번들 -83KB. <b>아이콘 딥 임포트 코드모드(826파일)는 적용·실측 후 revert</b>(중앙값 -26KB 대비 diff 부담 과대). <b>Hackle 지연 초기화는 기획/마케팅 제약으로 금지</b>. 남은 벽(~299KB)은 프레임워크+전역 프로바이더 바닥 — <b>100KB는 RSC 전환/초경량 랜딩 분리(Tier 3)의 숫자</b>.</span>
         </div>
 
         <!-- 1. 측정 장비 -->
@@ -771,7 +1126,7 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor   <span class="c-com">
         <p><strong>라우트별 유입(지연 포함)</strong> — heic2any 332KB×70라우트(이미 <code>await import()</code>, 모범 사례) · jspdf 206KB×3(<code>/pay</code>, lazy 전환 후보) · recharts 90KB·swiper 53KB·emoji-picker 60KB(분산, 후순위).</p>
 
         <!-- 5. 범인 3건 처리 — refactor/bundle-size 실전 A/B -->
-        <h3>5. 범인 3건 처리 — <code>refactor/bundle-size</code> 실전 A/B <span style="font-size:12px;color:var(--muted);">(2026-07-03, 커밋 3개, 재빌드·재분석으로 검증)</span></h3>
+        <h3>5. 번들 다이어트 실전 — <code>refactor/bundle-size</code> 1·2차 A/B <span style="font-size:12px;color:var(--muted);">(2026-07-03~04, 커밋 6개, 매 처방 재빌드·재측정으로 검증)</span></h3>
         <div class="table-scroll">
         <table>
           <thead><tr><th>범인</th><th>실제 처방 (시행착오 포함)</th><th>실측 결과</th></tr></thead>
@@ -791,22 +1146,49 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor   <span class="c-com">
             <tr><td>lessee <code>_app</code> 그래프</td><td>1,398 KB</td><td>1,299 KB</td><td class="yes">-99 KB (-7.1%)</td></tr>
             <tr><td>lessor <code>_app</code> 그래프</td><td>1,652 KB</td><td>1,553 KB</td><td class="yes">-99 KB (-6.0%)</td></tr>
             <tr><td>주요 페이지 그래프 (<code>/vacancy</code>·<code>/host</code>·<code>/pay/complete</code> 등)</td><td>2,854~3,512 KB</td><td>2,575~3,222 KB</td><td class="yes">-279~-305 KB (-8~-10%)</td></tr>
-            <tr><td>초기 전송 JS (베이스라인/중앙값)</td><td>455 / 510 KB</td><td>455 / 510 KB</td><td class="center">변화 없음 — 범인들이 초기 청크 밖(하이드레이션 이후 로드)</td></tr>
+            <tr><td>초기 전송 JS lessee (베이스라인/중앙값)</td><td>455 / 510 KB</td><td>368 / 424 KB</td><td class="yes">-19% / -17% — Hackle CJS 사본이 초기 청크에 있었음</td></tr>
+            <tr><td>초기 전송 JS lessor (베이스라인/중앙값)</td><td>455 / 481 KB</td><td>369 / 394 KB</td><td class="yes">-19% / -18%</td></tr>
           </tbody>
         </table>
         </div>
 
+        <h4 style="margin:18px 0 6px;font-size:14px;">2차 처방 (2026-07-04, 커밋 3개 추가) — 목표 300KB 달성</h4>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>처방</th><th>내용</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr><td>④ QA 도구 dynamic</td><td>내부용 ZaritalkQATools가 정적 import로 <strong>전 유저 초기 번들에 포함</strong>(dnd-kit 견인) → <code>next/dynamic</code>(ssr:false)</td><td class="yes">프로덕션에선 청크 미다운로드</td></tr>
+            <tr><td>⑤ BasicButton react-spring 제거</td><td>모든 버튼이 로딩 100ms 스케일 연출 하나로 react-spring(18KB)을 초기 견인 → CSS transition 등가 대체</td><td class="yes">-18KB 초기</td></tr>
+            <tr><td>⑥ 아이콘 딥 임포트 코드모드</td><td><code>Icon.X</code> 네임스페이스 참조 <strong>1,426건(826파일)</strong>을 파일 단위 딥 임포트로 자동 전환 시도 (이름 충돌 등 13건 안전 스킵)</td><td class="center" style="color:var(--note-tx);font-weight:700;">적용→실측(중앙값 -26·홈 -47KB)→<strong>revert</strong>. 절감 대비 826파일 diff의 리뷰·충돌 부담 과대 + 청크 중복 부작용. 대안 = turbopackTreeShaking 안정화 대기 + ESLint 가드</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>초기 전송 (gz)</th><th>최초</th><th>1차</th><th>2차 최종 (아이콘 revert 반영)</th><th>누적</th></tr></thead>
+          <tbody>
+            <tr><td>lessee 베이스라인 / 중앙값</td><td>455 / 510</td><td>368 / 424</td><td><strong>299 / 393</strong></td><td class="yes">-34% / -23%</td></tr>
+            <tr><td>lessor 베이스라인 / 중앙값</td><td>455 / 481</td><td>369 / 394</td><td><strong>299 / 331</strong></td><td class="yes">-34% / -31%</td></tr>
+            <tr><td>lessee 홈</td><td>~591</td><td>497</td><td><strong>463</strong></td><td class="yes">-22%</td></tr>
+          </tbody>
+        </table>
+        </div>
         <div class="note">
-          <strong>교훈 3가지</strong> ① <strong>지표를 구분하라</strong> — 그래프 총량(도달 가능 전체) / 초기 전송(First Load 후계) / 런타임 조건부 전송은 서로 다른 것을 잰다. Lottie 개선은 그래프·초기 지표엔 안 보이고 런타임 전송에서만 드러났다. ② <strong>실험 플래그는 반드시 빌드로 검증</strong> — <code>turbopackTreeShaking</code>은 이 규모에서 크래시. ③ <strong>중복 번들은 alias보다 import 구조가 원인</strong> — 정적 import 한 줄이 CJS/ESM 두 세계를 모두 소환할 수 있다.
+          <strong>제약·트레이드오프 기록</strong> ① <strong>Hackle 지연 초기화(-83KB 후보)는 금지</strong> — 실험 분기·노출 트래킹이 기획/마케팅에 직결(첫 페인트 전 분기 결정 필요). ② 아이콘 딥 임포트는 <strong>양방향 비용 실측 후 revert</strong> — 얻는 것(중앙값 -26KB) 대비 잃는 것(826파일 diff 리뷰·충돌 + 청크 중복으로 라우트 그래프 증가, /vacancy 3,033→3,259KB)이 컸다. 아이콘 쉐이킹은 <strong>도구 성숙(turbopackTreeShaking) 대기 + ESLint 가드로 신규 유입 방지</strong>가 현재의 정답.
+        </div>
+
+        <div class="note">
+          <strong>교훈 4가지</strong> ① <strong>지표를 구분하라</strong> — 그래프 총량(도달 가능 전체) / 초기 전송(First Load 후계) / 런타임 조건부 전송은 서로 다른 것을 잰다. Lottie 개선은 런타임 전송에서만, Hackle 개선은 초기 전송에서 드러났다. ② <strong>실험 플래그는 반드시 빌드로 검증</strong> — <code>turbopackTreeShaking</code>은 이 규모에서 크래시. ③ <strong>중복 번들은 alias보다 import 구조가 원인</strong> — 정적 import 한 줄이 CJS/ESM 두 세계를 모두 소환할 수 있다. ④ <strong>측정은 최종 상태에서 다시</strong> — 중간 빌드 기준으로 "초기 변화 없음"이라 오판했다가 재측정으로 -19%를 확인. 배럴 최적화 추가 실험(<code>domain/common</code>)은 전 지표 무효로 판명되어 원복(증거 없는 config는 넣지 않는다).
         </div>
         <div class="note warn">
-          <strong>QA 포인트</strong> dev/stage에서 Hackle devtools 정상 동작 · 앱설치 유도 팝업(비앱+FCM 미보유, 홈/혜택)에서 로띠 재생 확인.
+          <strong>QA 포인트 5건</strong> dev/stage Hackle devtools 동작 · 앱설치 유도 팝업 로띠 재생 · 로딩 버튼 애니메이션 시각 확인 · stage에서 QATools 정상 로드 · 아이콘 노출 화면 스팟 체크(826파일 변경).
         </div>
 
         <!-- 6. 결론 -->
         <div class="principle">
-          <strong>✅ 최종</strong> 실측 → 처방 → 재실측 사이클 완주: 전 페이지 <span class="k">상시 -90KB gz</span> + 페이지 그래프 <span class="k">-8~10%</span> + 페이지뷰 대다수에서 <span class="k">Lottie 435KB 전송 제거</span>.
-          남은 과제는 <span class="k">아이콘 딥 임포트 규칙화(149KB)</span> · <span class="k">_app 초기 455KB 구성 분석</span> · <span class="k">analyze 스냅숏 diff의 CI 도입</span> · <span class="k">lessor mock 스택 프로덕션 제외(~133KB)</span>.
+          <strong>✅ 최종 (1·2차 누적, 커밋 5개)</strong> 첫 로드 베이스라인 <span class="k">455→299KB gz(-34%, 두 앱 공통)</span> — 목표 300KB 달성. 홈 <span class="k">-22%</span> · Lottie 435KB 조건부화 · Hackle 이중 번들 제거 · QA도구/react-spring 초기 퇴출.
+          남은 카드: <span class="k">아이콘 쉐이킹(ESLint 가드 + turbopackTreeShaking 안정화 대기)</span> · <span class="k">react-spring 잔여(Overlay 등, 지연 청크)</span> · <span class="k">lessor mock 프로덕션 제외(~133KB 그래프)</span> · <span class="k">analyze 스냅숏 diff CI</span>.
+          100KB는 이 스택의 숫자가 아니다 — <span class="k">RSC 전환 또는 초경량 랜딩 분리(Tier 3)의 목표</span>로 유보.
         </div>
       </article>
 
