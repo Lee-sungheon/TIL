@@ -898,6 +898,242 @@ images: {
         </div>
       </article>
 
+      <!-- ══════════ 29강 — 단일 요약 카드 ══════════ -->
+      <article class="entry summary" id="lec-29"
+               data-section="summary"
+               data-title="29강. 메인 스레드의 자유 — @next/third-parties와 파사드 패턴을 활용한 비동기 로딩"
+               data-tags="@next/third-parties, 서드파티 스크립트, 메인 스레드, TTI, INP, GTM, GA, 파사드 패턴, YouTubeEmbed, GoogleMapsEmbed, 하이드레이션, 유휴 상태, Partytown"
+               data-date="2026-07-05">
+        <header class="entry-head">
+          <h2>29강. 메인 스레드의 자유</h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[서드파티 제어] @next/third-parties와 파사드(Facade) 패턴을 활용한 비동기 로딩</p>
+          <div class="meta">
+            <span class="date">📅 2026-07-05 · 섹션 6</span>
+            <span class="chip">@next/third-parties</span><span class="chip">메인 스레드</span>
+            <span class="chip">파사드 패턴</span><span class="chip">GTM/GA</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🛣️</span>
+          <span>뼈대·미디어를 다이어트해도 <b>남의 코드(서드파티)가 첫인상을 망칠 수 있다</b>. 브라우저의 핵심 작업은 전부 <b>메인 스레드 단일 차선</b>에서 돌기 때문에, GA·유튜브 같은 무거운 외부 스크립트가 차선을 막으면 화면은 떠 있는데 터치가 먹통 — <b>TTI 지연·INP 악화</b>. 해법은 <b><code>@next/third-parties</code></b>: 측정 도구(GTM/GA)는 <b>하이드레이션이 끝난 유휴(idle) 시점에 로드</b>하고, 유튜브/지도는 <b>파사드 패턴</b>(썸네일+가짜 버튼 → 클릭 순간에만 본체) 컴포넌트로 대체한다. 원칙: <b>외부 스크립트는 의심하고 미룬다</b>. GTM(바구니)과 GA(내용물)를 중복 설치하면 데이터가 2배로 쌓이는 것도 단골 함정.</span>
+        </div>
+
+        <!-- 1. 원리 -->
+        <h3>1. 원리 — 메인 스레드는 단일 차선 도로</h3>
+        <p>CPU엔 스레드가 여럿이지만, 브라우저의 <strong>레이아웃 계산·픽셀 페인팅·JS 실행은 전부 메인 스레드 하나</strong>가 전담한다. 전통적 <code>&lt;script&gt;</code>로 무거운 GA·유튜브 코드를 부르면 이 유일한 작업자가 다운로드·실행을 마칠 때까지 <strong>버튼도 스크롤도 처리 불가</strong> — "화면은 다 떴는데 먹통"인 상태.</p>
+        <ul>
+          <li><strong>TTI</strong>(Time to Interactive) — 실제 상호작용 가능해지기까지의 시간이 지연</li>
+          <li><strong>INP</strong>(Interaction to Next Paint) — 현재 구글이 가장 중시하는 CWV 지표가 최악으로</li>
+          <li>과거 처방: <code>defer</code>/<code>async</code> 속성, <code>next/script</code>의 strategy 옵션을 일일이 튜닝 → 이제 프레임워크 차원 해법으로</li>
+        </ul>
+
+        <!-- 2. third-parties 측정 도구 -->
+        <h3>2. <code>@next/third-parties</code> — 측정 도구는 "유휴 시점"에</h3>
+        <p>Next 팀이 <strong>구글과 직접 협력</strong>해 최다 사용 서드파티들을 미리 최적화해 둔 패키지. <strong>실험적 라이브러리라 <code>@latest</code>/<code>canary</code> 설치가 공식 권장</strong>.</p>
+<pre><code><span class="c-key">import</span> { GoogleTagManager, GoogleAnalytics } <span class="c-key">from</span> <span class="c-str">'@next/third-parties/google'</span>;
+
+&lt;html&gt;
+  &lt;GoogleTagManager gtmId=<span class="c-str">"GTM-XYZ123"</span> /&gt;   <span class="c-com">// 인라인 스크립트 없이 ID만</span>
+  &lt;body&gt;{children}
+    &lt;GoogleAnalytics gaId=<span class="c-str">"G-XYZ1234567"</span> /&gt; <span class="c-com">// ⚠️ GTM에 GA가 이미 있으면 중복 — 하나만!</span>
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+        <div class="note">
+          <strong>마법의 핵심 — 하이드레이션 후 유휴(idle) 로드</strong> <strong>하이드레이션</strong>(정적 HTML 뼈대에 React JS가 입혀져 상호작용이 생기는 과정 — 이것 자체도 메인 스레드를 바쁘게 함)까지 전부 끝나고, <strong>메인 스레드가 빈둥거리는 유휴 상태</strong>가 되어서야 스크립트를 몰래 다운로드 → 첫 화면 렌더링에 1ms도 방해하지 않는다. (비유: 점심 러시를 다 쳐낸 주방장이 한숨 돌리는 짬)
+        </div>
+        <div class="grid2">
+          <div class="box info">
+            <h4>🧺 GTM vs GA — 역할 구분</h4>
+            <ul>
+              <li><strong>GA</strong> = 데이터를 모으고 분석하는 <strong>도구 그 자체</strong></li>
+              <li><strong>GTM</strong> = GA·페이스북 픽셀 등을 담아 조건부 실행하는 <strong>바구니(컨테이너)</strong> — 마케팅팀이 개발자 없이 내용물 교체 가능</li>
+              <li>→ 바구니를 설치했다면 <strong>내용물을 코드로 중복 설치하지 말 것</strong></li>
+            </ul>
+          </div>
+          <div class="box info">
+            <h4>🎯 이벤트·페이지뷰 추적</h4>
+            <ul>
+              <li><code>sendGAEvent</code>/<code>sendGTMEvent</code>를 클라 컴포넌트의 <code>onClick</code> 등에 연결 (측정 컴포넌트가 먼저 마운트돼 있어야 동작)</li>
+              <li>페이지뷰는 <strong>히스토리 변경 감지로 자동 전송</strong> — GA 관리자에서 "향상된 측정 + 브라우저 방문 기록 기반 페이지 변경" 활성화 필요</li>
+              <li>수동 페이지뷰 커스텀 시엔 <strong>기본 측정을 꺼서 중복 방지</strong></li>
+            </ul>
+          </div>
+        </div>
+        <div class="note"><strong>고급 옵션·확장</strong> <code>gtmScriptUrl</code>(서버 사이드 태깅 서버) · <code>dataLayerName</code> · <code>auth</code>/<code>preview</code> · <code>nonce</code>(보안). 극한 최적화는 <strong>Partytown</strong> — 스크립트를 아예 <strong>웹 워커(별도 차선)</strong>에서 실행해 메인 스레드와 도로 자체를 분리.</div>
+
+        <!-- 3. 파사드 -->
+        <h3>3. 임베드 콘텐츠는 파사드(Facade) 패턴으로</h3>
+        <p><strong>파사드</strong> = 건물의 정면 외관(가짜 껍데기). 무거운 본체를 숨기고 <strong>겉보기에 똑같은 가벼운 껍데기</strong>를 내세우는 기법.</p>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>❌ 날것의 iframe</h4>
+            <ul>
+              <li>화면에 보이기도 전에 <strong>플레이어 JS 더미를 무조건 다운로드</strong>(base.js·player_ias.js…)</li>
+              <li>로드 완료 이벤트 지연 → 전체 화면 출력 지연, 저사양 기기 스크롤 버벅임</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>✅ YouTubeEmbed (lite-youtube-embed 기반)</h4>
+            <ul>
+              <li>초기엔 <strong>썸네일 jpg + 가짜 재생 버튼만</strong></li>
+              <li>클릭하는 순간에야 진짜 플레이어 다운로드 = <strong>상호작용 기반 지연 로딩</strong></li>
+              <li>옵션: <code>videoid</code>(필수)·<code>params</code>(쿼리스트링)·<code>playLabel</code>(접근성) 등</li>
+            </ul>
+          </div>
+        </div>
+<pre><code><span class="c-key">import</span> { YouTubeEmbed, GoogleMapsEmbed } <span class="c-key">from</span> <span class="c-str">'@next/third-parties/google'</span>;
+
+&lt;YouTubeEmbed videoid=<span class="c-str">"ogfYd705cRs"</span> height={<span class="c-key">400</span>} params=<span class="c-str">"controls=1&amp;start=10"</span> /&gt;
+&lt;GoogleMapsEmbed apiKey=<span class="c-str">"…"</span> mode=<span class="c-str">"place"</span> q=<span class="c-str">"Seoul,South+Korea"</span> height={<span class="c-key">400</span>} width=<span class="c-str">"100%"</span> /&gt;
+<span class="c-com">// GoogleMapsEmbed는 기본 loading="lazy" — 뷰포트 아래면 보일 때까지 다운로드 유예</span></code></pre>
+
+        <!-- 4. 트러블슈팅 -->
+        <h3>4. 트러블슈팅 3종</h3>
+        <ul>
+          <li><strong>조회수·이벤트가 2배</strong> — GTM 바구니 안에 이미 GA가 있는데 코드에 <code>&lt;GoogleAnalytics&gt;</code>를 또 단 경우. 둘 중 하나만</li>
+          <li><strong>CSP 차단(빨간 콘솔)</strong> — 서버 헤더/<code>next.config</code>의 CSP에 구글 도메인(youtube.com·googleapis.com 등) 미허용. 정책에 도메인 승인</li>
+          <li><strong>로컬에서 GA 데이터 안 보임</strong> — 로컬 트래픽 필터링 때문. Network 탭에 <code>collect?v=2…</code> 페이로드가 나가고 있으면 코드는 정상</li>
+        </ul>
+
+        <div class="note">
+          <strong>🔗 우리 프로젝트 연결</strong> 자리톡의 "이 강의"는 GA가 아니라 <strong>Hackle·Clarity·adrop·Airbridge</strong>다. 강의의 "유휴 시점 로드" 전략을 Hackle(83KB, 초기 청크 최대 항목)에 검토했다가 <strong>실험 분기·노출 트래킹이 기획/마케팅에 직결되어 기각</strong>한 실전 기록이 섹터 3 카드에 있다 — "의심하고 미룬다"에도 <strong>미루면 안 되는 스크립트(첫 페인트 전 분기 결정이 필요한 A/B 도구)</strong>가 있다는 것이 강의에 없는 우리의 교훈. 반면 Clarity·adrop 같은 순수 관찰/광고 도구는 idle 로드 후보로 유효.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리</strong><br>
+          · 메인 스레드 = <span class="k">단일 차선</span> — 외부 스크립트 점거 시 TTI·INP 붕괴<br>
+          · 측정 도구: <span class="k">하이드레이션 후 유휴 시점 로드</span> (<code>GoogleTagManager</code>/<code>GoogleAnalytics</code>)<br>
+          · <span class="k">GTM=바구니 · GA=내용물</span> — 중복 설치 금지<br>
+          · 임베드: <span class="k">파사드 패턴</span> — 썸네일 껍데기 → 클릭 시 본체 (<code>YouTubeEmbed</code>·<code>GoogleMapsEmbed</code>)<br>
+          · 극한은 <span class="k">Partytown(웹 워커 분리)</span> · 자세는 <span class="k">"의심하고 미룬다"</span> — 단, 미루면 안 되는 도구(A/B 분기) 식별이 실무의 몫
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (30강, 파트 3 대미)</strong> 최적화로 빨라진 서비스를 검색엔진에 알리는 기술 — <strong>generateMetadata와 JSON-LD 구조화 데이터</strong>로 검색 노출 극대화.
+        </div>
+      </article>
+
+      <!-- ══════════ 30강 — 단일 요약 카드 (파트 3 대미) ══════════ -->
+      <article class="entry summary" id="lec-30"
+               data-section="summary"
+               data-title="30강. 검색 로봇의 귀빈이 되는 법 — generateMetadata와 리치 스니펫을 위한 JSON-LD 주입 전략"
+               data-tags="SEO, generateMetadata, 메타데이터, Open Graph, JSON-LD, Schema.org, 리치 스니펫, schema-dts, XSS, 크롤러, SGE, ResolvingMetadata"
+               data-date="2026-07-18">
+        <header class="entry-head">
+          <h2>30강. 검색 로봇의 귀빈이 되는 법 <span style="font-size:13px;color:var(--muted);">(파트 3 대미)</span></h2>
+          <p class="sub" style="margin:0 0 4px;color:var(--muted);font-size:14px;">[고급 SEO] generateMetadata와 리치 스니펫을 위한 JSON-LD 주입 전략</p>
+          <div class="meta">
+            <span class="date">📅 2026-07-18 · 섹션 6</span>
+            <span class="chip">generateMetadata</span><span class="chip">Open Graph</span>
+            <span class="chip">JSON-LD</span><span class="chip">리치 스니펫</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <span class="ico">🔍</span>
+          <span>아무리 빨라도 검색에 안 나오면 <b>지도에 없는 무인도의 성</b>이다. 크롤러는 화면이 아니라 <b>HTML 텍스트·태그만 긁으므로</b> ① <b>Metadata API</b>로 head 이름표를 달고(정적 선언 + 레이아웃→페이지 <b>폭포수 병합</b>, <code>template: '%s | …'</code> 패턴) ② 동적 페이지는 <b><code>generateMetadata</code></b>(params는 <b>await 필수</b>, <code>parent</code>로 부모 확장) ③ 그 위에 <b>JSON-LD(Schema.org)</b>로 엔티티 구조를 기계어로 떠먹여 <b>리치 스니펫</b>(별점·리뷰 수·가격)과 <b>SGE 인용</b>을 노린다. 철칙: <b>SEO는 서버 컴포넌트 전용</b> — <code>'use client'</code>면 로봇은 빈 껍데기만 들고 떠난다. 주입 시 <b>XSS 방어(<code>&lt;</code>→<code><</code> 치환)</b> 필수.</span>
+        </div>
+
+        <!-- 1. 원리 -->
+        <h3>1. 원리 — 사서와 스파이더</h3>
+        <p>웹 = 거대한 도서관, 검색엔진 = 사서. 사서가 파견하는 <strong>크롤러(스파이더)</strong>는 링크를 타고 다니며 <strong>디자인·애니메이션이 아니라 HTML 문서의 텍스트와 태그만 기계적으로 수집</strong>한다. 그래서 <code>&lt;head&gt;</code>에 명확한 이름표(<strong>메타데이터</strong> = 데이터에 대한 데이터)를 달아줘야 한다. 과거엔 외부 라이브러리가 필요했지만 App Router는 <strong>내장 Metadata API</strong>로 처리.</p>
+
+        <!-- 2. 정적 + 병합 -->
+        <h3>2. 정적 메타데이터 — 폭포수 병합과 템플릿 패턴</h3>
+<pre><code><span class="c-com">// app/layout.tsx (루트)</span>
+<span class="c-key">export const</span> metadata: Metadata = {
+  title: { template: <span class="c-str">'%s | AI 스터디 플래너'</span>, default: <span class="c-str">'AI 스터디 플래너'</span> },
+  description: <span class="c-str">'…'</span>,
+};
+
+<span class="c-com">// app/about/page.tsx — 제목만 적으면 템플릿과 자동 합성</span>
+<span class="c-key">export const</span> metadata: Metadata = { title: <span class="c-str">'서비스 소개'</span> };
+<span class="c-com">// → "서비스 소개 | AI 스터디 플래너"</span></code></pre>
+        <div class="note"><strong>병합 규칙</strong> 루트 레이아웃 → 중첩 레이아웃 → 페이지 순으로 <strong>폭포수처럼 평가하며 덮어쓴다</strong>. 겹치는 속성은 <strong>가장 깊은 쪽 우선</strong>, 안 겹치는 속성은 <strong>전부 병합</strong>. 정적 페이지는 함수 대신 객체 선언이 성능에도 유리.</div>
+
+        <!-- 3. generateMetadata -->
+        <h3>3. 동적 — <code>generateMetadata</code></h3>
+<pre><code><span class="c-key">export async function</span> generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise&lt;Metadata&gt; {
+  <span class="c-key">const</span> { id } = <span class="c-key">await</span> params;               <span class="c-com">// ⚠️ Next 15+: params는 Promise — await 필수</span>
+  <span class="c-key">const</span> routine = <span class="c-key">await</span> fetchRoutineById(id);
+  <span class="c-key">const</span> previousImages = (<span class="c-key">await</span> parent).openGraph?.images || [];  <span class="c-com">// 부모를 덮지 않고 "확장"</span>
+
+  <span class="c-key">return</span> {
+    title: routine.title,
+    description: routine.summary,
+    openGraph: { title: …, images: [routine.thumbnailUrl, ...previousImages], type: <span class="c-str">'article'</span> },
+  };
+}</code></pre>
+        <ul>
+          <li><strong>실행 시점</strong> — 렌더링 과정의 일부로 서버에서 먼저 실행. 정적 가능하면 초기 HTML에 포함, 데이터 통신이 길면 <strong>초기 UI 먼저 보내고 메타데이터를 스트리밍으로 주입</strong></li>
+          <li><strong><code>parent: ResolvingMetadata</code></strong> — 부모 설정을 유지하며 확장(예: OG 이미지 배열 뒤에 새 썸네일 합치기)</li>
+          <li><strong>오픈 그래프</strong> — 페이스북발 표준. 카톡·슬랙에 링크를 붙일 때 뜨는 <strong>썸네일+제목+요약 미리보기 카드</strong>의 정체 — 공유 클릭률을 좌우하는 마케팅 무기</li>
+        </ul>
+
+        <!-- 4. 핵심 규칙 -->
+        <h3>4. 핵심 규칙 4가지 (주니어가 겪는 함정)</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>규칙</th><th>내용</th></tr></thead>
+          <tbody>
+            <tr><td class="no">① 서버 컴포넌트 전용</td><td>모든 SEO 작업은 <strong>서버 컴포넌트에서만</strong> 동작. <code>'use client'</code>면 로봇은 <strong>제목도 없는 빈 HTML 껍데기</strong>만 들고 떠난다 → 노출 필수 페이지는 서버로, 상호작용만 잘게 쪼개 클라 자식으로</td></tr>
+            <tr><td>② 동시 선언 불가</td><td>같은 라우트에서 정적 <code>metadata</code> 객체와 <code>generateMetadata</code>를 <strong>동시에 export 불가</strong> — 하나만</td></tr>
+            <tr><td>③ 자동 메모이제이션</td><td><code>generateMetadata</code>와 본문에서 같은 <code>fetch</code>를 불러도 <strong>실제 요청은 1번</strong> (25강 Request Memoization). DB 직접 쿼리는 React <code>cache()</code>로 수동 처리</td></tr>
+            <tr><td>④ 파일 기반이 최우선</td><td><code>favicon.ico</code>·<code>opengraph-image.jpg</code> 같은 <strong>파일 기반 메타데이터가 코드 설정을 항상 덮는다</strong></td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- 5. JSON-LD -->
+        <h3>5. JSON-LD — 로봇에게 떠먹이는 기계어 사전</h3>
+        <p>메타데이터가 "요약 이름표"라면, <strong>JSON-LD</strong>(Linked Data용 JSON)는 <strong>Schema.org 표준 단어장</strong>으로 페이지의 <strong>엔티티 구조</strong>(사람·이벤트·상품·레시피…)를 선언하는 기술. 결과물이 <strong>리치 스니펫</strong> — 파란 링크 대신 별점·리뷰 수·가격이 붙는 검색 결과 — 이고, <strong>SGE(AI 생성형 검색)에서 인용 출처로 채택될 확률</strong>을 높이는 열쇠.</p>
+<pre><code><span class="c-key">import</span> { Product, WithContext } <span class="c-key">from</span> <span class="c-str">'schema-dts'</span>;  <span class="c-com">// TS 자동완성 지원</span>
+
+<span class="c-key">const</span> jsonLd: WithContext&lt;Product&gt; = {
+  <span class="c-str">'@context'</span>: <span class="c-str">'https://schema.org'</span>,   <span class="c-com">// "이 단어들은 표준 단어장을 따른다"</span>
+  <span class="c-str">'@type'</span>: <span class="c-str">'Product'</span>,                  <span class="c-com">// 페이지의 근본 정체성</span>
+  name, description, image,
+  aggregateRating: { <span class="c-str">'@type'</span>: <span class="c-str">'AggregateRating'</span>, ratingValue: <span class="c-str">'4.9'</span>, reviewCount: <span class="c-str">'1250'</span> },
+  offers: { <span class="c-str">'@type'</span>: <span class="c-str">'Offer'</span>, price: <span class="c-str">'0'</span>, priceCurrency: <span class="c-str">'KRW'</span> },
+};
+
+&lt;script
+  type=<span class="c-str">"application/ld+json"</span>
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify(jsonLd).replace(/&lt;/g, <span class="c-str">'\\u003c'</span>),  <span class="c-com">// ⚠️ XSS 방어 필수</span>
+  }}
+/&gt;</code></pre>
+        <div class="note warn">
+          <strong>⚠️ XSS 방어가 선택이 아닌 이유</strong> 해커가 글 제목에 악성 스크립트를 심으면 <code>JSON.stringify</code>는 걸러주지 않는다 → <strong>꺾쇠(<code>&lt;</code>)를 유니코드(<code><</code>)로 강제 치환</strong>해 스크립트 실행을 원천 차단. 더 엄격하면 <code>serialize-javascript</code> 같은 검증된 패키지. 검증은 <strong>구글 리치 결과 테스트 / 스키마 마크업 검사기</strong>에 URL 입력.
+        </div>
+
+        <!-- 6. 트러블슈팅 -->
+        <h3>6. 트러블슈팅 3종</h3>
+        <ul>
+          <li><strong>텅 빈 껍데기</strong> — <code>generateMetadata</code> 파일에 무심코 <code>'use client'</code> → 서버 컴포넌트로 분리</li>
+          <li><strong>XSS 경고</strong> — <code>JSON.stringify</code>만 쓰면 표적이 된다 → 꺾쇠 치환 필수</li>
+          <li><strong>params 타입 에러 (Next 15+)</strong> — <code>params.id</code> 직접 접근 불가, <code>await params</code> 후 접근 (섹션 5에서 검증한 Async Request API 변경과 동일 맥락)</li>
+        </ul>
+
+        <div class="note">
+          <strong>🔗 우리 프로젝트 연결</strong> lessee·lessor는 <strong>Pages Router라 <code>generateMetadata</code>가 없다</strong> — 같은 목표를 <code>next/head</code> + <code>_app</code>의 <code>application/ld+json</code> 스크립트(이미 존재 확인)로 달성 중이고, 실거주리뷰의 SEO 전용 페이지들(<code>town-review-seo</code>·<code>SEOTransactionPriceTemplate</code> 등)이 그 실전 사례다. 이 강의의 RSC 규칙·Metadata API는 App Router 앱(realtor)에 해당. 참고로 우리의 26~28강 다이어트가 SEO에도 직결된다 — 크롤러 예산과 CWV 랭킹 신호는 결국 성능의 함수.
+        </div>
+
+        <div class="principle">
+          <strong>✅ 핵심 정리 (파트 3 최적화 여정의 끝)</strong><br>
+          · 크롤러는 <span class="k">HTML 텍스트·태그만</span> 본다 → head 이름표가 전부<br>
+          · 정적 = <span class="k">객체 선언 + 폭포수 병합·템플릿</span> · 동적 = <span class="k">generateMetadata(+parent 확장, params await)</span><br>
+          · 철칙: <span class="k">SEO는 서버 컴포넌트 전용</span> · 파일 기반 메타데이터 최우선<br>
+          · 한 단계 위: <span class="k">JSON-LD(Schema.org)로 리치 스니펫·SGE 인용</span> — 주입 시 <span class="k">XSS 치환 필수</span><br>
+          · 좋은 개발자는 <span class="k">서비스가 세상과 소통하는 방식</span>까지 설계한다
+        </div>
+
+        <div class="note warn">
+          <strong>다음 강 예고 (31강, 새 섹션 7 — 보안)</strong> 빠르고 검색 잘 되어도 해커에 무방비면 모래성 — <strong>네트워크 경계의 진화: 미들웨어와 프록시의 역할 분리</strong>부터 문단속 시작.
+        </div>
+      </article>
+
       <!-- ╔══════════════════════════════════════════════════════════╗
            ║  SECTOR 2 — 인사이트 (질문 및 추가학습)                     ║
            ╚══════════════════════════════════════════════════════════╝ -->
@@ -1027,6 +1263,230 @@ images: {
         </div>
       </article>
 
+      <!-- ══════════ 28강 연계 인사이트 — next/image 인프라 비용의 실체 ══════════ -->
+      <article class="entry insight" id="insight-image-infra-cost"
+               data-section="insight"
+               data-title="next/image 인프라 비용의 실체 — 트래픽 스파이크에 서버가 녹는 4가지 구조 원인과 3단계 처방"
+               data-tags="next/image, 이미지 최적화, sharp, AVIF, CPU, 인프라, 캐시, CloudFront, 이미지 CDN, loader, EB, 실무">
+        <header class="entry-head">
+          <h2>next/image 인프라 비용의 실체 — 왜 트래픽이 몰리면 서버가 녹나</h2>
+          <div class="meta">
+            <span class="date">📅 2026-07-05</span>
+            <span class="chip">실무 경험</span><span class="chip">인프라</span><span class="chip">sharp/AVIF</span><span class="chip">이미지 CDN</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 실무에서 next/image를 쓰면 인프라 관리가 안 된다 — 트래픽이 조금만 몰려도 서버 자원이 난리가 나는 이유는? (28강이 한 줄로 넘어간 "CPU 소모"의 실체)
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🔥</span>
+          <span><code>next/image</code>의 문제는 컴포넌트가 아니라 <b>"변환기를 앱 서버에 내장"한 기본값</b>이다. 구조 원인 4가지: ① 변환이 <b>CPU-bound인데 SSR과 자원 공유</b>(특히 AVIF 인코딩은 WebP의 수 배~수십 배) ② 캐시가 <b>인스턴스 로컬 디스크</b>라 오토스케일·재배포마다 콜드 → <b>배포 직후 + 스파이크 = 전 인스턴스 동시 재인코딩 폭풍</b> ③ (URL×w×q×포맷) <b>요청 조합 폭발</b>(봇 포함) ④ UGC 대형 원본의 디코드 비용. 처방은 3단계 — <b>설정 급한 불(avif 제거 등) → loader 교체로 변환을 서버 밖으로(근본) → UGC는 업로드 시점 사전 변환(정석)</b>. 컴포넌트 API는 유지하고 변환기만 밖으로 빼는 것이 시니어 스텝.</span>
+        </div>
+
+        <!-- 1. 구조 원인 -->
+        <h3>1. 구조 원인 4가지</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>원인</th><th>메커니즘</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td><strong>CPU-bound 변환이 SSR과 동거</strong></td><td><code>/_next/image?url=…&amp;w=…</code>은 서버 내 sharp로 디코드→리사이즈→재인코딩. <strong>AVIF 인코딩은 WebP 대비 수 배~수십 배 CPU</strong> — <code>formats</code>에 avif를 넣는 순간 강의의 "마법"이 서버엔 폭탄. 같은 인스턴스가 SSR도 하므로 이미지 수십 장이 이벤트 루프를 밀면 페이지 응답까지 동반 사망</td></tr>
+            <tr><td>②</td><td><strong>캐시가 인스턴스 로컬</strong></td><td>변환 결과는 <code>.next/cache/images</code>(디스크). 오토스케일로 새 인스턴스가 뜨면 <strong>캐시 제로에서 시작</strong>, standalone 컨테이너 재배포마다 캐시 소실 → <strong>배포 직후 + 트래픽 스파이크 = 동시 재인코딩 폭풍</strong></td></tr>
+            <tr><td>③</td><td><strong>요청 조합 폭발</strong></td><td>캐시 키 = URL × width × quality × 포맷. <code>deviceSizes</code> 기본 8종 × 이미지 수만큼 변형 생성, 크롤러/봇이 임의 <code>w=</code> 조합을 찌르면 더 증폭</td></tr>
+            <tr><td>④</td><td><strong>UGC 대형 원본</strong></td><td>수 MB 원본(인증샷 등)은 디코드 단계부터 비쌈</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- 2. 처방 -->
+        <h3>2. 처방 3단계</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>단계</th><th>내용</th><th>비용/효과</th></tr></thead>
+          <tbody>
+            <tr><td><strong>① 급한 불</strong><br>(설정만, 당일)</td><td><code>formats</code>에서 <strong>avif 제거(webp만)</strong> · <code>deviceSizes</code>/<code>imageSizes</code> 축소 · <code>minimumCacheTTL</code> 상향 · CloudFront를 <code>/_next/image</code> 앞에 캐시로</td><td>avif 제거가 단일 항목 최대 CPU 절감. 단 배포 후 콜드는 잔존</td></tr>
+            <tr><td><strong>② 근본</strong><br>(변환을 서버 밖으로)</td><td><code>next.config</code>의 <strong><code>loader</code>/<code>loaderFile</code> 한 파일 교체</strong>로 <code>&lt;Image&gt;</code> API는 유지한 채 변환 주체만 교체 — AWS면 <strong>Dynamic Image Transformation for CloudFront</strong>(구 Serverless Image Handler, CloudFront+Lambda+sharp 공식 솔루션), 또는 Cloudinary/imgix SaaS</td><td>변환이 Lambda로 격리 + 엣지 캐싱 → 앱 서버는 이미지에서 완전 해방</td></tr>
+            <tr><td><strong>③ 정석</strong><br>(UGC)</td><td>업로드 파이프라인(S3 트리거 Lambda)에서 <strong>사이즈별 사전 변환·저장</strong>, 조회는 정적 서빙</td><td>조회 시점 변환 자체를 제거 — 스파이크 내성 최상</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="principle">🔥 한 줄 결론 — <span class="k"><code>next/image</code>의 컴포넌트(sizes·priority·CLS 방지)는 유지하고, 내장 변환기만 loader로 밖에 뺀다</span>. 28강 마지막 문단("이미지 CDN 위임이 시니어의 다음 스텝")은 선택이 아니라 규모가 생기면 필수다.</div>
+
+        <!-- 3. 우리 실측 -->
+        <h3>3. 우리 프로젝트 실측 — 노출 확인</h3>
+        <ul>
+          <li>zaritalk-front에서 <strong><code>next/image</code> 사용 파일 19개, custom loader 없음</strong> → 해당 이미지 변환이 전부 <strong>EB 인스턴스 CPU</strong>에서 수행 중</li>
+          <li><code>formats</code> 미설정(기본 webp) — avif 폭탄은 아직 없음. 단 <code>remotePatterns: '**.zaritalk.com'</code> 와일드카드는 28강 기준(핀셋 통제)으론 느슨한 편</li>
+          <li>EB + standalone 재배포 구조라 <strong>원인 ②(배포마다 캐시 소실)에 그대로 노출</strong> — 이미지 사용이 늘기 전에 ② 경로(CloudFront 위임) 검토 가치</li>
+        </ul>
+        <div class="note">
+          <strong>Next 16 연결 (검증된 사실)</strong> Next 16이 이미지 기본값을 방어적으로 바꾼 이유가 정확히 이 문제다 — <code>minimumCacheTTL</code> 60초→<strong>4시간</strong>(재검증 CPU 비용 절감이 공식 사유), <code>qualities</code> 무제한→<code>[75]</code>(조합 폭발 차단), 리다이렉트 최대 3회, 로컬 IP 최적화 차단. 프레임워크 스스로 "온디맨드 변환은 비싸다"를 인정한 변화.
+        </div>
+
+        <!-- 4. 적용 가이드 -->
+        <h3>4. 우리 프로젝트 적용 가이드 — DIT + <code>loaderFile</code> 조합 <span style="font-size:12px;color:var(--muted);">(lessee·lessor 기준, 코드 실측 반영)</span></h3>
+        <div class="note">
+          <strong>적용 유리한 조건 (실측 확인됨)</strong> 우리 <code>next/image</code> 19개 파일의 src는 전부 <strong>절대 URL</strong>(<code>static.zaritalk.com</code> 계열 상수 + UGC <code>filePath</code>)이고, <strong>정적 임포트 이미지 0건·<code>/public</code> 상대경로 src 0건</strong> — loader 전역 적용 시 분기 예외가 거의 없는 이상적인 구조다.
+        </div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">Step 0 — 선행 확인 (인프라 파트와)</h4>
+        <ul>
+          <li><code>static.zaritalk.com</code>(및 UGC 이미지 도메인)의 뒤가 <strong>어느 S3 버킷</strong>인지, 이미 CloudFront를 경유 중인지 확인 → DIT의 원본 버킷 파라미터에 지정</li>
+          <li>이미 CloudFront가 있다면: 별도 DIT 배포(권장, 역할 분리) vs 기존 배포에 통합 중 결정</li>
+        </ul>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">Step 1 — DIT 스택 배포 (CloudFormation, ap-northeast-2)</h4>
+        <ul>
+          <li>파라미터: 원본 버킷(정적+UGC), CORS, Accept 기반 자동 포맷(webp/avif), <strong>URL 서명 활성화 권장</strong>(임의 리사이즈 조합 공격 차단 — <code>remotePatterns</code>의 역할을 대체)</li>
+          <li>산출물: CloudFront 배포 도메인 → CNAME으로 <code>img.zaritalk.com</code> 같은 자체 도메인 연결 권장</li>
+        </ul>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">Step 2 — loaderFile 작성 (앱당 파일 1개 + config 2줄, 사용처 19파일은 무수정)</h4>
+<pre><code><span class="c-com">// apps/lessee/image-loader.js — 개념 코드 (쿼리 파라미터 명세는 배포한 DIT 버전의 구현 가이드 확인)</span>
+<span class="c-key">const</span> DIT_HOST = <span class="c-str">'https://img.zaritalk.com'</span>;
+<span class="c-key">const</span> TRANSFORMABLE_HOSTS = [<span class="c-str">'static.zaritalk.com'</span> <span class="c-com">/*, UGC 도메인 */</span>];
+
+<span class="c-key">export default function</span> zaritalkImageLoader({ src, width, quality }) {
+  <span class="c-key">const</span> url = <span class="c-key">new</span> URL(src, DIT_HOST);  <span class="c-com">// 상대경로 유입 대비 base 지정</span>
+  <span class="c-key">if</span> (!TRANSFORMABLE_HOSTS.includes(url.hostname)) {
+    <span class="c-key">return</span> src;  <span class="c-com">// 대상 외 도메인은 변환 없이 원본</span>
+  }
+  <span class="c-key">return</span> <span class="c-str">`${DIT_HOST}${url.pathname}?width=${width}&amp;quality=${quality ?? 75}&amp;format=auto`</span>;
+}
+
+<span class="c-com">// next.config.js</span>
+images: {
+  loader: <span class="c-str">'custom'</span>,
+  loaderFile: <span class="c-str">'./image-loader.js'</span>,
+}</code></pre>
+        <div class="note"><strong>핵심</strong> <code>loaderFile</code>은 전역 적용이라 <strong>&lt;Image&gt; 사용처는 한 줄도 안 바꾼다</strong> — sizes·priority·CLS 방지 등 컴포넌트 이점은 그대로, 변환 주체만 EB → Lambda+엣지로 교체.</div>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">Step 3 — 검증 & 롤백</h4>
+        <ul>
+          <li><strong>검증(28강 체크포인트 재활용)</strong>: Network 탭에서 이미지 요청이 <code>img.zaritalk.com</code>으로 가는지, Content-Type이 <code>image/webp</code>(또는 avif)인지, 두 번째 요청부터 CloudFront 캐시 히트(<code>X-Cache: Hit</code>)인지</li>
+          <li>전환 후 내장 최적화 API(<code>/_next/image</code>)는 미사용 → <code>remotePatterns</code> 정리 가능</li>
+          <li><strong>롤백 = config 2줄 제거</strong> — 즉시 내장 방식으로 원복되는 저위험 전환</li>
+        </ul>
+
+        <h4 style="margin:14px 0 6px;font-size:14px;">Step 4 — 운영 체크리스트</h4>
+        <ul>
+          <li><strong>CloudFront 캐시 히트율</strong> 모니터 — 히트율↑ = Lambda 호출·비용↓ (TTL 길게)</li>
+          <li>포맷은 <strong>webp로 시작</strong> 후 Lambda duration 측정하고 avif 확대 판단 (Lambda라 서버는 무관하지만 duration 과금은 있음)</li>
+          <li>Lambda 호출 수·에러율 알람 + 폴백 이미지 설정</li>
+          <li><strong>새 관리 포인트 인지</strong>: CloudFormation 스택·서명 키 운영, 도메인 전환 초기의 캐시 워밍 비용</li>
+        </ul>
+
+        <!-- 5. 레퍼런스 -->
+        <h3>5. 레퍼런스</h3>
+        <ul style="font-size:13.5px;">
+          <li><a href="https://nextjs.org/docs/app/api-reference/components/image" target="_blank" rel="noopener">Next.js — &lt;Image&gt; 컴포넌트</a> — <code>loader</code> prop / 커스텀 loader 문서</li>
+          <li><a href="https://nextjs.org/docs/app/api-reference/config/next-config-js/images" target="_blank" rel="noopener">Next.js — images 설정</a> — <code>loaderFile</code>·<code>formats</code>·<code>deviceSizes</code>·<code>minimumCacheTTL</code></li>
+          <li><a href="https://docs.aws.amazon.com/solutions/latest/dynamic-image-transformation-for-amazon-cloudfront/solution-overview.html" target="_blank" rel="noopener">AWS — Dynamic Image Transformation for CloudFront 구현 가이드</a> — 아키텍처·비용·쿼리 파라미터 명세 (구 Serverless Image Handler)</li>
+          <li><a href="https://github.com/aws-solutions/serverless-image-handler" target="_blank" rel="noopener">GitHub — aws-solutions/serverless-image-handler</a> — 소스·CDK 배포</li>
+          <li>섹션 6 <a href="#lec-28">28강 요약 카드</a> — Next 16 이미지 기본값 변화 노트(업그레이드 가이드 검증분)</li>
+        </ul>
+      </article>
+
+      <!-- ══════════ 30강 연계 인사이트 — 'use client'와 검색봇의 진실 ══════════ -->
+      <article class="entry insight" id="insight-client-seo-bots"
+               data-section="insight"
+               data-title="'use client'면 로봇이 떠난다? — 클라이언트 컴포넌트 SSR, 구글봇 JS 렌더링, HTML-limited 봇의 실체"
+               data-tags="use client, SSR, 사전 렌더링, 구글봇, 렌더 큐, HTML-limited bots, Yeti, 네이버, facebookexternalhit, 카카오톡, Open Graph, 스트리밍 메타데이터, SEO">
+        <header class="entry-head">
+          <h2>"'use client'면 로봇이 떠난다"는 어디까지 진실인가</h2>
+          <div class="meta">
+            <span class="date">📅 2026-07-18</span>
+            <span class="chip">심화 조사</span><span class="chip">구글봇</span><span class="chip">네이버 Yeti</span><span class="chip">OG 스크레이퍼</span>
+          </div>
+        </header>
+
+        <div class="qbox">
+          <strong>Q.</strong> 30강은 "<code>'use client'</code>를 선언하면 로봇이 텅 빈 HTML 껍데기만 받고, 성질 급한 구글봇은 JS 실행을 기다리지 않고 떠난다"고 했다 — 이 주장은 어디까지 사실인가? (30강 팩트체크 1번의 심화)
+        </div>
+
+        <div class="tldr">
+          <span class="ico">🤖</span>
+          <span>3층으로 갈라진다. ① <b><code>'use client'</code> ≠ CSR</b> — 클라 컴포넌트도 <b>기본적으로 서버에서 사전 렌더(SSR)</b>되어 초기 HTML에 본문이 있다. 진짜 문제는 metadata export 불가 + <b>데이터를 클라에서 페칭하는 설계</b>(이게 실무에서 "빈 껍데기"처럼 보이는 원인). ② <b>구글봇은 JS를 실행한다</b> — 에버그린 Chromium 헤드리스로 렌더하며 렌더 큐는 "수 초, 더 걸릴 수도". ③ 진짜 JS 못 돌리는 축은 <b>Next가 UA로 분류하는 HTML-limited 봇들</b>인데, 그 목록에 <b>Yeti(네이버)·facebookexternalhit(카톡 스크레이퍼 계열)·Slackbot·Bingbot</b>이 들어 있다 → <b>한국 서비스엔 강의의 명제가 결과적으로 참</b>이다. 다만 이유가 "구글이 급해서"가 아니라 "네이버·카톡이 JS를 안 돌려서"다.</span>
+        </div>
+
+        <!-- 1 -->
+        <h3>1. <code>'use client'</code>가 실제로 바꾸는 것 / 안 바꾸는 것</h3>
+        <div class="note">
+          <strong>🔎 문서 원문</strong> <em>"When using React.lazy() and Suspense, <strong>Client Components will be prerendered (SSR) by default</strong>."</em> — 클라 컴포넌트도 서버에서 초기 HTML을 만든다. 빈 껍데기가 아니다.
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>항목</th><th><code>'use client'</code> 후에도?</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>초기 HTML에 JSX 본문</td><td class="center yes">유지</td><td>기본 사전 렌더(SSR) — 정적 텍스트·마크업은 서버 HTML에 포함</td></tr>
+            <tr><td><code>metadata</code>/<code>generateMetadata</code> export</td><td class="center no">불가</td><td>"페이지 렌더 전에 서버에서 해석되어야 하므로" 서버 컴포넌트 전용 — 이것이 <strong>진짜 제약</strong></td></tr>
+            <tr><td><code>useEffect</code>·상태 변화 이후의 내용</td><td class="center no">서버 HTML에 없음</td><td>마운트 후에만 생김 — <strong>클라 페칭(React Query 등)한 데이터가 여기 해당</strong></td></tr>
+            <tr><td><code>dynamic(…, { ssr: false })</code> 내용</td><td class="center no">서버 HTML에 없음</td><td>명시적으로 서버 렌더 스킵</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="principle">→ 실무에서 "빈 껍데기"가 보인다면 범인은 <span class="k"><code>'use client'</code> 지시어가 아니라 데이터 페칭 위치</span>다. 클라에서 페칭하면 서버 HTML엔 스피너뿐 — <span class="k">우리(React Query CSR) 페이지들이 정확히 이 상태</span>고, 그래서 SEO 필요 페이지만 SSR 페칭으로 분리하는 설계가 맞다.</div>
+
+        <!-- 2 -->
+        <h3>2. 구글봇은 기다린다 — 단, 조건부로</h3>
+        <p>구글 공식 JavaScript SEO 문서 기준, 구글봇의 처리는 <strong>크롤링 → 렌더링 → 인덱싱</strong> 3단계다:</p>
+        <ul>
+          <li><strong>렌더링 주체</strong> — <em>"a headless Chromium renders the page and executes the JavaScript"</em>, 그것도 <strong>에버그린(최신 유지) Chromium</strong>으로. "JS를 못 돌린다"는 옛말.</li>
+          <li><strong>렌더 큐</strong> — 크롤 직후가 아니라 큐에 들어갔다 렌더된다: <em>"The page may stay on this queue for <strong>a few seconds, but it can take longer</strong>"</em>. "기다리지 않고 떠난다"가 아니라 "나중에 다시 와서 렌더한다"가 정확.</li>
+          <li><strong>단서 조항 (JS 콘텐츠가 인덱싱 안 되는 경우)</strong> — robots.txt로 JS/리소스 차단 시, HTTP 비-200 응답 시 렌더 스킵 가능, <code>noindex</code> 감지 시 렌더 생략, Shadow DOM 등 렌더 HTML에 안 보이는 콘텐츠.</li>
+          <li>그리고 구글 스스로도 이렇게 덧붙인다: <em>"not all bots can run JavaScript"</em> — SSR 권장의 근거는 구글이 아니라 <strong>다른 봇들</strong>이다. ↓</li>
+        </ul>
+
+        <!-- 3 -->
+        <h3>3. 진짜 "JS 못 돌리는" 축 — Next의 HTML-limited 봇 목록</h3>
+        <p>Next.js는 스트리밍 메타데이터를 도입하면서(15.2) <strong>"JS를 실행해 DOM을 보는 봇"과 "HTML만 읽는 봇"을 UA로 구분</strong>한다. 전자(구글봇 검증됨)에겐 메타데이터를 body로 스트리밍하고, 후자에겐 <strong>head 블로킹 렌더로 완성된 head를 보장</strong>한다. 소스의 실제 목록(<code>html-bots.ts</code>):</p>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>분류</th><th>HTML-limited로 취급되는 봇</th><th>우리와의 관계</th></tr></thead>
+          <tbody>
+            <tr><td>검색엔진</td><td><strong>Yeti(네이버)</strong> · Bingbot·BingPreview · baiduspider · yandex · DuckDuckBot · Slurp(야후) · sogou · applebot</td><td class="no"><strong>네이버가 여기 있다</strong> — 국내 SEO는 서버 HTML이 사실상 전부</td></tr>
+            <tr><td>SNS/메신저 미리보기</td><td><strong>facebookexternalhit</strong> · Twitterbot · LinkedInBot · <strong>Slackbot</strong> · Discordbot · WhatsApp · SkypeUriPreview</td><td class="no">카카오톡 스크레이퍼는 <strong>facebookexternalhit 계열 UA</strong>로 알려져 있어 이 패턴에 걸린다 — <strong>OG 미리보기는 JS 없이 긁는 세계</strong></td></tr>
+            <tr><td>구글 특수 크롤러</td><td><code>*-Google</code>·<code>Google-*</code> 패턴(AdsBot·Storebot 등) · Chrome-Lighthouse</td><td>메인 구글봇과 달리 보수적으로 취급</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="note"><strong>설정 지점</strong> <code>next.config</code>의 <code>htmlLimitedBots</code>로 목록 재정의 가능(예: <code>/.*/ </code>로 스트리밍 메타데이터 전체 비활성화). 기본값 권장.</div>
+
+        <!-- 4 -->
+        <h3>4. 한국 서비스의 귀결 — 강의 명제의 재평가</h3>
+        <div class="grid2">
+          <div class="box danger">
+            <h4>강의 서술 그대로는 과장</h4>
+            <ul>
+              <li>"use client = 빈 껍데기" ✗ — 기본 사전 렌더됨</li>
+              <li>"구글봇은 기다리지 않고 떠난다" ✗ — 렌더 큐로 JS 실행함</li>
+            </ul>
+          </div>
+          <div class="box safe">
+            <h4>결론(SSR 하라)은 우리에겐 참</h4>
+            <ul>
+              <li><strong>네이버(Yeti)</strong>가 HTML-limited — 국내 검색 유입엔 서버 HTML이 전부</li>
+              <li><strong>카톡·슬랙 공유 미리보기</strong>도 JS 없이 head만 읽음</li>
+              <li>구글도 robots 차단·에러 시 렌더 스킵 — 서버 HTML이 안전판</li>
+            </ul>
+          </div>
+        </div>
+        <div class="principle">
+          <strong>✅ 정리</strong> — 명제를 정확히 고쳐 쓰면: <span class="k">"구글봇이 급해서"가 아니라 "네이버·카톡·슬랙이 JS를 안 돌려서, SEO·공유가 중요한 페이지는 서버 HTML에 head와 본문이 완성되어 있어야 한다"</span>. 자리톡의 실거주리뷰 SEO 페이지들이 SSR 페칭인 이유, 그리고 <code>_app</code>의 <code>next/head</code> OG 태그가 서버 렌더에 포함되어야 하는 이유가 정확히 이것이다.
+        </div>
+
+        <!-- 5 -->
+        <h3>5. 레퍼런스</h3>
+        <ul style="font-size:13.5px;">
+          <li><a href="https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics" target="_blank" rel="noopener">Google — JavaScript SEO 기본사항</a> — 에버그린 Chromium 렌더링·렌더 큐·단서 조항의 원문</li>
+          <li><a href="https://nextjs.org/docs/app/api-reference/functions/generate-metadata#streaming-metadata" target="_blank" rel="noopener">Next.js — Streaming Metadata</a> — "Googlebot은 JS 실행 봇으로 검증됨" / HTML-limited 봇 head 블로킹 원문</li>
+          <li><a href="https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts" target="_blank" rel="noopener">Next.js 소스 — html-bots.ts</a> — HTML-limited UA 정규식 실물 (Yeti·facebookexternalhit·Slackbot…)</li>
+          <li><a href="https://nextjs.org/docs/app/guides/lazy-loading" target="_blank" rel="noopener">Next.js — Lazy Loading</a> — "Client Components will be prerendered (SSR) by default"</li>
+          <li><a href="https://nextjs.org/docs/app/api-reference/config/next-config-js/htmlLimitedBots" target="_blank" rel="noopener">Next.js — htmlLimitedBots 설정</a></li>
+        </ul>
+      </article>
+
       <!-- ╔══════════════════════════════════════════════════════════╗
            ║  SECTOR 3 — 우리 프로젝트 (zaritalk-front 적용)            ║
            ╚══════════════════════════════════════════════════════════╝ -->
@@ -1055,7 +1515,7 @@ images: {
 
         <div class="tldr">
           <span class="ico">🏢</span>
-          <span>측정 장비 세대교체(<code>experimental-analyze</code>) → 실측 → <b>1차(범인 3건) + 2차(QA도구·버튼 애니) 처방 완주</b>. <b>첫 로드 베이스라인 455→299 KB gz(-34%, 두 앱 공통)</b> — 목표 300KB 달성. 홈 591→463KB(-22%), Lottie 435KB는 팝업 오픈 시에만, Hackle 이중 번들 -83KB. <b>아이콘 딥 임포트 코드모드(826파일)는 적용·실측 후 revert</b>(중앙값 -26KB 대비 diff 부담 과대). <b>Hackle 지연 초기화는 기획/마케팅 제약으로 금지</b>. 남은 벽(~299KB)은 프레임워크+전역 프로바이더 바닥 — <b>100KB는 RSC 전환/초경량 랜딩 분리(Tier 3)의 숫자</b>.</span>
+          <span>측정 장비 세대교체 → 실측 → <b>1~4차 처방 완주</b> (1차 범인 3건 · 2차 QA도구/버튼 · 3차 mdd/axios→ky · 4차 딥 임포트 전면 전환). <b>첫 로드 베이스라인 455→286 KB gz(-37%, 두 앱 공통)</b>, lessee 중앙값 354(-31%)·홈 412(-30%). <b>배럴 논쟁 실측 종결</b>: 번들 비용은 <code>export * as</code> 네임스페이스+멤버 접근(아이콘, -28/-45KB)에만 있었고 <b>나머지 배럴 전면 해체(3,558파일)는 0KB</b> — Turbopack 재수출 쉐이킹이 이미 처리 중이었다. <b>Hackle 지연 초기화는 기획/마케팅 제약으로 금지</b>. 남은 벽(~286KB)은 프레임워크+전역 프로바이더 바닥 — <b>100KB는 RSC 전환/초경량 랜딩 분리(Tier 3)의 숫자</b>.</span>
         </div>
 
         <!-- 1. 측정 장비 -->
@@ -1126,7 +1586,7 @@ images: {
         <p><strong>라우트별 유입(지연 포함)</strong> — heic2any 332KB×70라우트(이미 <code>await import()</code>, 모범 사례) · jspdf 206KB×3(<code>/pay</code>, lazy 전환 후보) · recharts 90KB·swiper 53KB·emoji-picker 60KB(분산, 후순위).</p>
 
         <!-- 5. 범인 3건 처리 — refactor/bundle-size 실전 A/B -->
-        <h3>5. 번들 다이어트 실전 — <code>refactor/bundle-size</code> 1·2차 A/B <span style="font-size:12px;color:var(--muted);">(2026-07-03~04, 커밋 6개, 매 처방 재빌드·재측정으로 검증)</span></h3>
+        <h3>5. 번들 다이어트 실전 — <code>refactor/bundle-size</code> 1~4차 A/B <span style="font-size:12px;color:var(--muted);">(2026-07-03~18, 커밋 13개, 매 처방 재빌드·재측정으로 검증)</span></h3>
         <div class="table-scroll">
         <table>
           <thead><tr><th>범인</th><th>실제 처방 (시행착오 포함)</th><th>실측 결과</th></tr></thead>
@@ -1174,20 +1634,48 @@ images: {
         </table>
         </div>
         <div class="note">
-          <strong>제약·트레이드오프 기록</strong> ① <strong>Hackle 지연 초기화(-83KB 후보)는 금지</strong> — 실험 분기·노출 트래킹이 기획/마케팅에 직결(첫 페인트 전 분기 결정 필요). ② 아이콘 딥 임포트는 <strong>양방향 비용 실측 후 revert</strong> — 얻는 것(중앙값 -26KB) 대비 잃는 것(826파일 diff 리뷰·충돌 + 청크 중복으로 라우트 그래프 증가, /vacancy 3,033→3,259KB)이 컸다. 아이콘 쉐이킹은 <strong>도구 성숙(turbopackTreeShaking) 대기 + ESLint 가드로 신규 유입 방지</strong>가 현재의 정답.
+          <strong>제약·트레이드오프 기록</strong> ① <strong>Hackle 지연 초기화(-83KB 후보)는 금지</strong> — 실험 분기·노출 트래킹이 기획/마케팅에 직결(첫 페인트 전 분기 결정 필요). ② 아이콘 딥 임포트는 2차에서 diff 부담으로 revert했다가 <strong>4차에서 "전면 전환" 결정과 함께 재적용·유지</strong>로 번복 — 단 청크 중복으로 라우트 그래프가 소폭 증가하는 트레이드오프(/vacancy 3,033→3,259KB)는 여전히 유효한 모니터링 항목.
+        </div>
+
+        <h4 style="margin:18px 0 6px;font-size:14px;">3·4차 처방 (2026-07-18, 커밋 6개 추가) — 라이브러리 엔진 교체와 배럴 논쟁의 종결</h4>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>처방</th><th>내용</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr><td>⑦ mdd → 자체 유틸</td><td>mobile-device-detect의 사용 플래그 6개를 UA 정규식 10줄로 대체 (82파일 경로 치환, iPhone UA의 "like Mac OS X" 오탐 가드 유지)</td><td class="yes">초기 -5KB</td></tr>
+            <tr><td>⑧ axios → ky 호환 엔진</td><td>ky 위에 <strong>axios 표면 재현(axiosCompat)</strong> — default 메서드·isAxiosError·error.code/response·타입명 re-export. 140파일은 import 경로만 치환, 에러 파이프라인 무수정. <strong>ky 기본값 봉인</strong>(재시도 2회→0, 타임아웃 10초→없음). SSRF DNS 피닝 필요한 서버 라우트 1곳만 axios 유지</td><td class="yes">초기 -8KB · 초기 청크 axios 시그니처 소멸 · 5앱 typecheck 통과</td></tr>
+            <tr><td>⑨ 아이콘 딥 임포트 재적용</td><td>826파일·1,426건 (2차 revert를 번복)</td><td class="yes">중앙값 -28 · 홈 -45KB</td></tr>
+            <tr><td>⑩ 전 패키지 배럴 전면 해체</td><td>40개 패키지 배럴 import를 정의 모듈 딥 임포트로 (총 6,400여 파일·심볼 19,000건, tsconfig 와일드카드 22개 보강). <strong>감사 일화</strong>: 1차 측정은 와일드카드 전용 별칭 패키지(ui-components 2,572건·utils 677건)가 누락된 "가짜 전면"이었음 — 사용자의 "0이 맞는지 확인 필요" 의심으로 발견·확장 적용</td><td class="center" style="color:var(--note-tx);font-weight:700;"><strong>진짜 전면 후에도 -1KB</strong> — 컨벤션 통일 목적으로 유지</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>스텝 (lessee, gz)</th><th>베이스라인</th><th>중앙값</th><th>홈</th></tr></thead>
+          <tbody>
+            <tr><td>2차 종료</td><td>299</td><td>393</td><td>463</td></tr>
+            <tr><td>3차 (mdd + ky)</td><td>286</td><td>382</td><td>457</td></tr>
+            <tr><td>4차 (아이콘 + 전면 배럴)</td><td><strong>286</strong></td><td><strong>354</strong></td><td><strong>412</strong></td></tr>
+            <tr><td><strong>누적 (최초 455/510/~591 대비)</strong></td><td class="yes"><strong>-37%</strong></td><td class="yes"><strong>-31%</strong></td><td class="yes"><strong>-30%</strong></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="principle">
+          <strong>📐 배럴 논쟁의 실측 종결 (감사 통과)</strong> — 섹션 5부터 이어진 "배럴 679개의 비용" 질문의 최종 답: 번들 비용은 <span class="k"><code>export * as</code> 네임스페이스 + 멤버 접근 패턴에만 존재</span>(아이콘 -28/-45KB). 일반 재수출 체인은 <span class="k">Turbopack이 이미 쉐이킹</span> — <span class="k">진짜 전면 전환(6,400여 파일) 후에도 -1KB</span>. 독립 교차 검증까지 완료: 같은 코드의 <span class="k">Webpack 빌드와의 중앙값 갭이 전환 전 54KB → 8KB로 붕괴</span>(쉐이킹 격차 소멸, 잔여는 청킹 전략 차이 — 흥미롭게도 베이스라인은 이제 Turbopack이 46KB 더 가볍고 홈은 Webpack이 39KB 가벼운 분배 차이만 남음). 즉 <span class="k">"배럴 = 낭비"는 패턴 조건부 명제</span>다.
         </div>
 
         <div class="note">
           <strong>교훈 4가지</strong> ① <strong>지표를 구분하라</strong> — 그래프 총량(도달 가능 전체) / 초기 전송(First Load 후계) / 런타임 조건부 전송은 서로 다른 것을 잰다. Lottie 개선은 런타임 전송에서만, Hackle 개선은 초기 전송에서 드러났다. ② <strong>실험 플래그는 반드시 빌드로 검증</strong> — <code>turbopackTreeShaking</code>은 이 규모에서 크래시. ③ <strong>중복 번들은 alias보다 import 구조가 원인</strong> — 정적 import 한 줄이 CJS/ESM 두 세계를 모두 소환할 수 있다. ④ <strong>측정은 최종 상태에서 다시</strong> — 중간 빌드 기준으로 "초기 변화 없음"이라 오판했다가 재측정으로 -19%를 확인. 배럴 최적화 추가 실험(<code>domain/common</code>)은 전 지표 무효로 판명되어 원복(증거 없는 config는 넣지 않는다).
         </div>
         <div class="note warn">
-          <strong>QA 포인트 5건</strong> dev/stage Hackle devtools 동작 · 앱설치 유도 팝업 로띠 재생 · 로딩 버튼 애니메이션 시각 확인 · stage에서 QATools 정상 로드 · 아이콘 노출 화면 스팟 체크(826파일 변경).
+          <strong>QA 포인트 7건</strong> dev/stage Hackle devtools 동작 · 앱설치 유도 팝업 로띠 재생 · 로딩 버튼 애니메이션 · stage QATools 로드 · 아이콘·배럴 전환 화면 스팟 체크(4,400여 파일 변경) · (mdd) 기기 분기 UI — 웹뷰/데스크톱 isMobile·isIOS, 이미지 피커 OS 버전 분기 · <strong>(ky) API 스모크 최중요</strong> — GET/POST 흐름, FormData 업로드·blob 다운로드, 401→로그아웃, 503→점검 페이지, 에러 토스트·Slack 리포팅 채널.
         </div>
 
         <!-- 6. 결론 -->
         <div class="principle">
-          <strong>✅ 최종 (1·2차 누적, 커밋 5개)</strong> 첫 로드 베이스라인 <span class="k">455→299KB gz(-34%, 두 앱 공통)</span> — 목표 300KB 달성. 홈 <span class="k">-22%</span> · Lottie 435KB 조건부화 · Hackle 이중 번들 제거 · QA도구/react-spring 초기 퇴출.
-          남은 카드: <span class="k">아이콘 쉐이킹(ESLint 가드 + turbopackTreeShaking 안정화 대기)</span> · <span class="k">react-spring 잔여(Overlay 등, 지연 청크)</span> · <span class="k">lessor mock 프로덕션 제외(~133KB 그래프)</span> · <span class="k">analyze 스냅숏 diff CI</span>.
+          <strong>✅ 최종 (1~4차 누적, 커밋 13개)</strong> 첫 로드 베이스라인 <span class="k">455→286KB gz(-37%, 두 앱 공통)</span> · lessee 중앙값 <span class="k">-31%</span> · 홈 <span class="k">-30%</span> · lessor 중앙값 481→312(-35%).
+          핵심 성과: Lottie 조건부화 · Hackle 이중 번들 제거 · QA도구/react-spring 초기 퇴출 · mdd/axios 라이브러리 다이어트 · 아이콘 쉐이킹 · <span class="k">배럴 논쟁 실측 종결(0KB)</span>.
+          남은 카드: <span class="k">배럴 신규 유입 방지 ESLint 가드</span> · <span class="k">react-spring 잔여(지연 청크)</span> · <span class="k">mock 안전장치 가드(성능 아닌 장애 방지)</span> · <span class="k">analyze 스냅숏 diff CI</span> · <span class="k">아이콘 청크 중복 모니터링</span>.
           100KB는 이 스택의 숫자가 아니다 — <span class="k">RSC 전환 또는 초경량 랜딩 분리(Tier 3)의 목표</span>로 유보.
         </div>
       </article>
